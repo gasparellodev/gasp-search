@@ -11,13 +11,15 @@ function createSupabaseMock(result: ChainResult) {
   const range = vi.fn<(from: number, to: number) => Promise<ChainResult>>(
     async () => result,
   );
-  const order = vi.fn((_column: string, _opts: { ascending: boolean }) => ({
-    range,
+  const order = vi.fn<(column: string, opts: { ascending: boolean }) => {
+    range: typeof range;
+  }>(() => ({ range }));
+  const select = vi.fn<(query: string, opts?: { count: "exact" }) => {
+    order: typeof order;
+  }>(() => ({ order }));
+  const from = vi.fn<(table: string) => { select: typeof select }>(() => ({
+    select,
   }));
-  const select = vi.fn((_query: string, _opts?: { count: "exact" }) => ({
-    order,
-  }));
-  const from = vi.fn((_table: string) => ({ select }));
   return {
     client: { from } as unknown as Parameters<typeof listLeads>[0]["supabase"],
     spies: { from, select, order, range },
