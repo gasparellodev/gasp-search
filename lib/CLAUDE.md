@@ -28,11 +28,11 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `env.ts` | **Server-only.** Zod validator de todas as envs (públicas e server). Lança no boot se algo faltar/inválido. Importa `server-only`. |
 | `env-public.ts` | Validator das envs `NEXT_PUBLIC_*` apenas. Safe para Client Components. Lê `process.env.NEXT_PUBLIC_*` por chave (Next inlina). |
 | `validators/search.ts` | Schemas Zod para entradas das buscas Apify |
+| `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |
 
 > A medida que features chegam:
 > - `supabase/server.ts`, `client.ts`, `middleware.ts` (#9)
 > - `apify/client.ts`, `run-and-persist.ts`, `google-maps.ts`, `instagram.ts`, `enrich.ts` (#13–#26)
-> - `ai/anthropic.ts` (#30)
 > - `validators/lead.ts` (#21–#22)
 
 ## Env: regras críticas
