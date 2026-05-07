@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Loader2, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -201,6 +201,9 @@ function OverviewTab({ snapshot, tags, onPatch }: OverviewTabProps) {
   const [pendingTagIds, setPendingTagIds] = useState<string[]>(
     snapshot.tags.map((tag) => tag.id),
   );
+  const [tagSearch, setTagSearch] = useState("");
+  const [availableTags, setAvailableTags] = useState<LeadTagSummary[]>(tags);
+  const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState<"stage" | "score" | "tags" | null>(null);
 
   async function changeStage(value: string) {
@@ -250,6 +253,41 @@ function OverviewTab({ snapshot, tags, onPatch }: OverviewTabProps) {
         : [...current, tagId],
     );
   }
+
+  async function createTagInline(name: string) {
+    const trimmed = name.trim();
+    if (trimmed.length < 2) return;
+    setCreating(true);
+    try {
+      const response = await fetch("/api/tags", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(body.error ?? "Falha ao criar tag");
+      }
+      const tag = (await response.json()) as LeadTagSummary;
+      setAvailableTags((current) => [...current, tag]);
+      setPendingTagIds((current) => [...current, tag.id]);
+      setTagSearch("");
+      toast.success(`Tag "${tag.name}" criada`);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao criar tag",
+      );
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const exactMatch = availableTags.find(
+    (tag) => tag.name.toLowerCase() === tagSearch.trim().toLowerCase(),
+  );
+  const showCreate = tagSearch.trim().length >= 2 && !exactMatch && !creating;
 
   return (
     <div className="space-y-5">
@@ -366,11 +404,15 @@ function OverviewTab({ snapshot, tags, onPatch }: OverviewTabProps) {
           </PopoverTrigger>
           <PopoverContent className="w-72 p-0" align="start">
             <Command>
-              <CommandInput placeholder="Filtrar tags…" />
+              <CommandInput
+                placeholder="Filtrar ou criar tag…"
+                value={tagSearch}
+                onValueChange={setTagSearch}
+              />
               <CommandList>
                 <CommandEmpty>Nenhuma tag.</CommandEmpty>
                 <CommandGroup>
-                  {tags.map((tag) => {
+                  {availableTags.map((tag) => {
                     const isSelected = pendingTagIds.includes(tag.id);
                     return (
                       <CommandItem
@@ -393,6 +435,17 @@ function OverviewTab({ snapshot, tags, onPatch }: OverviewTabProps) {
                       </CommandItem>
                     );
                   })}
+                  {showCreate ? (
+                    <CommandItem
+                      value={`__create__${tagSearch}`}
+                      onSelect={() => {
+                        void createTagInline(tagSearch);
+                      }}
+                    >
+                      <Plus className="mr-2 size-4" />
+                      <span>Criar tag &ldquo;{tagSearch.trim()}&rdquo;</span>
+                    </CommandItem>
+                  ) : null}
                 </CommandGroup>
               </CommandList>
             </Command>

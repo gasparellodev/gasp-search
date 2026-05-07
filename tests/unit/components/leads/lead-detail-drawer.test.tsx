@@ -193,6 +193,49 @@ describe("LeadDetailDrawer", () => {
     expect(screen.getByText(/em breve/i)).toBeInTheDocument();
   });
 
+  it("inline create de tag faz POST /api/tags e adiciona à seleção", async () => {
+    const fetchMock = vi
+      .fn()
+      // 1) POST /api/tags
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          id: "tag-3",
+          name: "Cliente",
+          color: "#0ea5e9",
+        }),
+      })
+      // 2) PATCH /api/leads/lead-1 com tagIds incluindo tag-3
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          ...baseLead,
+          tags: [{ id: "tag-3", name: "Cliente", color: "#0ea5e9" }],
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+    render(<LeadDetailDrawer {...defaultProps} />);
+
+    // O botão de tags aparece com o número selecionado quando há seleção;
+    // procuramos pela região do popover de tags via label dele.
+    await user.click(screen.getByRole("button", { name: /selecionada/i }));
+    const search = await screen.findByPlaceholderText(/filtrar ou criar tag/i);
+    await user.type(search, "Cliente");
+
+    const createOption = await screen.findByRole("option", {
+      name: /criar tag.*cliente/i,
+    });
+    await user.click(createOption);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+    expect(fetchMock.mock.calls[0]![0]).toBe("/api/tags");
+    expect(toastSuccess).toHaveBeenCalled();
+  });
+
   it("clicar Fechar dispara onOpenChange(false)", async () => {
     const onOpenChange = vi.fn();
     render(
