@@ -53,6 +53,18 @@ Exclui lead. Conta linhas afetadas para distinguir "não existe" de "RLS bloqueo
 
 **Response:** `204 No Content` ou `404`.
 
+### `GET /api/leads/export`
+
+Exporta leads filtrados em CSV UTF-8 com BOM (`\uFEFF`) para compatibilidade
+com Excel/Numbers. Reaproveita os mesmos filtros de `GET /api/leads` (`q`,
+`stage`, `source`, `hasWebsite`, `tagId`) e pagina internamente em blocos de
+100 registros até exportar todo o resultado filtrado.
+
+**Response:** `200 text/csv; charset=utf-8` com
+`Content-Disposition: attachment; filename="leads-export.csv"`.
+
+Erros: `401 Não autenticado`, `502 Falha ao exportar leads`.
+
 ## Regras de negócio
 
 1. **Auth check em todo handler** via `createServerSupabase().auth.getUser()`.
@@ -69,6 +81,7 @@ Exclui lead. Conta linhas afetadas para distinguir "não existe" de "RLS bloqueo
 |---|---|---|
 | `route.ts` | GET, POST | Lista paginada + criação manual |
 | `[id]/route.ts` | GET, PATCH, DELETE | Detalhe e mutação por id |
+| `export/route.ts` | GET | Export CSV com BOM UTF-8 e filtros da listagem |
 
 ## Dependências
 
