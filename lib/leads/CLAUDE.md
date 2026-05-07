@@ -36,6 +36,7 @@ utilities de domínio que vivem fora do request handler.
 | `list-tags.ts` | `listTags({ supabase })` — tags do user para combobox de filtros |
 | `tags-crud.ts` | `createTag`, `updateTag`, `deleteTag` + `DuplicateTagError` |
 | `crud.ts` | `getLead`, `createLead`, `updateLead`, `deleteLead` — CRUD com flatten de tags |
+| `list-by-stage.ts` | `listLeadsByStage({ supabase })` — leads agrupados em board do `/pipeline` |
 
 ## Dependências
 
