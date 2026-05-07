@@ -76,6 +76,21 @@ export const searchInstagramSchema = z
 
 export type SearchInstagramInput = z.infer<typeof searchInstagramSchema>;
 
+// Enrich (website-contact) -------------------------------------------------
+
+export const ENRICH_MAX_LEADS = 25;
+
+export const enrichRequestSchema = z
+  .object({
+    leadIds: z
+      .array(z.string().uuid("ID precisa ser UUID válido"))
+      .min(1, "Informe ao menos um lead")
+      .max(ENRICH_MAX_LEADS, `Máximo de ${ENRICH_MAX_LEADS} leads por chamada`),
+  })
+  .strict();
+
+export type EnrichRequestInput = z.infer<typeof enrichRequestSchema>;
+
 export function buildGoogleMapsSearchInput(
   values: SearchFormInput,
 ): SearchGoogleMapsInput {
