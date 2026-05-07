@@ -271,7 +271,9 @@ export function SearchForm() {
                   />
                 </div>
 
-                {pending ? <SearchProgress /> : null}
+                {pending ? (
+                  <SearchProgress actorName="Google Maps Scraper" />
+                ) : null}
 
                 <Button type="submit" disabled={pending}>
                   {pending ? (
