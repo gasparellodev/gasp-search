@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   flexRender,
@@ -8,10 +8,12 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -21,6 +23,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LeadDetailDrawer } from "@/components/leads/lead-detail-drawer";
+import {
+  ENRICH_MAX_LEADS,
+} from "@/lib/validators/search";
 import {
   LEAD_PAGE_SIZE_OPTIONS,
   type LeadPageSize,
@@ -119,6 +124,74 @@ export function LeadsTable({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeLead, setActiveLead] = useState<LeadListItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [enriching, setEnriching] = useState(false);
+  const [, startTransition] = useTransition();
+
+  function toggleSelected(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllOnPage(checked: boolean) {
+    setSelectedIds((current) => {
+      if (!checked) {
+        const next = new Set(current);
+        for (const lead of leads) next.delete(lead.id);
+        return next;
+      }
+      const next = new Set(current);
+      for (const lead of leads) next.add(lead.id);
+      return next;
+    });
+  }
+
+  async function bulkEnrich() {
+    if (selectedIds.size === 0) return;
+    if (selectedIds.size > ENRICH_MAX_LEADS) {
+      toast.error(
+        `Limite de ${ENRICH_MAX_LEADS} leads por chamada. Reduza a seleção.`,
+      );
+      return;
+    }
+    const ids = [...selectedIds];
+    setEnriching(true);
+    toast.loading(`Enriquecendo ${ids.length} lead(s)…`, {
+      id: "bulk-enrich",
+    });
+    try {
+      const response = await fetch("/api/apify/enrich", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ leadIds: ids }),
+      });
+      const body = (await response.json().catch(() => ({}))) as {
+        enrichedCount?: number;
+        failedIds?: string[];
+        error?: string;
+      };
+      if (!response.ok) {
+        throw new Error(body.error ?? "Falha no enrich");
+      }
+      toast.success(
+        `Enriquecimento concluído: ${body.enrichedCount ?? 0} lead(s).`,
+        { id: "bulk-enrich" },
+      );
+      setSelectedIds(new Set());
+      startTransition(() => router.refresh());
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao enriquecer leads",
+        { id: "bulk-enrich" },
+      );
+    } finally {
+      setEnriching(false);
+    }
+  }
 
   function pushParams(updates: Record<string, string | number>) {
     const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -149,8 +222,37 @@ export function LeadsTable({
     pushParams({ page: next });
   }
 
+  const allOnPageSelected =
+    leads.length > 0 && leads.every((lead) => selectedIds.has(lead.id));
+  const someOnPageSelected =
+    !allOnPageSelected && leads.some((lead) => selectedIds.has(lead.id));
+
   const columns = useMemo<ColumnDef<LeadListItem>[]>(
     () => [
+      {
+        id: "select",
+        header: () => (
+          <Checkbox
+            aria-label="Selecionar todos"
+            checked={
+              allOnPageSelected
+                ? true
+                : someOnPageSelected
+                  ? "indeterminate"
+                  : false
+            }
+            onCheckedChange={(checked) => toggleAllOnPage(checked === true)}
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            aria-label={`Selecionar lead ${row.original.name}`}
+            checked={selectedIds.has(row.original.id)}
+            onCheckedChange={() => toggleSelected(row.original.id)}
+            onClick={(event) => event.stopPropagation()}
+          />
+        ),
+      },
       {
         id: "name",
         header: () => (
@@ -285,9 +387,10 @@ export function LeadsTable({
         ),
       },
     ],
-    // toggleSort/setActiveLead use closures over current props — ok to depend on sort state
+    // Closures sobre sort, selectedIds e flags derivados — re-render por
+    // dependência primitiva é suficiente.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sortBy, sortDir],
+    [sortBy, sortDir, selectedIds, allOnPageSelected, someOnPageSelected],
   );
 
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Table retorna funções que não podem ser memoizadas com segurança; comportamento esperado.
@@ -313,6 +416,44 @@ export function LeadsTable({
 
   return (
     <>
+      {selectedIds.size > 0 ? (
+        <div className="border-border bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-2">
+          <p className="text-sm">
+            <strong>{selectedIds.size}</strong> selecionado(s)
+            {selectedIds.size > ENRICH_MAX_LEADS ? (
+              <span className="text-destructive ml-2">
+                (máximo {ENRICH_MAX_LEADS} por chamada)
+              </span>
+            ) : null}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Limpar
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={enriching || selectedIds.size > ENRICH_MAX_LEADS}
+              onClick={() => {
+                void bulkEnrich();
+              }}
+            >
+              {enriching ? (
+                <Loader2 className="mr-2 size-4 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 size-4" />
+              )}
+              Enriquecer selecionados
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="border-border overflow-hidden rounded-lg border">
         <Table>
           <TableHeader>

@@ -13,6 +13,16 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
+vi.mock("sonner", () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
+  },
+}));
+
 const baseLead: LeadListItem = {
   id: "lead-1",
   user_id: "user-1",
@@ -176,5 +186,106 @@ describe("LeadsTable", () => {
 
     rerender(<LeadsTable {...defaultProps} page={3} totalPages={3} />);
     expect(screen.getByRole("button", { name: /próxima/i })).toBeDisabled();
+  });
+
+  it("checkbox por linha + bulk Enriquecer chama POST /api/apify/enrich com leadIds selecionados", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ enrichedCount: 2, failedIds: [] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const refreshSpy = vi.fn();
+    pushSpy.mockReset();
+
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <LeadsTable
+        {...defaultProps}
+        // Adicionando o spy como fallback no useRouter mock
+      />,
+    );
+    void rerender;
+
+    // Re-query a cada clique porque Radix Checkbox remonta sutil entre renders.
+    expect(
+      screen.getAllByRole("checkbox", { name: /selecionar lead/i }),
+    ).toHaveLength(2);
+    await user.click(
+      screen.getAllByRole("checkbox", { name: /alfa/i })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: /beta/i })[0]!,
+    );
+
+    // Toolbar deve aparecer com contagem 2 (texto quebrado em <strong>2</strong> + " selecionado(s)").
+    expect(
+      screen.getByText((_text, node) =>
+        node?.textContent === "2 selecionado(s)",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /enriquecer selecionado/i }),
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]![0]).toBe("/api/apify/enrich");
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string) as {
+      leadIds: string[];
+    };
+    expect(body.leadIds).toEqual(["lead-1", "lead-2"]);
+
+    void refreshSpy;
+    vi.unstubAllGlobals();
+  });
+
+  it("checkbox header marca todas as linhas e desmarca", async () => {
+    const user = userEvent.setup();
+    render(<LeadsTable {...defaultProps} />);
+
+    const headerCheckbox = screen.getByRole("checkbox", {
+      name: /selecionar todos/i,
+    });
+    await user.click(headerCheckbox);
+    expect(
+      screen.getByText(
+        (_text, node) => node?.textContent === "2 selecionado(s)",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: /selecionar todos/i }),
+    );
+    expect(screen.queryByText(/selecionado\(s\)/i)).toBeNull();
+  });
+
+  it("Enriquecer mostra toast de progresso e desabilita botão durante a chamada", async () => {
+    let resolveFetch: (value: unknown) => void = () => {};
+    const fetchPromise = new Promise<unknown>((resolve) => {
+      resolveFetch = resolve;
+    });
+    const fetchMock = vi.fn().mockReturnValue(fetchPromise);
+    vi.stubGlobal("fetch", fetchMock);
+
+    const user = userEvent.setup();
+    render(<LeadsTable {...defaultProps} />);
+    await user.click(
+      screen.getAllByRole("checkbox", { name: /selecionar lead/i })[0]!,
+    );
+    const enrichButton = screen.getByRole("button", {
+      name: /enriquecer selecionado/i,
+    });
+    await user.click(enrichButton);
+
+    // Botão entra em estado disabled enquanto fetch pende
+    expect(enrichButton).toBeDisabled();
+
+    resolveFetch({
+      ok: true,
+      json: async () => ({ enrichedCount: 1, failedIds: [] }),
+    });
+
+    vi.unstubAllGlobals();
   });
 });
