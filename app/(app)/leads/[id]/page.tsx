@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { MessageHistory } from "@/components/ai/message-history";
 import { MessageGenerator } from "@/components/ai/message-generator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { listLeadMessages } from "@/lib/ai/messages";
 import { getLead } from "@/lib/leads/crud";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -11,14 +14,26 @@ export const dynamic = "force-dynamic";
 
 interface LeadDetailPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function compact(parts: Array<string | null>): string {
   return parts.filter(Boolean).join(" / ");
 }
 
-export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
+function parseMessagesPage(value: string | string[] | undefined): number {
+  const raw = Array.isArray(value) ? value[0] : value;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 1;
+}
+
+export default async function LeadDetailPage({
+  params,
+  searchParams,
+}: LeadDetailPageProps) {
   const { id } = await params;
+  const rawSearchParams = await searchParams;
+  const messagesPage = parseMessagesPage(rawSearchParams.messagesPage);
   const supabase = await createServerSupabase();
   const lead = await getLead({ supabase, id });
 
@@ -26,6 +41,11 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
     notFound();
   }
 
+  const messages = await listLeadMessages({
+    supabase,
+    leadId: lead.id,
+    page: messagesPage,
+  });
   const location = compact([lead.city, lead.state, lead.country]);
 
   return (
@@ -70,7 +90,27 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         </div>
       </section>
 
-      <MessageGenerator leadId={lead.id} />
+      <Tabs
+        defaultValue={rawSearchParams.messagesPage ? "history" : "generate"}
+        className="gap-4"
+      >
+        <TabsList>
+          <TabsTrigger value="generate">Gerar</TabsTrigger>
+          <TabsTrigger value="history">Histórico</TabsTrigger>
+        </TabsList>
+        <TabsContent value="generate">
+          <MessageGenerator leadId={lead.id} />
+        </TabsContent>
+        <TabsContent value="history">
+          <MessageHistory
+            leadId={lead.id}
+            messages={messages.messages}
+            page={messages.page}
+            totalPages={messages.totalPages}
+            totalCount={messages.totalCount}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

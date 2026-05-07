@@ -16,12 +16,14 @@ Componentes de UI para geração e uso de mensagens comerciais por IA.
 1. **Resultado editável.** Mensagens geradas devem poder ser revisadas antes de copiar/enviar.
 2. **Clipboard explícito.** Copiar usa Clipboard API e confirma via toast.
 3. **Sem persistência local como fonte da verdade.** A API persiste em `lead_messages`; histórico virá do banco.
+4. **Histórico paginado.** Mensagens são listadas em ordem decrescente e paginadas em grupos de 20.
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
 | `message-generator.tsx` | Form de canal/tom/objetivo, geração via API e resultado editável com copiar |
+| `message-history.tsx` | Histórico paginado de mensagens IA com copiar por mensagem |
 
 ## Dependências
 
