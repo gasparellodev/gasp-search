@@ -31,6 +31,7 @@ Componentes React do app, organizados por área. Inclui as primitives shadcn/ui 
 | `search/search-progress.tsx` | Estado visual durante execução da busca |
 | `ai/message-generator.tsx` | Geração de mensagens IA com resultado editável e copiar |
 | `ai/message-history.tsx` | Histórico paginado de mensagens IA com copiar por mensagem |
+| `dashboard/dashboard-view.tsx` | Dashboard client-side com skeleton e refresh ao focar |
 
 > Mais componentes serão adicionados em #12 (shadcn components mínimos), depois nas issues por área.
 
