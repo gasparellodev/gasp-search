@@ -25,9 +25,11 @@ Configuração do GitHub para o repositório: workflows de CI, templates de PR e
 | Path | Propósito |
 |---|---|
 | `workflows/ci.yml` | Lint + typecheck + unit + e2e + build em todo PR e push de `main` |
-| `PULL_REQUEST_TEMPLATE.md` | Checklist obrigatório de PR (criado em issue #3) |
-| `ISSUE_TEMPLATE/` | Templates de feature/bug (criado em issue #3) |
-| `CODEOWNERS` | Auto-assign de reviews (criado em issue #3) |
+| `PULL_REQUEST_TEMPLATE.md` | Checklist obrigatório de PR (Summary, Test plan, Quality gates) |
+| `ISSUE_TEMPLATE/feature.yml` | Form de feature request (resumo, critérios, testes, fase) |
+| `ISSUE_TEMPLATE/bug.yml` | Form de bug report (repro, expected, actual, env) |
+| `ISSUE_TEMPLATE/config.yml` | Desabilita blank issues; aponta Discussions |
+| `CODEOWNERS` | Auto-assign de reviews por área crítica |
 
 ## Dependências
 

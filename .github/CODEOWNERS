@@ -1,0 +1,24 @@
+# CODEOWNERS — auto-assign de reviews
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Ordem: o último padrão que casar prevalece.
+
+# Default owner
+*                       @gasparellodev
+
+# CI / GitHub config
+/.github/               @gasparellodev
+
+# Database / Supabase
+/supabase/              @gasparellodev
+
+# Critical infra
+/middleware.ts          @gasparellodev
+/lib/supabase/          @gasparellodev
+/lib/env.ts             @gasparellodev
+
+# Apify integrations (data ingestion)
+/lib/apify/             @gasparellodev
+
+# AI generation
+/lib/ai/                @gasparellodev
