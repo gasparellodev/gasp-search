@@ -42,6 +42,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         totalPages={totalPages}
         sortBy={params.sortBy}
         sortDir={params.sortDir}
+        tags={tags}
       />
     </div>
   );

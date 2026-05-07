@@ -26,7 +26,7 @@ import {
   type LeadPageSize,
   type LeadSortableColumn,
 } from "@/lib/validators/leads";
-import type { LeadListItem } from "@/lib/leads/list-leads";
+import type { LeadListItem, LeadTagSummary } from "@/lib/leads/list-leads";
 
 interface LeadsTableProps {
   leads: LeadListItem[];
@@ -36,6 +36,7 @@ interface LeadsTableProps {
   totalPages: number;
   sortBy: LeadSortableColumn;
   sortDir: "asc" | "desc";
+  tags: LeadTagSummary[];
 }
 
 const STAGE_LABEL: Record<LeadListItem["stage"], string> = {
@@ -112,6 +113,7 @@ export function LeadsTable({
   totalPages,
   sortBy,
   sortDir,
+  tags,
 }: LeadsTableProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -396,6 +398,7 @@ export function LeadsTable({
         onOpenChange={(open) => {
           if (!open) setActiveLead(null);
         }}
+        tags={tags}
       />
     </>
   );

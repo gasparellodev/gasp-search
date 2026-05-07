@@ -65,6 +65,7 @@ const defaultProps = {
   totalPages: 1,
   sortBy: "created_at" as const,
   sortDir: "desc" as const,
+  tags: [{ id: "tag-1", name: "Quente", color: "#ef4444" }],
 };
 
 describe("LeadsTable", () => {
