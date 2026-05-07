@@ -21,13 +21,15 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 5. **`globals.css` é o único lugar onde tokens de design (CSS variables) vivem.** Componentes consomem via classes Tailwind (`bg-primary`, `text-foreground`).
 6. **Dark mode é default** (`<html className="dark">`). Toggle vai vir via Topbar, persistido em localStorage; refletido na classe do `<html>`.
 7. **`fetch`/`createServerClient` em Server Components** que dependem do usuário precisam de `cache: 'no-store'`.
+8. **Raiz `/` não renderiza landing**: sempre redireciona para `/login` sem
+   sessão ou `/dashboard` com sessão.
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
 | `layout.tsx` | Root layout: Inter + JetBrains Mono, lang `pt-BR`, dark default, metadata padrão |
-| `page.tsx` | Landing temporária; será substituída pelo redirect para `/dashboard` em #11 |
+| `page.tsx` | Redirect da raiz: sem sessão → `/login`; logado → `/dashboard` |
 | `globals.css` | Imports Tailwind 4, design tokens (oklch), dark variant, layer base |
 | `api/apify/google-maps/route.ts` | API protegida que dispara busca Google Maps no Apify |
 | `api/ai/generate-message/route.ts` | API protegida que gera mensagem IA para um lead e persiste em `lead_messages` |

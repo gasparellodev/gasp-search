@@ -1,11 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("smoke", () => {
-  test("a landing carrega e mostra Gasp Search", async ({ page }) => {
+  test("a raiz redireciona para login quando não há sessão", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-      "Gasp Search",
-    );
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Gasp Search");
     await expect(page).toHaveTitle(/Gasp Search/);
   });
 
