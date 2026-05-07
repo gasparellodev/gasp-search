@@ -15,10 +15,12 @@ Página protegida de detalhe de um lead específico. Carrega o lead via Supabase
 
 | Path | Propósito |
 |---|---|
-| `page.tsx` | Detalhe do lead e `MessageGenerator` |
+| `page.tsx` | Detalhe do lead com abas de geração e histórico de mensagens IA |
 
 ## Dependências
 
 - `@/lib/supabase/server`
 - `@/lib/leads/crud`
+- `@/lib/ai/messages`
 - `@/components/ai/message-generator`
+- `@/components/ai/message-history`

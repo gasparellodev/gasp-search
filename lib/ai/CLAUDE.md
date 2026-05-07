@@ -17,12 +17,14 @@ Clientes e helpers server-only para recursos de IA. Hoje concentra o wrapper do 
 2. **Prompt de sistema cacheado.** O bloco de system prompt deve carregar `cache_control: { type: "ephemeral" }`.
 3. **Saída simples.** `generateMessage()` retorna apenas texto final pronto para persistência/envio; sem markdown, alternativas ou metadados.
 4. **Sem cache local de geração.** Mensagens IA são não determinísticas; persistência fica em `lead_messages` via API route futura.
+5. **Histórico ordenado.** `listLeadMessages()` retorna mensagens do lead em `created_at desc`, paginadas em 20 itens.
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
 | `anthropic.ts` | Singleton Anthropic + `generateMessage(lead, { channel, tone, goal })` |
+| `messages.ts` | Listagem paginada de `lead_messages` para histórico |
 
 ## Dependências
 
