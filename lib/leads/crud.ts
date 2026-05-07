@@ -83,19 +83,89 @@ export async function updateLead({
   id: string;
   input: UpdateLeadInput;
 }): Promise<LeadListItem | null> {
-  const { tagIds: _tagIds, ...rest } = input;
-  void _tagIds; // Tags via endpoint dedicado (#22) — não atualizadas aqui.
+  const { tagIds, ...rest } = input;
 
+  // Caminho rápido: sem tagIds, faz o update e devolve o select-after-update.
+  if (tagIds === undefined) {
+    const { data, error } = await supabase
+      .from("leads")
+      .update(rest)
+      .eq("id", id)
+      .select(LEAD_SELECT)
+      .maybeSingle();
+    if (error) throw new Error(`Falha ao atualizar lead: ${error.message}`);
+    if (!data) return null;
+    return flattenRow(data as unknown as LeadRow);
+  }
+
+  // Caminho com tagIds: atualiza colunas escalares (se houver), sincroniza
+  // junção lead_tags, e re-lê para devolver o lead completo com tags fresh.
+  if (Object.keys(rest).length > 0) {
+    const { data, error } = await supabase
+      .from("leads")
+      .update(rest)
+      .eq("id", id)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(`Falha ao atualizar lead: ${error.message}`);
+    if (!data) return null;
+  } else {
+    // RLS guard: garante que o lead pertence ao user antes de tocar a junção.
+    const { data, error } = await supabase
+      .from("leads")
+      .select("id")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw new Error(`Falha ao atualizar lead: ${error.message}`);
+    if (!data) return null;
+  }
+
+  await syncLeadTags({ supabase, leadId: id, tagIds });
+  return getLead({ supabase, id });
+}
+
+export async function syncLeadTags({
+  supabase,
+  leadId,
+  tagIds,
+}: {
+  supabase: SupabaseClient<Database>;
+  leadId: string;
+  tagIds: string[];
+}): Promise<void> {
   const { data, error } = await supabase
-    .from("leads")
-    .update(rest)
-    .eq("id", id)
-    .select(LEAD_SELECT)
-    .maybeSingle();
+    .from("lead_tags")
+    .select("tag_id")
+    .eq("lead_id", leadId);
+  if (error) throw new Error(`Falha ao sincronizar tags: ${error.message}`);
 
-  if (error) throw new Error(`Falha ao atualizar lead: ${error.message}`);
-  if (!data) return null;
-  return flattenRow(data as unknown as LeadRow);
+  const current = new Set(
+    (data ?? []).map((row) => (row as { tag_id: string }).tag_id),
+  );
+  const target = new Set(tagIds);
+
+  const toRemove = [...current].filter((id) => !target.has(id));
+  const toAdd = [...target].filter((id) => !current.has(id));
+
+  if (toRemove.length > 0) {
+    const { error: delError } = await supabase
+      .from("lead_tags")
+      .delete()
+      .eq("lead_id", leadId)
+      .in("tag_id", toRemove);
+    if (delError) {
+      throw new Error(`Falha ao sincronizar tags: ${delError.message}`);
+    }
+  }
+
+  if (toAdd.length > 0) {
+    const { error: insError } = await supabase
+      .from("lead_tags")
+      .insert(toAdd.map((tagId) => ({ lead_id: leadId, tag_id: tagId })));
+    if (insError) {
+      throw new Error(`Falha ao sincronizar tags: ${insError.message}`);
+    }
+  }
 }
 
 export async function deleteLead({

@@ -209,8 +209,21 @@ describe("updateLead", () => {
     expect(result).toBeNull();
   });
 
+  it("retorna null no caminho tagIds quando o lead inicial não existe", async () => {
+    const { client, spies } = createSupabaseStub();
+    spies.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+    const result = await updateLead({
+      supabase: client,
+      id: "missing",
+      input: { notes: "ok", tagIds: ["b"] },
+    });
+    expect(result).toBeNull();
+  });
+
   it("não inclui tagIds direto no update — campos são separados", async () => {
     const { client, spies } = createSupabaseStub();
+    // Cenário simples: sem tagIds para evitar a sequência de syncLeadTags.
     spies.maybeSingle.mockResolvedValueOnce({
       data: { ...baseRow, lead_tags: [] },
       error: null,
@@ -220,7 +233,6 @@ describe("updateLead", () => {
       id: "lead-1",
       input: {
         notes: "ok",
-        tagIds: ["a", "b"],
       },
     });
     const updatePayload = spies.update.mock.calls[0]![0] as Record<

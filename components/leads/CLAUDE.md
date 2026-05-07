@@ -23,8 +23,10 @@ seu drawer de detalhe e helpers locais.
    Outras colunas (Contato, Tags, Ações) não acionam sort.
 4. **Linha clicável** abre `LeadDetailDrawer` em estado local. O botão "Abrir"
    na coluna Ações faz a mesma ação com `aria-label` por nome do lead.
-5. **`LeadDetailDrawer` é um stub do issue #18**. A versão completa com tabs e
-   edição inline vem em #20.
+5. **`LeadDetailDrawer` é stateful** (issue #20): tabs **Visão geral / Notas /
+   Mensagens IA** com edição inline de stage, score, notes e tags via PATCH
+   `/api/leads/[id]`. Estado interno é optimistic — em falha, revert + toast.error.
+   `router.refresh()` é chamado em sucesso para o Server Component re-buscar.
 6. **Estado vazio desenhado**: nada de tela em branco quando `leads.length === 0`.
 
 ## Arquivos
@@ -33,7 +35,7 @@ seu drawer de detalhe e helpers locais.
 |---|---|---|
 | `filters-bar.tsx` | Client | Barra de filtros (q, stage, source, hasWebsite, tags multi) sincronizada com URL |
 | `leads-table.tsx` | Client | Tabela TanStack com sort/pageSize/paginação via URL + drawer |
-| `lead-detail-drawer.tsx` | Client | Sheet lateral com snapshot do lead (stub para #20) |
+| `lead-detail-drawer.tsx` | Client | Sheet lateral com tabs e edição inline (stage/score/notes/tags) via PATCH |
 
 ## Dependências
 
