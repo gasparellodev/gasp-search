@@ -30,6 +30,10 @@ const serverEnvSchema = z.object({
     .min(1, "APIFY_WEBSITE_CONTACT_ACTOR_ID ausente"),
   ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY ausente"),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-4-6"),
+  AUTO_ENRICH_AFTER_GMAPS: z
+    .enum(["1", "0", "true", "false"])
+    .default("1")
+    .transform((value) => value === "1" || value === "true"),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

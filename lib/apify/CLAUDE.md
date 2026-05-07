@@ -48,6 +48,7 @@ Integração com Apify (scraping). Cliente singleton + util `runAndPersist` que 
 | `google-maps.ts` | Mapper `mapGoogleMapsPlace` + `normalizeWebsite` |
 | `instagram.ts` | Mapper `mapInstagramProfile` + `normalizeInstagramHandle` |
 | `enrich.ts` | `mapWebsiteContact` (puro) + `enrichLeadsByUrls` (orquestração) — atualiza leads existentes por URL, **não cria novos** |
+| `auto-enrich.ts` | `autoEnrichGoogleMapsJob` — dispara enrich pós-GMaps em leads sem email; **nunca lança** (erros viram `result.error`) |
 
 ## Dependências
 

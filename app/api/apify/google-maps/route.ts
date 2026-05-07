@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 import { env } from "@/lib/env";
+import { autoEnrichGoogleMapsJob } from "@/lib/apify/auto-enrich";
 import {
   mapGoogleMapsPlace,
   type GoogleMapsPlace,
@@ -63,7 +64,17 @@ export async function POST(request: Request) {
       mapper: mapGoogleMapsPlace,
     });
 
-    return NextResponse.json(result);
+    let autoEnrichedCount = 0;
+    if (env.AUTO_ENRICH_AFTER_GMAPS && result.status === "succeeded") {
+      const enrich = await autoEnrichGoogleMapsJob({
+        supabase,
+        userId: user.id,
+        jobId: result.jobId,
+      });
+      autoEnrichedCount = enrich.enrichedCount;
+    }
+
+    return NextResponse.json({ ...result, autoEnrichedCount });
   } catch {
     return NextResponse.json(
       { error: "Falha ao executar busca no Google Maps. Tente novamente." },

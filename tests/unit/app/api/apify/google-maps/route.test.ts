@@ -15,9 +15,15 @@ vi.mock("@/lib/apify/run-and-persist", () => ({
   runAndPersist: runAndPersistMock,
 }));
 
+const autoEnrichMock = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/apify/auto-enrich", () => ({
+  autoEnrichGoogleMapsJob: autoEnrichMock,
+}));
+
 vi.mock("@/lib/env", () => ({
   env: {
     APIFY_GOOGLE_MAPS_ACTOR_ID: "compass~crawler-google-places",
+    AUTO_ENRICH_AFTER_GMAPS: true,
   },
 }));
 
@@ -36,6 +42,11 @@ async function importRoute() {
 beforeEach(() => {
   vi.resetModules();
   runAndPersistMock.mockReset();
+  autoEnrichMock.mockReset();
+  autoEnrichMock.mockResolvedValue({
+    enrichedCount: 0,
+    enrichedLeadIds: [],
+  });
   supabaseMocks.getUser.mockReset();
   supabaseMocks.createServerSupabase.mockReset();
   supabaseMocks.createServerSupabase.mockResolvedValue({
@@ -110,6 +121,7 @@ describe("POST /api/apify/google-maps", () => {
       jobId: "job-1",
       status: "succeeded",
       leadsCount: 3,
+      autoEnrichedCount: 0,
     });
     expect(runAndPersistMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -141,5 +153,55 @@ describe("POST /api/apify/google-maps", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Falha ao executar busca no Google Maps. Tente novamente.",
     });
+  });
+
+  it("dispara autoEnrichGoogleMapsJob após sucesso e retorna autoEnrichedCount", async () => {
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    runAndPersistMock.mockResolvedValue({
+      jobId: "job-7",
+      status: "succeeded",
+      leadsCount: 3,
+    });
+    autoEnrichMock.mockResolvedValue({
+      enrichedCount: 2,
+      enrichedLeadIds: ["lead-a", "lead-b"],
+    });
+
+    const { POST } = await importRoute();
+    const response = await POST(
+      makeRequest({ searchStringsArray: ["barbearia Curitiba PR"] }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(autoEnrichMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", jobId: "job-7" }),
+    );
+    await expect(response.json()).resolves.toEqual({
+      jobId: "job-7",
+      status: "succeeded",
+      leadsCount: 3,
+      autoEnrichedCount: 2,
+    });
+  });
+
+  it("não dispara autoEnrich quando runAndPersist retorna failed", async () => {
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    runAndPersistMock.mockResolvedValue({
+      jobId: "job-8",
+      status: "failed",
+      leadsCount: 0,
+    });
+
+    const { POST } = await importRoute();
+    await POST(
+      makeRequest({ searchStringsArray: ["barbearia Curitiba PR"] }),
+    );
+    expect(autoEnrichMock).not.toHaveBeenCalled();
   });
 });
