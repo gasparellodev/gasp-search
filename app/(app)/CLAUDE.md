@@ -10,7 +10,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 (app)/
 ├── layout.tsx           # Server Component: auth check + shell
 ├── dashboard/page.tsx   # Cards de métricas + últimas buscas
-├── search/page.tsx      # Form de busca (placeholder até #16)
+├── search/page.tsx      # Form de busca Google Maps
 ├── leads/page.tsx       # Tabela de leads (placeholder até #18)
 ├── pipeline/page.tsx    # Kanban (placeholder até #29)
 └── settings/page.tsx    # Preferências da conta (placeholder)
@@ -36,7 +36,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 |---|---|---|
 | `layout.tsx` | Server | Auth check, lê profile, renderiza Sidebar + Topbar |
 | `dashboard/page.tsx` | Server | Cards (placeholder até #35) |
-| `search/page.tsx` | Server | Placeholder até #16 |
+| `search/page.tsx` | Server | Página de busca com `SearchForm` |
 | `leads/page.tsx` | Server | Placeholder até #18 |
 | `pipeline/page.tsx` | Server | Placeholder até #29 |
 | `settings/page.tsx` | Server | Placeholder |

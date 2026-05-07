@@ -27,6 +27,8 @@ Componentes React do app, organizados por área. Inclui as primitives shadcn/ui 
 | Path | Propósito |
 |---|---|
 | `ui/button.tsx` | Botão shadcn com variantes (default, outline, ghost, etc.) |
+| `search/search-form.tsx` | Form de busca Google Maps com chips e submit para API Apify |
+| `search/search-progress.tsx` | Estado visual durante execução da busca |
 
 > Mais componentes serão adicionados em #12 (shadcn components mínimos), depois nas issues por área.
 
