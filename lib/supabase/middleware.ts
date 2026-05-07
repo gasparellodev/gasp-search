@@ -3,10 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
-// Rotas que NUNCA exigem sessão (landing + auth flow + OAuth callback).
-// `/` é público; usuários logados são redirecionados para /dashboard pelo
-// bloco específico abaixo.
-const PUBLIC_PATHS = ["/", "/login", "/callback", "/auth"];
+// Rotas que NUNCA exigem sessão (auth flow + OAuth callback).
+// `/` não é público: sem sessão redireciona para /login; logado vai para
+// /dashboard.
+const PUBLIC_PATHS = ["/login", "/callback", "/auth"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(
@@ -19,7 +19,9 @@ function isPublic(pathname: string): boolean {
  *
  * Se o usuário não estiver autenticado e tentar acessar rota protegida,
  * redireciona para /login preservando o caminho de destino em ?redirectTo.
- * Se o usuário JÁ estiver logado e visitar /, redireciona para /dashboard.
+ * Se o usuário visitar /, redireciona conforme sessão:
+ * - logado → /dashboard
+ * - sem sessão → /login
  *
  * Importante: a NextResponse retornada precisa preservar os Set-Cookie
  * que o Supabase escreveu via `set/remove` — caso contrário a sessão
@@ -57,10 +59,10 @@ export async function updateSession(
 
   const { pathname, search } = request.nextUrl;
 
-  // Logado em / → manda para /dashboard.
-  if (user && pathname === "/") {
+  // Raiz nunca renderiza landing: manda para app ou login conforme sessão.
+  if (pathname === "/") {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = user ? "/dashboard" : "/login";
     url.search = "";
     return NextResponse.redirect(url);
   }

@@ -81,11 +81,13 @@ describe("lib/supabase/middleware.updateSession", () => {
     expect(res.status).toBe(200);
   });
 
-  it("/ é público para usuários não autenticados (não redireciona para /login)", async () => {
+  it("redireciona / para /login quando usuário não autenticado", async () => {
     mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
     const { updateSession } = await import("@/lib/supabase/middleware");
     const res = await updateSession(makeRequest("/"));
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toMatch(/\/login/);
+    expect(res.headers.get("location")).not.toContain("redirectTo=");
   });
 
   it("passa adiante com NextResponse.next() quando o user existe", async () => {
