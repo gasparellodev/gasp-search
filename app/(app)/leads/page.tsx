@@ -1,7 +1,7 @@
 import { LeadsTable } from "@/components/leads/leads-table";
 import { listLeads } from "@/lib/leads/list-leads";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { parseLeadsListParams } from "@/lib/validators/leads";
+import { parseLeadsListInput } from "@/lib/validators/leads";
 
 export const metadata = { title: "Leads" };
 export const dynamic = "force-dynamic";
@@ -12,11 +12,12 @@ interface LeadsPageProps {
 
 export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const raw = await searchParams;
-  const params = parseLeadsListParams(raw);
+  const { params, filters } = parseLeadsListInput(raw);
   const supabase = await createServerSupabase();
   const { leads, totalCount, page, pageSize, totalPages } = await listLeads({
     supabase,
     params,
+    filters,
   });
 
   return (
