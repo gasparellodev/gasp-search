@@ -33,6 +33,7 @@ utilities de domínio que vivem fora do request handler.
 | Path | Propósito |
 |---|---|
 | `list-leads.ts` | `listLeads({ supabase, params, filters? })` — query paginada com filtros e tags |
+| `list-tags.ts` | `listTags({ supabase })` — tags do user para combobox de filtros |
 | `crud.ts` | `getLead`, `createLead`, `updateLead`, `deleteLead` — CRUD com flatten de tags |
 
 ## Dependências

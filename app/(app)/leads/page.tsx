@@ -1,5 +1,7 @@
+import { FiltersBar } from "@/components/leads/filters-bar";
 import { LeadsTable } from "@/components/leads/leads-table";
 import { listLeads } from "@/lib/leads/list-leads";
+import { listTags } from "@/lib/leads/list-tags";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { parseLeadsListInput } from "@/lib/validators/leads";
 
@@ -14,11 +16,12 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const raw = await searchParams;
   const { params, filters } = parseLeadsListInput(raw);
   const supabase = await createServerSupabase();
-  const { leads, totalCount, page, pageSize, totalPages } = await listLeads({
-    supabase,
-    params,
-    filters,
-  });
+
+  const [leadsResult, tags] = await Promise.all([
+    listLeads({ supabase, params, filters }),
+    listTags({ supabase }),
+  ]);
+  const { leads, totalCount, page, pageSize, totalPages } = leadsResult;
 
   return (
     <div className="space-y-6">
@@ -28,6 +31,8 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
           Sua base de leads captados, com filtros e tags.
         </p>
       </div>
+
+      <FiltersBar tags={tags} filters={filters} />
 
       <LeadsTable
         leads={leads}

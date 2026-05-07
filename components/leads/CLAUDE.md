@@ -31,6 +31,7 @@ seu drawer de detalhe e helpers locais.
 
 | Path | Tipo | Propósito |
 |---|---|---|
+| `filters-bar.tsx` | Client | Barra de filtros (q, stage, source, hasWebsite, tags multi) sincronizada com URL |
 | `leads-table.tsx` | Client | Tabela TanStack com sort/pageSize/paginação via URL + drawer |
 | `lead-detail-drawer.tsx` | Client | Sheet lateral com snapshot do lead (stub para #20) |
 
