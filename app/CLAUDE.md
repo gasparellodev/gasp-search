@@ -29,6 +29,7 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 | `layout.tsx` | Root layout: Inter + JetBrains Mono, lang `pt-BR`, dark default, metadata padrão |
 | `page.tsx` | Landing temporária; será substituída pelo redirect para `/dashboard` em #11 |
 | `globals.css` | Imports Tailwind 4, design tokens (oklch), dark variant, layer base |
+| `api/apify/google-maps/route.ts` | API protegida que dispara busca Google Maps no Apify |
 
 > Conforme features chegam: `(auth)/login`, `(auth)/callback`, `(app)/layout`, `(app)/dashboard`, `(app)/search`, `(app)/leads`, `(app)/pipeline`, `api/leads`, `api/apify/*`, `api/ai/*`.
 
