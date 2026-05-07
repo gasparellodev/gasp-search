@@ -36,7 +36,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 | Path | Tipo | Propósito |
 |---|---|---|
 | `layout.tsx` | Server | Auth check, lê profile, renderiza Sidebar + Topbar |
-| `dashboard/page.tsx` | Server | Cards (placeholder até #35) |
+| `dashboard/page.tsx` | Server | Página do dashboard; renderiza `DashboardView` |
 | `search/page.tsx` | Server | Página de busca com `SearchForm` |
 | `leads/page.tsx` | Server | Placeholder até #18 |
 | `leads/[id]/page.tsx` | Server | Detalhe do lead com `MessageGenerator` |
@@ -47,6 +47,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 
 - `@/lib/supabase/server`
 - `@/components/layout/{sidebar,topbar}`
+- `@/components/dashboard/dashboard-view`
 - `next/navigation` (`redirect`)
 
 ## Quando atualizar este `CLAUDE.md`
