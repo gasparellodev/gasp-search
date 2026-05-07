@@ -110,13 +110,29 @@ jobs:
       - if: steps.check.outputs.ready == 'true'
         run: npm run build
         env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost' }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role' }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN || 'placeholder-apify' }}
+          APIFY_GOOGLE_MAPS_ACTOR_ID: compass~crawler-google-places
+          APIFY_INSTAGRAM_ACTOR_ID: apify~instagram-scraper
+          APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
+          ANTHROPIC_MODEL: claude-sonnet-4-6
       - if: steps.check.outputs.ready == 'true'
         run: npm run test:e2e
         env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost' }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role' }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN || 'placeholder-apify' }}
+          APIFY_GOOGLE_MAPS_ACTOR_ID: compass~crawler-google-places
+          APIFY_INSTAGRAM_ACTOR_ID: apify~instagram-scraper
+          APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
+          ANTHROPIC_MODEL: claude-sonnet-4-6
       - if: steps.check.outputs.ready == 'true' && always()
         uses: actions/upload-artifact@v4
         with:
@@ -147,5 +163,13 @@ jobs:
       - if: steps.check.outputs.ready == 'true'
         run: npm run build
         env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost' }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-service-role' }}
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN || 'placeholder-apify' }}
+          APIFY_GOOGLE_MAPS_ACTOR_ID: compass~crawler-google-places
+          APIFY_INSTAGRAM_ACTOR_ID: apify~instagram-scraper
+          APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
+          ANTHROPIC_MODEL: claude-sonnet-4-6
