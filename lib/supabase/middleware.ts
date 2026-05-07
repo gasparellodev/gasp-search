@@ -3,12 +3,14 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
-// Rotas que NUNCA exigem sessão (auth flow + OAuth callback).
-const PUBLIC_PATHS = ["/login", "/callback", "/auth"];
+// Rotas que NUNCA exigem sessão (landing + auth flow + OAuth callback).
+// `/` é público; usuários logados são redirecionados para /dashboard pelo
+// bloco específico abaixo.
+const PUBLIC_PATHS = ["/", "/login", "/callback", "/auth"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(
-    (p) => pathname === p || pathname.startsWith(`${p}/`),
+    (p) => pathname === p || (p !== "/" && pathname.startsWith(`${p}/`)),
   );
 }
 

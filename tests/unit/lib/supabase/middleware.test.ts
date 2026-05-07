@@ -81,6 +81,13 @@ describe("lib/supabase/middleware.updateSession", () => {
     expect(res.status).toBe(200);
   });
 
+  it("/ é público para usuários não autenticados (não redireciona para /login)", async () => {
+    mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
+    const { updateSession } = await import("@/lib/supabase/middleware");
+    const res = await updateSession(makeRequest("/"));
+    expect(res.status).toBe(200);
+  });
+
   it("passa adiante com NextResponse.next() quando o user existe", async () => {
     mocks.getUser.mockResolvedValue({
       data: { user: { id: "u1", email: "a@b.com" } },
