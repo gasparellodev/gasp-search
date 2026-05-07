@@ -15,21 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - id: check
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping lint — package.json/lock not present yet"
+          fi
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - name: Skip if no package.json
-        id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "has_pkg=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_pkg=false" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm ci
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm run lint
 
   typecheck:
@@ -37,20 +38,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - id: check
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping typecheck — package.json/lock not present yet"
+          fi
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "has_pkg=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_pkg=false" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm ci
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npx tsc --noEmit
 
   unit:
@@ -58,22 +61,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - id: check
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ] && [ -f vitest.config.ts ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping unit — vitest config not present yet"
+          fi
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "has_pkg=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_pkg=false" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm ci
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm test -- --coverage
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ github.run_id }}
@@ -85,17 +90,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
       - id: check
         run: |
-          if [ -f package.json ] && [ -f playwright.config.ts ]; then
+          if [ -f package.json ] && [ -f package-lock.json ] && [ -f playwright.config.ts ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping e2e — playwright config not present yet"
           fi
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
       - if: steps.check.outputs.ready == 'true'
         run: npm ci
       - if: steps.check.outputs.ready == 'true'
@@ -122,20 +129,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - id: check
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping build — package.json/lock not present yet"
+          fi
+      - if: steps.check.outputs.ready == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - id: check
-        run: |
-          if [ -f package.json ]; then
-            echo "has_pkg=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_pkg=false" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm ci
-      - if: steps.check.outputs.has_pkg == 'true'
+      - if: steps.check.outputs.ready == 'true'
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost' }}
