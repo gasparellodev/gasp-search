@@ -25,13 +25,21 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | Path | Propósito |
 |---|---|
 | `utils.ts` | `cn()` = `twMerge(clsx(...))`, default helper de classe |
+| `env.ts` | **Server-only.** Zod validator de todas as envs (públicas e server). Lança no boot se algo faltar/inválido. Importa `server-only`. |
+| `env-public.ts` | Validator das envs `NEXT_PUBLIC_*` apenas. Safe para Client Components. Lê `process.env.NEXT_PUBLIC_*` por chave (Next inlina). |
 
 > A medida que features chegam:
-> - `env.ts` — Zod validator das envs (#7)
 > - `supabase/server.ts`, `client.ts`, `middleware.ts` (#9)
 > - `apify/client.ts`, `run-and-persist.ts`, `google-maps.ts`, `instagram.ts`, `enrich.ts` (#13–#26)
 > - `ai/anthropic.ts` (#30)
 > - `validators/search.ts`, `validators/lead.ts` (#10, #15)
+
+## Env: regras críticas
+
+1. **Em qualquer arquivo do `lib/` que toca segredo, faça `import "server-only"` na primeira linha.** Isso impede o bundle pegar acidentalmente em Client Component.
+2. **`env` é o único ponto de leitura de `process.env`** em código server. Evite ler `process.env.X` espalhado.
+3. **Para Client Components** que precisam de URL pública (e.g., redirect OAuth), importem `publicEnv` de `lib/env-public`.
+4. URLs validadas com refine para http/https — bloqueia `javascript:`, `data:`, etc.
 
 ## Dependências
 
