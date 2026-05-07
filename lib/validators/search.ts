@@ -59,6 +59,23 @@ export const searchFormSchema = z
 export type SearchFormInput = z.infer<typeof searchFormSchema>;
 export type SearchFormValues = z.input<typeof searchFormSchema>;
 
+// Instagram search ---------------------------------------------------------
+
+export const searchInstagramSchema = z
+  .object({
+    search: z.string().trim().min(2, "Termo de busca muito curto").max(120),
+    searchType: z.enum(["user", "hashtag"]).default("user"),
+    resultsLimit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(200)
+      .default(50),
+  })
+  .strict();
+
+export type SearchInstagramInput = z.infer<typeof searchInstagramSchema>;
+
 export function buildGoogleMapsSearchInput(
   values: SearchFormInput,
 ): SearchGoogleMapsInput {

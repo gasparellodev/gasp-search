@@ -45,10 +45,10 @@ Integração com Apify (scraping). Cliente singleton + util `runAndPersist` que 
 |---|---|
 | `client.ts` | Singleton lazy do `ApifyClient` com `APIFY_TOKEN` |
 | `run-and-persist.ts` | Função genérica `runAndPersist({ source, mapper, ... })` que orquestra job + run + upsert |
+| `google-maps.ts` | Mapper `mapGoogleMapsPlace` + `normalizeWebsite` |
+| `instagram.ts` | Mapper `mapInstagramProfile` + `normalizeInstagramHandle` |
 
 > A medida que features chegam:
-> - `google-maps.ts` (#14)
-> - `instagram.ts` (#23)
 > - `enrich.ts` (#25)
 
 ## Dependências
