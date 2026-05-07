@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: "Discussão / Pergunta"
+    url: https://github.com/gasparellodev/gasp-search/discussions
+    about: Para discussões abertas sem ser bug ou feature.

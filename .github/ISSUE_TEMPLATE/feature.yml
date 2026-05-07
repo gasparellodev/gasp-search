@@ -1,0 +1,48 @@
+name: Feature request
+description: Nova feature ou melhoria
+title: "[feat] "
+labels: ["type:feat"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumo
+      description: O que e por quê
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Critérios de aceite
+      description: Lista do que precisa estar pronto para fechar a issue
+      placeholder: |
+        - Critério 1
+        - Critério 2
+    validations:
+      required: true
+  - type: textarea
+    id: tests
+    attributes:
+      label: Testes obrigatórios
+      description: Unit, integration, e2e — TDD aplicável
+      placeholder: |
+        - Unit: `lib/x.test.ts` cobre Y
+        - E2E: fluxo Z
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Fase
+      options:
+        - "Phase 1 — Foundation"
+        - "Phase 2 — Search Engine"
+        - "Phase 3 — CRM Tools"
+        - "Phase 4 — Polish"
+        - "Outro"
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notas adicionais
