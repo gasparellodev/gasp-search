@@ -17,6 +17,7 @@ Schemas Zod que definem o contrato de entrada de forms, server actions e API han
 |---|---|
 | `auth.ts` | Schemas de login e cadastro |
 | `search.ts` | Schemas das buscas Apify |
+| `ai.ts` | Schemas e opções para geração de mensagens IA |
 
 ## Dependências
 
