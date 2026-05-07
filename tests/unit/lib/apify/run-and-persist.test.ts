@@ -101,7 +101,7 @@ function makeSupabaseMock(initialJob: Partial<FakeJob> = {}) {
 
   return {
     client: { from } as unknown as Parameters<
-      typeof import("@/lib/apify/run-and-persist").runAndPersist
+      typeof import("@/lib/apify/run-and-persist").createSearchJob
     >[0]["supabase"],
     insertJob,
     updateJob,
@@ -109,6 +109,99 @@ function makeSupabaseMock(initialJob: Partial<FakeJob> = {}) {
     job,
   };
 }
+
+describe("createSearchJob", () => {
+  it("cria um job queued e retorna o id", async () => {
+    const { createSearchJob } = await import("@/lib/apify/run-and-persist");
+    const supa = makeSupabaseMock();
+
+    const jobId = await createSearchJob({
+      supabase: supa.client,
+      userId: "user-1",
+      source: "google_maps",
+      input: { query: "test" },
+    });
+
+    expect(supa.insertJob).toHaveBeenCalledTimes(1);
+    expect(jobId).toBe("job-1");
+  });
+
+  it("lança erro se insert falhar", async () => {
+    const { createSearchJob } = await import("@/lib/apify/run-and-persist");
+    const supa = makeSupabaseMock();
+    supa.insertJob.mockReturnValueOnce({
+      select: () => ({
+        single: () => Promise.resolve({ data: null, error: { message: "db error" } }),
+      }),
+    } as unknown as ReturnType<typeof supa.insertJob>);
+
+    await expect(
+      createSearchJob({
+        supabase: supa.client,
+        userId: "u",
+        source: "google_maps",
+        input: {},
+      })
+    ).rejects.toThrow(/db error/);
+  });
+});
+
+describe("executeSearchJob", () => {
+  it("atualiza status para running, chama actor e upserta leads", async () => {
+    apifyMock.call.mockResolvedValue({ defaultDatasetId: "ds-1", id: "run-xyz" });
+    apifyMock.listItems.mockResolvedValue({ items: [{ x: 1 }, { x: 2 }] });
+
+    const { executeSearchJob } = await import("@/lib/apify/run-and-persist");
+    const supa = makeSupabaseMock();
+
+    const result = await executeSearchJob({
+      supabase: supa.client,
+      userId: "user-1",
+      jobId: "job-1",
+      source: "google_maps",
+      actorId: "actor-id",
+      input: { query: "test" },
+      mapper: (item, ctx) => ({
+        user_id: ctx.userId,
+        source: ctx.source,
+        source_search_job_id: ctx.jobId,
+        name: `Item ${(item as { x: number }).x}`,
+      }),
+    });
+
+    expect(supa.updateJob).toHaveBeenCalledWith(expect.objectContaining({ status: "running" }));
+    expect(apifyMock.actor).toHaveBeenCalledWith("actor-id");
+    expect(apifyMock.call).toHaveBeenCalled();
+    expect(supa.upsertLeads).toHaveBeenCalledTimes(1);
+    expect(supa.updateJob).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "succeeded", results_count: 2, apify_run_id: "run-xyz" })
+    );
+    expect(result.status).toBe("succeeded");
+    expect(result.leadsCount).toBe(2);
+  });
+
+  it("marca job como failed se actor lançar", async () => {
+    apifyMock.call.mockRejectedValue(new Error("actor crash"));
+    const { executeSearchJob } = await import("@/lib/apify/run-and-persist");
+    const supa = makeSupabaseMock();
+
+    await expect(
+      executeSearchJob({
+        supabase: supa.client,
+        userId: "u",
+        jobId: "j",
+        source: "google_maps",
+        actorId: "actor-id",
+        input: {},
+        mapper: () => null,
+      })
+    ).rejects.toThrow(/actor crash/);
+
+    expect(supa.updateJob).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "failed", error_message: expect.stringMatching(/actor crash/) })
+    );
+  });
+});
 
 describe("runAndPersist", () => {
   it("cria search_job, dispara actor, mapeia items, upserta leads e marca succeeded", async () => {

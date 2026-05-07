@@ -3,17 +3,24 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 
-type SearchProgressStatus = "running" | "succeeded" | "failed";
+type SearchProgressStatus = "queued" | "running" | "succeeded" | "failed";
 
 type SearchProgressProps = Readonly<{
   actorName?: string;
   initialElapsedSeconds?: number;
   status?: SearchProgressStatus;
+  resultsCount?: number;
 }>;
 
-function getStatusText(actorName: string, status: SearchProgressStatus) {
-  if (status === "succeeded") return `${actorName} concluído`;
+function getStatusText(
+  actorName: string,
+  status: SearchProgressStatus,
+  resultsCount: number,
+) {
+  if (status === "succeeded")
+    return `${actorName} concluído — ${resultsCount} leads`;
   if (status === "failed") return `${actorName} falhou`;
+  if (status === "queued") return `Aguardando início — ${actorName}`;
   return `Executando ${actorName}`;
 }
 
@@ -21,21 +28,22 @@ export function SearchProgress({
   actorName = "Google Maps",
   initialElapsedSeconds = 0,
   status = "running",
+  resultsCount = 0,
 }: SearchProgressProps) {
   const [elapsedSeconds, setElapsedSeconds] = useState(initialElapsedSeconds);
-  const isRunning = status === "running";
+  const isActive = status === "running" || status === "queued";
 
   useEffect(() => {
-    if (!isRunning) return;
+    if (!isActive) return;
 
     const intervalId = window.setInterval(() => {
       setElapsedSeconds((current) => current + 1);
     }, 1_000);
 
     return () => window.clearInterval(intervalId);
-  }, [isRunning]);
+  }, [isActive]);
 
-  const statusText = getStatusText(actorName, status);
+  const statusText = getStatusText(actorName, status, resultsCount);
 
   return (
     <div
@@ -49,7 +57,7 @@ export function SearchProgress({
       {status === "failed" ? (
         <XCircle className="text-destructive size-4" />
       ) : null}
-      {isRunning ? (
+      {isActive ? (
         <Loader2 className="text-primary size-4 animate-spin" />
       ) : null}
       <span>{statusText}</span>

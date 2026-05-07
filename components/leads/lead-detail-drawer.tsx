@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Loader2, Plus, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { MessageGenerator } from "@/components/ai/message-generator";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -80,7 +81,7 @@ export function LeadDetailDrawer({
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="flex w-full flex-col gap-0 sm:max-w-xl"
+        className="flex w-[min(100vw,42rem)] max-w-full flex-col gap-0 sm:max-w-2xl"
       >
         {lead ? (
           <DrawerBody key={lead.id} initialLead={lead} tags={tags} />
@@ -129,8 +130,8 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
 
   return (
     <>
-      <SheetHeader className="border-b px-6 py-5">
-        <SheetTitle className="text-xl font-semibold">
+      <SheetHeader className="border-b px-4 py-5 sm:px-6">
+        <SheetTitle className="break-words text-xl font-semibold">
           {snapshot.name}
         </SheetTitle>
         <SheetDescription className="text-muted-foreground text-xs">
@@ -139,8 +140,8 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
         </SheetDescription>
       </SheetHeader>
 
-      <Tabs defaultValue="overview" className="flex-1 overflow-hidden">
-        <TabsList className="mx-6 mt-4">
+      <Tabs defaultValue="overview" className="min-h-0 flex-1 overflow-hidden">
+        <TabsList className="mx-4 mt-4 max-w-[calc(100%-2rem)] overflow-x-auto sm:mx-6 sm:max-w-[calc(100%-3rem)]">
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="notes">Notas</TabsTrigger>
           <TabsTrigger value="messages">Mensagens IA</TabsTrigger>
@@ -148,34 +149,27 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
 
         <TabsContent
           value="overview"
-          className="flex-1 overflow-y-auto px-6 py-4 text-sm"
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 text-sm sm:px-6"
         >
           <OverviewTab snapshot={snapshot} tags={tags} onPatch={applyPatch} />
         </TabsContent>
 
         <TabsContent
           value="notes"
-          className="flex-1 overflow-y-auto px-6 py-4"
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
         >
           <NotesTab snapshot={snapshot} onPatch={applyPatch} />
         </TabsContent>
 
         <TabsContent
           value="messages"
-          className="flex-1 overflow-y-auto px-6 py-4"
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
         >
-          <div className="border-border flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
-            <Sparkles className="text-muted-foreground size-6" />
-            <p className="text-base font-medium">Em breve</p>
-            <p className="text-muted-foreground text-sm">
-              Geração de mensagens com IA chega na próxima entrega (issue
-              #33).
-            </p>
-          </div>
+          <MessageGenerator leadId={snapshot.id} />
         </TabsContent>
       </Tabs>
 
-      <SheetFooter className="border-t px-6 py-4">
+      <SheetFooter className="border-t px-4 py-4 sm:px-6">
         <SheetClose asChild>
           <Button variant="outline" className="w-full">
             Fechar

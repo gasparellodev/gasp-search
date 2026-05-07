@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { env } from "@/lib/env";
 import {
   mapInstagramProfile,
   type InstagramProfile,
 } from "@/lib/apify/instagram";
-import { runAndPersist } from "@/lib/apify/run-and-persist";
+import { createSearchJob, executeSearchJob } from "@/lib/apify/run-and-persist";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { searchInstagramSchema } from "@/lib/validators/search";
 
@@ -54,20 +55,36 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runAndPersist<InstagramProfile>({
+    const jobId = await createSearchJob({
       supabase,
       userId: user.id,
       source: "instagram",
-      actorId: env.APIFY_INSTAGRAM_ACTOR_ID,
       input: parsed.data,
-      mapper: mapInstagramProfile,
     });
 
-    return NextResponse.json(result);
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao executar busca no Instagram. Tente novamente." },
-      { status: 502 },
+    after(async () => {
+      try {
+        await executeSearchJob<InstagramProfile>({
+          supabase,
+          userId: user.id,
+          jobId,
+          source: "instagram",
+          actorId: env.APIFY_INSTAGRAM_ACTOR_ID,
+          input: parsed.data,
+          mapper: mapInstagramProfile,
+          onConflict: "user_id,source,instagram_handle",
+        });
+      } catch {
+        // executeSearchJob already handles errors internally by updating the job status
+      }
+    });
+
+    return NextResponse.json({ jobId, status: "queued" });
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "POST /api/apify/instagram", userId: user.id },
+      "Falha ao criar busca no Instagram. Tente novamente.",
     );
   }
 }

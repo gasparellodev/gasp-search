@@ -93,6 +93,9 @@ describe("LeadsTable", () => {
       />,
     );
     expect(screen.getByText(/nenhum lead encontrado/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /faça sua primeira busca/i }),
+    ).toHaveAttribute("href", "/search");
   });
 
   it("renderiza linhas com nome, categoria, cidade, estágio, score e tags", () => {
@@ -109,6 +112,16 @@ describe("LeadsTable", () => {
     expect(within(alphaRow).getByText(/Novo/)).toBeInTheDocument();
     expect(within(alphaRow).getByText("42")).toBeInTheDocument();
     expect(within(alphaRow).getByText("Quente")).toBeInTheDocument();
+  });
+
+  it("mantém paginação visível e rolagem dentro da tabela", () => {
+    render(<LeadsTable {...defaultProps} />);
+
+    expect(screen.getByTestId("leads-table-shell")).toHaveClass("h-full");
+    expect(screen.getByTestId("leads-table-shell")).toHaveClass("min-h-0");
+    expect(screen.getByTestId("leads-table-scroll")).toHaveClass("flex-1");
+    expect(screen.getByTestId("leads-table-scroll")).toHaveClass("overflow-auto");
+    expect(screen.getByTestId("leads-table-pagination")).toHaveClass("shrink-0");
   });
 
   it("clicar em uma linha abre o drawer com o lead correspondente", async () => {

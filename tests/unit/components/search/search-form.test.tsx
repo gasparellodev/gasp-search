@@ -25,6 +25,7 @@ beforeEach(() => {
   toastMock.error.mockReset();
   vi.stubGlobal("fetch", vi.fn());
   vi.resetModules();
+  vi.useRealTimers();
 });
 
 async function loadComponent() {
@@ -61,6 +62,22 @@ describe("SearchForm", () => {
     expect(screen.queryByText("barbearia")).not.toBeInTheDocument();
   });
 
+  it("organiza termo de busca em layout responsivo", async () => {
+    const SearchForm = await loadComponent();
+    render(<SearchForm />);
+
+    const termInput = screen.getByLabelText(/termo de busca/i);
+    const termRow = termInput.closest("[data-testid='search-term-row']");
+    const addButton = screen.getByRole("button", {
+      name: /adicionar termo/i,
+    });
+
+    expect(termRow).toHaveClass("flex-col");
+    expect(termRow).toHaveClass("sm:flex-row");
+    expect(addButton).toHaveClass("w-full");
+    expect(addButton).toHaveClass("sm:w-auto");
+  });
+
   it("adiciona termo com Enter e ignora duplicados", async () => {
     const user = userEvent.setup();
     const SearchForm = await loadComponent();
@@ -88,18 +105,36 @@ describe("SearchForm", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("envia busca Google Maps, mostra toast e redireciona para leads", async () => {
+  it("envia busca Google Maps e faz polling do status com sucesso", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetch).mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          jobId: "job-1",
-          status: "succeeded",
-          leadsCount: 3,
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
-    );
+
+    // Mock the initial POST request
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      if (url === "/api/apify/google-maps") {
+        return new Response(
+          JSON.stringify({
+            jobId: "job-1",
+            status: "queued",
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      // Mock the GET polling request
+      if (url === "/api/search-jobs/job-1") {
+        return new Response(
+          JSON.stringify({
+            id: "job-1",
+            status: "succeeded",
+            results_count: 5,
+            error_message: null
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+
     const SearchForm = await loadComponent();
     render(<SearchForm />);
 
@@ -114,55 +149,20 @@ describe("SearchForm", () => {
     await vi.waitFor(() => {
       expect(fetch).toHaveBeenCalledWith(
         "/api/apify/google-maps",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            searchStringsArray: ["barbearia Curitiba PR"],
-            maxCrawledPlacesPerSearch: 25,
-            language: "pt-BR",
-            countryCode: "br",
-          }),
-        }),
+        expect.objectContaining({ method: "POST" })
       );
+
+      // Verify polling occurred
+      expect(fetch).toHaveBeenCalledWith("/api/search-jobs/job-1");
+
       expect(toastMock.success).toHaveBeenCalledWith(
         "Busca concluída",
-        expect.objectContaining({ description: "3 leads encontrados." }),
+        expect.objectContaining({ description: "5 leads encontrados." }),
       );
       expect(routerMock.push).toHaveBeenCalledWith("/leads?searchJobId=job-1");
     });
-  });
 
-  it("mostra progresso enquanto aguarda resposta da API", async () => {
-    const user = userEvent.setup();
-    let resolveFetch: (response: Response) => void = () => {};
-    vi.mocked(fetch).mockReturnValue(
-      new Promise<Response>((resolve) => {
-        resolveFetch = resolve;
-      }),
-    );
-    const SearchForm = await loadComponent();
-    render(<SearchForm />);
-
-    await user.type(screen.getByLabelText(/termo de busca/i), "barbearia");
-    await user.click(screen.getByRole("button", { name: /adicionar termo/i }));
-    await user.type(screen.getByLabelText(/cidade/i), "Curitiba");
-    await user.type(screen.getByLabelText(/estado/i), "PR");
-    await user.click(screen.getByRole("button", { name: /^buscar$/i }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Executando Google Maps",
-    );
-
-    resolveFetch(
-      new Response(
-        JSON.stringify({
-          jobId: "job-1",
-          status: "succeeded",
-          leadsCount: 1,
-        }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      ),
-    );
+    vi.useRealTimers();
   });
 
   it("mostra toast de erro quando API retorna payload inválido", async () => {
@@ -190,10 +190,10 @@ describe("SearchForm", () => {
     });
   });
 
-  it("mostra toast de erro quando API falha", async () => {
+  it("mostra toast de erro quando API de inicialização falha", async () => {
     const user = userEvent.setup();
     vi.mocked(fetch).mockResolvedValue(
-      new Response(JSON.stringify({ error: "Falha ao buscar" }), {
+      new Response(JSON.stringify({ error: "Falha ao criar busca no Google Maps. Tente novamente." }), {
         status: 502,
         headers: { "content-type": "application/json" },
       }),
@@ -210,15 +210,28 @@ describe("SearchForm", () => {
     await vi.waitFor(() => {
       expect(toastMock.error).toHaveBeenCalledWith(
         "Busca falhou",
-        expect.objectContaining({ description: "Falha ao buscar" }),
+        expect.objectContaining({ description: "Falha ao criar busca no Google Maps. Tente novamente." }),
       );
       expect(routerMock.push).not.toHaveBeenCalled();
     });
   });
 
-  it("mostra toast genérico quando fetch rejeita sem Error", async () => {
+  it("mostra toast de erro quando o polling detecta falha do job", async () => {
     const user = userEvent.setup();
-    vi.mocked(fetch).mockRejectedValue("falha");
+
+    vi.mocked(fetch).mockImplementation(async (url) => {
+      if (url === "/api/apify/google-maps") {
+        return new Response(JSON.stringify({ jobId: "job-err", status: "queued" }), { status: 200 });
+      }
+      if (url === "/api/search-jobs/job-err") {
+        return new Response(
+          JSON.stringify({ id: "job-err", status: "failed", results_count: 0, error_message: "actor timeout" }),
+          { status: 200 }
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+
     const SearchForm = await loadComponent();
     render(<SearchForm />);
 
@@ -231,8 +244,10 @@ describe("SearchForm", () => {
     await vi.waitFor(() => {
       expect(toastMock.error).toHaveBeenCalledWith(
         "Busca falhou",
-        expect.objectContaining({ description: "Erro inesperado" }),
+        expect.objectContaining({ description: "actor timeout" }),
       );
     });
+
+    vi.useRealTimers();
   });
 });

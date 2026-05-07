@@ -27,15 +27,17 @@ export default async function AppLayout({
     .maybeSingle();
 
   return (
-    <div className="bg-background flex min-h-screen">
+    <div className="bg-background flex h-dvh overflow-hidden">
       <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
+      <div className="flex h-full min-w-0 flex-1 flex-col">
         <Topbar
           email={user.email ?? ""}
           name={profile?.full_name ?? null}
           avatarUrl={profile?.avatar_url ?? null}
         />
-        <main className="flex-1 overflow-y-auto px-6 py-8">{children}</main>
+        <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-6 sm:px-6 sm:py-8">
+          {children}
+        </main>
       </div>
     </div>
   );

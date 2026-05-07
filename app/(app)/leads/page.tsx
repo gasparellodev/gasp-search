@@ -24,26 +24,30 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const { leads, totalCount, page, pageSize, totalPages } = leadsResult;
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
+      <div className="shrink-0">
         <h1 className="text-3xl font-semibold tracking-tight">Leads</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Sua base de leads captados, com filtros e tags.
         </p>
       </div>
 
-      <FiltersBar tags={tags} filters={filters} />
+      <div className="shrink-0">
+        <FiltersBar tags={tags} filters={filters} />
+      </div>
 
-      <LeadsTable
-        leads={leads}
-        totalCount={totalCount}
-        page={page}
-        pageSize={pageSize}
-        totalPages={totalPages}
-        sortBy={params.sortBy}
-        sortDir={params.sortDir}
-        tags={tags}
-      />
+      <div className="min-h-0 flex-1">
+        <LeadsTable
+          leads={leads}
+          totalCount={totalCount}
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          sortBy={params.sortBy}
+          sortDir={params.sortDir}
+          tags={tags}
+        />
+      </div>
     </div>
   );
 }

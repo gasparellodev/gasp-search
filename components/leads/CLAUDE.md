@@ -27,12 +27,21 @@ seu drawer de detalhe e helpers locais.
    Mensagens IA** com edição inline de stage, score, notes e tags via PATCH
    `/api/leads/[id]`. Estado interno é optimistic — em falha, revert + toast.error.
    `router.refresh()` é chamado em sucesso para o Server Component re-buscar.
+   A tab **Mensagens IA** renderiza a experiência real de geração via
+   `MessageGenerator`; não manter placeholders de issue já entregue.
 6. **Bulk select + Enriquecer** (issue #28): cada linha tem checkbox; toolbar
    acima da tabela aparece com contagem quando há seleção. Botão dispara
    POST `/api/apify/enrich` com até `ENRICH_MAX_LEADS` (25). Toasts de loading,
    success e error usam o id `bulk-enrich` para deduplicar. `router.refresh()`
    após sucesso para reler dados do server.
 7. **Estado vazio desenhado**: nada de tela em branco quando `leads.length === 0`.
+8. **Responsividade**: filtros usam grid responsivo e inputs `w-full` em
+   mobile. A tabela deve conter overflow horizontal no próprio bloco
+   (`Table`/container), nunca no `body`. Drawer, tabs e popovers usam
+   `max-w` baseado em viewport.
+9. **Viewport da lista**: `/leads` mantém header, filtros e paginação visíveis
+   dentro da tela. A rolagem vertical e horizontal da tabela acontece no
+   container interno `leads-table-scroll`, não na página inteira.
 
 ## Arquivos
 
@@ -45,6 +54,7 @@ seu drawer de detalhe e helpers locais.
 ## Dependências
 
 - `@tanstack/react-table` para a estrutura de colunas/rows
+- `@/components/ai/message-generator`
 - `@/components/ui/{table,sheet,button,badge,separator}` (shadcn)
 - `next/navigation` (`useRouter`, `usePathname`, `useSearchParams`)
 - `@/lib/validators/leads` (constantes e tipos)

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import {
   deleteTag,
   DuplicateTagError,
@@ -66,9 +67,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         { status: 409 },
       );
     }
-    return NextResponse.json(
-      { error: "Falha ao atualizar tag. Tente novamente." },
-      { status: 502 },
+    return apiErrorResponse(
+      error,
+      { route: "PATCH /api/tags/[id]", userId: user.id },
+      "Falha ao atualizar tag. Tente novamente.",
     );
   }
 }
@@ -92,10 +94,11 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       );
     }
     return new Response(null, { status: 204 });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao excluir tag. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "DELETE /api/tags/[id]", userId: user.id },
+      "Falha ao excluir tag. Tente novamente.",
     );
   }
 }

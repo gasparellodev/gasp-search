@@ -4,6 +4,7 @@ import {
   generateMessage,
   type LeadForMessage,
 } from "@/lib/ai/anthropic";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { generateMessageSchema } from "@/lib/validators/ai";
 
@@ -127,10 +128,11 @@ export async function POST(request: Request) {
       content: message.content,
       messageId: message.id,
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao gerar mensagem. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "POST /api/ai/generate-message", userId: user.id },
+      "Falha ao gerar mensagem. Tente novamente.",
     );
   }
 }

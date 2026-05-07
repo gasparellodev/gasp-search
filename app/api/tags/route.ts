@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { listTags } from "@/lib/leads/list-tags";
 import { createTag, DuplicateTagError } from "@/lib/leads/tags-crud";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -24,10 +25,11 @@ export async function GET() {
   try {
     const tags = await listTags({ supabase });
     return NextResponse.json({ data: tags });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao listar tags. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "GET /api/tags", userId: user.id },
+      "Falha ao listar tags. Tente novamente.",
     );
   }
 }
@@ -76,9 +78,10 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    return NextResponse.json(
-      { error: "Falha ao criar tag. Tente novamente." },
-      { status: 502 },
+    return apiErrorResponse(
+      error,
+      { route: "POST /api/tags", userId: user.id },
+      "Falha ao criar tag. Tente novamente.",
     );
   }
 }

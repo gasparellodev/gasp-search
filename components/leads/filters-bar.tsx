@@ -130,10 +130,10 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
   }
 
   return (
-    <div className="border-border bg-card flex flex-wrap items-end gap-3 rounded-lg border p-4">
+    <div className="border-border bg-card grid min-w-0 gap-3 rounded-lg border p-4 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_140px_140px_140px_180px_auto] lg:items-end">
       <form
         onSubmit={onSubmitQ}
-        className="flex flex-1 min-w-[220px] flex-col gap-1"
+        className="flex min-w-0 flex-col gap-1 sm:col-span-2 lg:col-span-1"
       >
         <label
           htmlFor="leads-q"
@@ -154,7 +154,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
         </div>
       </form>
 
-      <div className="flex min-w-[140px] flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <label
           htmlFor="leads-stage"
           className="text-muted-foreground text-xs uppercase tracking-wide"
@@ -166,7 +166,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
           aria-label="Estágio"
           value={filters.stage ?? ""}
           onChange={(event) => onSelectStage(event.target.value)}
-          className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+          className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
         >
           <option value="">Todos</option>
           {LEAD_STAGES.map((stage) => (
@@ -177,7 +177,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
         </select>
       </div>
 
-      <div className="flex min-w-[140px] flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <label
           htmlFor="leads-source"
           className="text-muted-foreground text-xs uppercase tracking-wide"
@@ -189,7 +189,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
           aria-label="Origem"
           value={filters.source ?? ""}
           onChange={(event) => onSelectSource(event.target.value)}
-          className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+          className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
         >
           <option value="">Todas</option>
           {LEAD_SOURCES.map((source) => (
@@ -200,7 +200,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
         </select>
       </div>
 
-      <div className="flex min-w-[140px] flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <label
           htmlFor="leads-has-website"
           className="text-muted-foreground text-xs uppercase tracking-wide"
@@ -218,7 +218,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
                 : "false"
           }
           onChange={(event) => onSelectHasWebsite(event.target.value)}
-          className="border-input bg-background h-9 rounded-md border px-2 text-sm"
+          className="border-input bg-background h-9 w-full rounded-md border px-2 text-sm"
         >
           <option value="">Indiferente</option>
           <option value="true">Com site</option>
@@ -226,7 +226,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
         </select>
       </div>
 
-      <div className="flex min-w-[180px] flex-col gap-1">
+      <div className="flex min-w-0 flex-col gap-1">
         <span className="text-muted-foreground text-xs uppercase tracking-wide">
           Tags
         </span>
@@ -237,7 +237,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
               variant="outline"
               aria-haspopup="listbox"
               aria-expanded={tagOpen}
-              className="h-9 justify-between"
+              className="h-9 w-full justify-between"
             >
               <span>
                 Tags
@@ -248,7 +248,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
               <ChevronDown className="size-4 opacity-60" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="start">
+          <PopoverContent className="w-[min(16rem,calc(100vw-2rem))] p-0" align="start">
             <Command>
               <CommandInput placeholder="Filtrar tags…" />
               <CommandList>
@@ -304,7 +304,7 @@ export function FiltersBar({ tags, filters }: FiltersBarProps) {
         variant="ghost"
         size="sm"
         onClick={clearAll}
-        className="h-9"
+        className="h-9 w-full sm:w-auto"
       >
         <X className="mr-1 size-4" />
         Limpar

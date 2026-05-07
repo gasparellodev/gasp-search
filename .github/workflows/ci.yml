@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -14,7 +17,8 @@ jobs:
     name: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - id: check
         run: |
           if [ -f package.json ] && [ -f package-lock.json ]; then
@@ -24,7 +28,8 @@ jobs:
             echo "::notice::Skipping lint — package.json/lock not present yet"
           fi
       - if: steps.check.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: npm
@@ -37,7 +42,8 @@ jobs:
     name: typecheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - id: check
         run: |
           if [ -f package.json ] && [ -f package-lock.json ]; then
@@ -47,7 +53,8 @@ jobs:
             echo "::notice::Skipping typecheck — package.json/lock not present yet"
           fi
       - if: steps.check.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: npm
@@ -60,7 +67,8 @@ jobs:
     name: unit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - id: check
         run: |
           if [ -f package.json ] && [ -f package-lock.json ] && [ -f vitest.config.ts ]; then
@@ -70,7 +78,8 @@ jobs:
             echo "::notice::Skipping unit — vitest config not present yet"
           fi
       - if: steps.check.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: npm
@@ -79,7 +88,8 @@ jobs:
       - if: steps.check.outputs.ready == 'true'
         run: npm test -- --coverage
       - if: steps.check.outputs.ready == 'true'
-        uses: actions/upload-artifact@v4
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: coverage-${{ github.run_id }}
           path: coverage/
@@ -89,7 +99,8 @@ jobs:
     name: e2e
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - id: check
         run: |
           if [ -f package.json ] && [ -f package-lock.json ] && [ -f playwright.config.ts ]; then
@@ -99,7 +110,8 @@ jobs:
             echo "::notice::Skipping e2e — playwright config not present yet"
           fi
       - if: steps.check.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: npm
@@ -134,7 +146,8 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
       - if: steps.check.outputs.ready == 'true' && always()
-        uses: actions/upload-artifact@v4
+        # actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: playwright-report-${{ github.run_id }}
           path: playwright-report/
@@ -144,7 +157,8 @@ jobs:
     name: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - id: check
         run: |
           if [ -f package.json ] && [ -f package-lock.json ]; then
@@ -154,7 +168,8 @@ jobs:
             echo "::notice::Skipping build — package.json/lock not present yet"
           fi
       - if: steps.check.outputs.ready == 'true'
-        uses: actions/setup-node@v4
+        # actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: 24
           cache: npm

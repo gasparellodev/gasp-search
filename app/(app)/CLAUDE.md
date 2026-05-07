@@ -10,10 +10,13 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 (app)/
 ├── layout.tsx           # Server Component: auth check + shell
 ├── dashboard/page.tsx   # Cards de métricas + últimas buscas
+├── dashboard/loading.tsx # Skeleton da rota dashboard
 ├── search/page.tsx      # Form de busca Google Maps
 ├── leads/page.tsx       # Tabela de leads (placeholder até #18)
+├── leads/loading.tsx    # Skeleton da rota leads
 ├── leads/[id]/page.tsx  # Detalhe do lead + ferramentas CRM
 ├── pipeline/page.tsx    # Kanban (placeholder até #29)
+├── pipeline/loading.tsx # Skeleton da rota pipeline
 └── settings/page.tsx    # Preferências da conta (placeholder)
 ```
 
@@ -30,6 +33,8 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 3. **Nenhuma rota aqui pode ser SSG**. Todas dependem da sessão → dynamic rendering.
 4. **Server Components fazem fetch** com `cache: 'no-store'` para dados específicos do user (RLS aplicada via Supabase client com cookies).
 5. **Estados vazios desenhados** em todas as páginas: nada de tela em branco.
+6. **Responsividade do shell**: wrappers de página usam `min-w-0`; scroll
+   horizontal deve ficar contido no componente que precisa dele, não no `body`.
 
 ## Arquivos
 
@@ -37,10 +42,13 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 |---|---|---|
 | `layout.tsx` | Server | Auth check, lê profile, renderiza Sidebar + Topbar |
 | `dashboard/page.tsx` | Server | Página do dashboard; renderiza `DashboardView` |
+| `dashboard/loading.tsx` | Server | Skeleton de rota do dashboard |
 | `search/page.tsx` | Server | Página de busca com `SearchForm` |
 | `leads/page.tsx` | Server | Placeholder até #18 |
+| `leads/loading.tsx` | Server | Skeleton de rota da tabela de leads |
 | `leads/[id]/page.tsx` | Server | Detalhe do lead com `MessageGenerator` |
 | `pipeline/page.tsx` | Server | Placeholder até #29 |
+| `pipeline/loading.tsx` | Server | Skeleton de rota do Kanban |
 | `settings/page.tsx` | Server | Placeholder |
 
 ## Dependências

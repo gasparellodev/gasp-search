@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { enrichLeadsByUrls } from "@/lib/apify/enrich";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { enrichRequestSchema } from "@/lib/validators/search";
@@ -50,9 +51,10 @@ export async function POST(request: Request) {
     .in("id", parsed.data.leadIds);
 
   if (fetchError) {
-    return NextResponse.json(
-      { error: "Falha ao carregar leads. Tente novamente." },
-      { status: 502 },
+    return apiErrorResponse(
+      fetchError,
+      { route: "POST /api/apify/enrich", userId: user.id },
+      "Falha ao carregar leads. Tente novamente.",
     );
   }
 
@@ -102,10 +104,11 @@ export async function POST(request: Request) {
       enrichedCount: result.enrichedCount,
       failedIds,
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao executar enrich. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "POST /api/apify/enrich", userId: user.id },
+      "Falha ao executar enrich. Tente novamente.",
     );
   }
 }

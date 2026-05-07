@@ -18,7 +18,14 @@ Kanban interativo da página `/pipeline`. Colunas = estágios em
    `setOptimistic(previous)` reverte e `toast.error` mostra a mensagem.
 2. **`router.refresh()` em sucesso** para re-buscar o board do Server
    Component (cobre eventos paralelos como concorrência entre abas).
-3. **Mobile**: o container usa `overflow-x-auto` para scroll horizontal.
+3. **Viewport fixo**: a página de pipeline deve manter o board inteiro dentro
+   da tela disponível. A rolagem vertical acontece dentro da lista de cards de
+   cada coluna, não na página inteira.
+4. **Scroll horizontal interno**: o Kanban usa um trilho horizontal dentro do
+   board, com colunas de largura fixa confortável. Esse scroll é local ao board
+   e não deve virar overflow horizontal global da página.
+5. **Mobile**: há um seletor `Visualizar estágio` como atalho mobile, mas as
+   colunas continuam acessíveis pelo trilho horizontal interno.
 4. **`onMoveCommand` (prop)** existe apenas para testes — permite chamar
    `moveLead` diretamente, sem simular o cycle de pointer events que o
    dnd-kit usa.
@@ -33,6 +40,7 @@ Kanban interativo da página `/pipeline`. Colunas = estágios em
 
 ## Quando atualizar este `CLAUDE.md`
 
-- Novo estágio adicionado em `LEAD_STAGES` → atualizar `STAGE_LABEL`/`STAGE_ACCENT`.
+- Novo estágio adicionado em `LEAD_STAGES` → atualizar `STAGE_LABEL`/`STAGE_ACCENT`
+  e garantir que o seletor mobile continue cobrindo o estágio.
 - Drag entre múltiplos boards / multi-select de cards.
 - Substituir `@dnd-kit/core` por outra lib de DnD.

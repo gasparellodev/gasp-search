@@ -1,12 +1,13 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { env } from "@/lib/env";
 import { autoEnrichGoogleMapsJob } from "@/lib/apify/auto-enrich";
 import {
   mapGoogleMapsPlace,
   type GoogleMapsPlace,
 } from "@/lib/apify/google-maps";
-import { runAndPersist } from "@/lib/apify/run-and-persist";
+import { createSearchJob, executeSearchJob } from "@/lib/apify/run-and-persist";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { searchGoogleMapsSchema } from "@/lib/validators/search";
 
@@ -55,30 +56,45 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await runAndPersist<GoogleMapsPlace>({
+    const jobId = await createSearchJob({
       supabase,
       userId: user.id,
       source: "google_maps",
-      actorId: env.APIFY_GOOGLE_MAPS_ACTOR_ID,
       input: parsed.data,
-      mapper: mapGoogleMapsPlace,
     });
 
-    let autoEnrichedCount = 0;
-    if (env.AUTO_ENRICH_AFTER_GMAPS && result.status === "succeeded") {
-      const enrich = await autoEnrichGoogleMapsJob({
-        supabase,
-        userId: user.id,
-        jobId: result.jobId,
-      });
-      autoEnrichedCount = enrich.enrichedCount;
-    }
+    // Execução do actor Apify em background — não bloqueia a resposta.
+    after(async () => {
+      try {
+        const result = await executeSearchJob<GoogleMapsPlace>({
+          supabase,
+          userId: user.id,
+          jobId,
+          source: "google_maps",
+          actorId: env.APIFY_GOOGLE_MAPS_ACTOR_ID,
+          input: parsed.data,
+          mapper: mapGoogleMapsPlace,
+        });
 
-    return NextResponse.json({ ...result, autoEnrichedCount });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao executar busca no Google Maps. Tente novamente." },
-      { status: 502 },
+        if (env.AUTO_ENRICH_AFTER_GMAPS && result.status === "succeeded") {
+          await autoEnrichGoogleMapsJob({
+            supabase,
+            userId: user.id,
+            jobId,
+          });
+        }
+      } catch {
+        // executeSearchJob já marca o job como "failed" internamente.
+        // Não relançar para não crashar o background callback.
+      }
+    });
+
+    return NextResponse.json({ jobId, status: "queued" });
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "POST /api/apify/google-maps", userId: user.id },
+      "Falha ao criar busca no Google Maps. Tente novamente.",
     );
   }
 }
