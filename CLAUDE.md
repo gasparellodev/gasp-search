@@ -6,19 +6,22 @@ Aplicação web interna do GaspLab para captação, qualificação e gestão de 
 
 ## Stack
 
-| Camada | Tecnologia |
+| Camada | Tecnologia (real) |
 |---|---|
-| Framework | Next.js 14 App Router + TypeScript (strict) |
-| UI | React 18 + shadcn/ui + Tailwind 3.4 |
+| Framework | Next.js 16 App Router (Turbopack) + TypeScript strict + `noUncheckedIndexedAccess` |
+| Runtime | Node 24 LTS |
+| UI | React 19 + shadcn/ui + Tailwind v4 (CSS-first) + Radix |
 | Auth & DB | Supabase (Postgres + Auth + RLS) |
 | Scraping | Apify (`apify-client`) |
 | IA | Anthropic SDK (`claude-sonnet-4-6`) |
-| Forms | `react-hook-form` + `zod` |
+| Forms | `react-hook-form` + `zod` v4 |
 | Tabelas | `@tanstack/react-table` v8 |
-| Drag & drop | `@dnd-kit/core` + `@dnd-kit/sortable` |
-| Testes | Vitest + RTL + Playwright |
+| Drag & drop | `@dnd-kit/core` + `@dnd-kit/sortable` v10 |
+| Testes | Vitest + React Testing Library + Playwright (issue #6) |
 
 Sem Redux, sem TanStack Query no MVP. Server Components + Server Actions são suficientes.
+
+> **Stack atualizado vs spec original.** Spec foi escrito assumindo Next.js 14.2 / React 18 / Tailwind 3.4. O bootstrap ficou no que `create-next-app` entrega hoje (Next 16, React 19, Tailwind 4) — satisfaz "14.2+" do spec e alinha com o knowledge update do plugin Vercel. Tailwind v4 muda config para CSS (`@theme inline { ... }` em `globals.css`), sem `tailwind.config.ts`. Dark mode via `@custom-variant dark (&:is(.dark *))` + classe `.dark` no `<html>`.
 
 ## Estrutura de pastas (alvo)
 
