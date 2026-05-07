@@ -2,7 +2,9 @@
 
 Aplicação web interna do GaspLab para captação, qualificação e gestão de leads voltada ao desenvolvimento de sites e automação para clientes.
 
-> Documentação completa em construção. Veja `CLAUDE.md` para spec técnica do projeto e [issues](https://github.com/gasparellodev/gasp-search/issues) para o roadmap.
+> **Continuando o desenvolvimento?** Comece pelo [`HANDOFF.md`](./HANDOFF.md) — estado do projeto, próximos passos, dicas para retomada com qualquer agente AI (Codex, Claude, etc.) ou humano.
+>
+> Spec técnica em [`CLAUDE.md`](./CLAUDE.md). Workflow de PR em [`CONTRIBUTING.md`](./CONTRIBUTING.md). Backlog em [issues](https://github.com/gasparellodev/gasp-search/issues).
 
 ## Stack
 
