@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 import {
   CircleCheckIcon,
@@ -9,12 +10,11 @@ import {
   Loader2Icon,
 } from "lucide-react";
 
-// next-themes não está instalado no MVP — dark é o default no <html>.
-// Quando adicionarmos toggle real (#11/#12), trocar para usar useTheme.
 const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme();
   return (
     <Sonner
-      theme="dark"
+      theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
         success: <CircleCheckIcon className="size-4" />,

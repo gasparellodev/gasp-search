@@ -40,6 +40,7 @@ export interface Database {
           avatar_url?: string | null;
           created_at?: string;
         };
+        Relationships: [];
       };
       tags: {
         Row: {
@@ -63,6 +64,7 @@ export interface Database {
           color?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
       search_jobs: {
         Row: {
@@ -101,6 +103,7 @@ export interface Database {
           created_at?: string;
           finished_at?: string | null;
         };
+        Relationships: [];
       };
       leads: {
         Row: {
@@ -184,6 +187,7 @@ export interface Database {
           created_at?: string;
           updated_at?: string;
         };
+        Relationships: [];
       };
       lead_tags: {
         Row: {
@@ -198,6 +202,7 @@ export interface Database {
           lead_id?: string;
           tag_id?: string;
         };
+        Relationships: [];
       };
       lead_messages: {
         Row: {
@@ -227,8 +232,12 @@ export interface Database {
           content?: string;
           created_at?: string;
         };
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    CompositeTypes: Record<string, never>;
     Enums: {
       search_source: "google_maps" | "instagram" | "website_contact";
       search_status: "queued" | "running" | "succeeded" | "failed";
