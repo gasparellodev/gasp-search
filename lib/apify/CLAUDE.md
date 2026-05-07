@@ -47,9 +47,7 @@ Integração com Apify (scraping). Cliente singleton + util `runAndPersist` que 
 | `run-and-persist.ts` | Função genérica `runAndPersist({ source, mapper, ... })` que orquestra job + run + upsert |
 | `google-maps.ts` | Mapper `mapGoogleMapsPlace` + `normalizeWebsite` |
 | `instagram.ts` | Mapper `mapInstagramProfile` + `normalizeInstagramHandle` |
-
-> A medida que features chegam:
-> - `enrich.ts` (#25)
+| `enrich.ts` | `mapWebsiteContact` (puro) + `enrichLeadsByUrls` (orquestração) — atualiza leads existentes por URL, **não cria novos** |
 
 ## Dependências
 
