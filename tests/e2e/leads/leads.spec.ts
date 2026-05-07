@@ -48,4 +48,46 @@ test.describe("leads list", () => {
     ).toBeVisible();
     await page.getByRole("button", { name: /fechar/i }).click();
   });
+
+  test("seleciona leads, aciona Enriquecer e vê toast com resultado", async ({
+    page,
+  }) => {
+    // Mock da rota para garantir resposta determinística no CI/local
+    await page.route("**/api/apify/enrich", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ enrichedCount: 3, failedIds: [] }),
+      });
+    });
+
+    await page.goto("/login?redirectTo=/leads");
+    await page.getByLabel("E-mail").fill(email!);
+    await page.getByLabel("Senha").fill(password!);
+    await page.getByRole("button", { name: /^entrar$/i }).click();
+    await expect(page).toHaveURL(/\/leads/);
+
+    const empty = page.getByText(/nenhum lead encontrado/i);
+    if (await empty.isVisible().catch(() => false)) {
+      test.skip(true, "Sem leads no DB para exercitar bulk enrich.");
+      return;
+    }
+
+    const checkboxes = page.getByRole("checkbox", {
+      name: /selecionar lead/i,
+    });
+    const count = await checkboxes.count();
+    const toCheck = Math.min(count, 3);
+    for (let i = 0; i < toCheck; i += 1) {
+      await checkboxes.nth(i).check();
+    }
+    await expect(
+      page.getByText(new RegExp(`${toCheck} selecionado`, "i")),
+    ).toBeVisible();
+    await page.getByRole("button", { name: /enriquecer selecionado/i }).click();
+
+    await expect(
+      page.getByText(/enriquecimento concluído/i).first(),
+    ).toBeVisible();
+  });
 });
