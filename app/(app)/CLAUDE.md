@@ -12,6 +12,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 ├── dashboard/page.tsx   # Cards de métricas + últimas buscas
 ├── search/page.tsx      # Form de busca Google Maps
 ├── leads/page.tsx       # Tabela de leads (placeholder até #18)
+├── leads/[id]/page.tsx  # Detalhe do lead + ferramentas CRM
 ├── pipeline/page.tsx    # Kanban (placeholder até #29)
 └── settings/page.tsx    # Preferências da conta (placeholder)
 ```
@@ -38,6 +39,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 | `dashboard/page.tsx` | Server | Cards (placeholder até #35) |
 | `search/page.tsx` | Server | Página de busca com `SearchForm` |
 | `leads/page.tsx` | Server | Placeholder até #18 |
+| `leads/[id]/page.tsx` | Server | Detalhe do lead com `MessageGenerator` |
 | `pipeline/page.tsx` | Server | Placeholder até #29 |
 | `settings/page.tsx` | Server | Placeholder |
 
