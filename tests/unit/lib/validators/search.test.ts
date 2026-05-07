@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { searchGoogleMapsSchema } from "@/lib/validators/search";
+import {
+  buildGoogleMapsSearchInput,
+  searchFormSchema,
+  searchGoogleMapsSchema,
+} from "@/lib/validators/search";
 
 describe("searchGoogleMapsSchema", () => {
   it("aceita input mínimo para o actor do Google Maps", () => {
@@ -54,5 +58,48 @@ describe("searchGoogleMapsSchema", () => {
     if (result.success) {
       expect(result.data.countryCode).toBe("br");
     }
+  });
+});
+
+describe("searchFormSchema", () => {
+  it("aceita termos, cidade, estado e quantidade", () => {
+    const result = searchFormSchema.safeParse({
+      terms: ["barbearia", "clínica estética"],
+      city: "Curitiba",
+      state: "PR",
+      maxCrawledPlacesPerSearch: 25,
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("rejeita formulário sem termos", () => {
+    const result = searchFormSchema.safeParse({
+      terms: [],
+      city: "Curitiba",
+      state: "PR",
+      maxCrawledPlacesPerSearch: 25,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("monta input do actor combinando termo, cidade e estado", () => {
+    const input = buildGoogleMapsSearchInput({
+      terms: ["barbearia", "clínica estética"],
+      city: "Curitiba",
+      state: "PR",
+      maxCrawledPlacesPerSearch: 25,
+    });
+
+    expect(input).toEqual({
+      searchStringsArray: [
+        "barbearia Curitiba PR",
+        "clínica estética Curitiba PR",
+      ],
+      maxCrawledPlacesPerSearch: 25,
+      language: "pt-BR",
+      countryCode: "br",
+    });
   });
 });

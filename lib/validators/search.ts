@@ -29,3 +29,45 @@ export const searchGoogleMapsSchema = z
   .strict();
 
 export type SearchGoogleMapsInput = z.infer<typeof searchGoogleMapsSchema>;
+
+export const searchFormSchema = z
+  .object({
+    terms: z
+      .array(searchTermSchema)
+      .min(1, "Adicione ao menos um termo de busca")
+      .max(20, "Informe no máximo 20 termos por execução"),
+    city: z
+      .string()
+      .trim()
+      .min(2, "Cidade precisa ter ao menos 2 caracteres")
+      .max(80, "Cidade muito longa"),
+    state: z
+      .string()
+      .trim()
+      .min(2, "Estado precisa ter ao menos 2 caracteres")
+      .max(40, "Estado muito longo")
+      .transform((value) => value.toUpperCase()),
+    maxCrawledPlacesPerSearch: z
+      .number()
+      .int("Quantidade precisa ser um número inteiro")
+      .min(1, "Quantidade mínima é 1")
+      .max(500, "Quantidade máxima é 500")
+      .default(50),
+  })
+  .strict();
+
+export type SearchFormInput = z.infer<typeof searchFormSchema>;
+export type SearchFormValues = z.input<typeof searchFormSchema>;
+
+export function buildGoogleMapsSearchInput(
+  values: SearchFormInput,
+): SearchGoogleMapsInput {
+  return searchGoogleMapsSchema.parse({
+    searchStringsArray: values.terms.map(
+      (term) => `${term} ${values.city} ${values.state}`,
+    ),
+    maxCrawledPlacesPerSearch: values.maxCrawledPlacesPerSearch,
+    language: "pt-BR",
+    countryCode: "br",
+  });
+}

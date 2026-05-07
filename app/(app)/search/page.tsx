@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SearchForm } from "@/components/search/search-form";
 
 export const metadata = { title: "Buscar" };
 
@@ -11,16 +11,7 @@ export default function SearchPage() {
           Disparar buscas no Google Maps e Instagram via Apify.
         </p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Em construção</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">
-            Formulário de busca chega na issue #16 (Fase 2 — Search Engine).
-          </p>
-        </CardContent>
-      </Card>
+      <SearchForm />
     </div>
   );
 }
