@@ -1,8 +1,24 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LeadsTable } from "@/components/leads/leads-table";
+import { listLeads } from "@/lib/leads/list-leads";
+import { createServerSupabase } from "@/lib/supabase/server";
+import { parseLeadsListParams } from "@/lib/validators/leads";
 
 export const metadata = { title: "Leads" };
+export const dynamic = "force-dynamic";
 
-export default function LeadsPage() {
+interface LeadsPageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function LeadsPage({ searchParams }: LeadsPageProps) {
+  const raw = await searchParams;
+  const params = parseLeadsListParams(raw);
+  const supabase = await createServerSupabase();
+  const { leads, totalCount, page, pageSize, totalPages } = await listLeads({
+    supabase,
+    params,
+  });
+
   return (
     <div className="space-y-6">
       <div>
@@ -11,17 +27,16 @@ export default function LeadsPage() {
           Sua base de leads captados, com filtros e tags.
         </p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Nenhum lead ainda</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">
-            Faça sua primeira busca em{" "}
-            <strong>Buscar</strong> para captar leads aqui.
-          </p>
-        </CardContent>
-      </Card>
+
+      <LeadsTable
+        leads={leads}
+        totalCount={totalCount}
+        page={page}
+        pageSize={pageSize}
+        totalPages={totalPages}
+        sortBy={params.sortBy}
+        sortDir={params.sortDir}
+      />
     </div>
   );
 }
