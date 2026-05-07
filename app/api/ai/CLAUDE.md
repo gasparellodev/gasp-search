@@ -26,9 +26,12 @@ Erros:
 3. **Validação Zod antes de side effects** em Anthropic ou Supabase.
 4. **Rate limit básico por usuário** em memória, suficiente para o MVP.
 5. **Payload mínimo do lead.** A rota não seleciona `raw`, ids internos ou timestamps para geração.
+6. Falhas de geração/persistência passam por `apiErrorResponse()` para log
+   estruturado e resposta amigável sem stack.
 
 ## Dependências
 
 - `@/lib/supabase/server`
+- `@/lib/api/errors`
 - `@/lib/ai/anthropic`
 - `@/lib/validators/ai`

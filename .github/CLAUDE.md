@@ -19,12 +19,15 @@ Configuração do GitHub para o repositório: workflows de CI, templates de PR e
 3. **Concurrency.** Cancelar runs anteriores no mesmo branch via `concurrency.group`.
 4. **Secrets.** Workflows referenciam `${{ secrets.* }}` com fallback para placeholder em testes locais. Secrets reais setados via `gh secret set`.
 5. **Cache npm** habilitado (`actions/setup-node` com `cache: npm`) para acelerar.
+6. **Actions pinadas por SHA.** Manter comentário com a versão humana acima de
+   cada `uses:` pinado e deixar Dependabot cuidar dos bumps.
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
 | `workflows/ci.yml` | Lint + typecheck + unit + e2e + build em todo PR e push de `main` |
+| `dependabot.yml` | Atualizações semanais de GitHub Actions pinadas por SHA |
 | `PULL_REQUEST_TEMPLATE.md` | Checklist obrigatório de PR (Summary, Test plan, Quality gates) |
 | `ISSUE_TEMPLATE/feature.yml` | Form de feature request (resumo, critérios, testes, fase) |
 | `ISSUE_TEMPLATE/bug.yml` | Form de bug report (repro, expected, actual, env) |

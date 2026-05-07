@@ -15,6 +15,7 @@ tests/
 │   └── components/      # specs RTL para componentes não-shadcn
 ├── e2e/                 # Playwright (chromium)
 │   ├── smoke.spec.ts    # carrega `/`
+│   ├── responsive.spec.ts # regressão de menu mobile e overflow horizontal
 │   └── ...              # fluxos por área
 └── fixtures/            # JSON fixtures para mappers Apify
 ```
@@ -44,6 +45,9 @@ tests/
 4. **Testes determinísticos**: nada de `Math.random()`, `Date.now()` direto sem `vi.useFakeTimers()`.
 5. **Mock de side effects externos**: Supabase, Apify, Anthropic. Nunca tocar APIs reais em CI.
 6. **E2E não depende de Supabase real** em CI (sem secrets); use stubs ou rotas que não exigem auth para smoke. Para testes com auth real, marcar `test.skip()` quando faltar env.
+7. **Responsividade**: use helper de overflow horizontal comparando
+   `documentElement.scrollWidth`/`body.scrollWidth` contra `clientWidth` nas
+   rotas afetadas.
 
 ## Comandos
 

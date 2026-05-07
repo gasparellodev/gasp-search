@@ -24,6 +24,12 @@ vi.mock("sonner", () => ({
   toast: { success: hoisted.toastSuccess, error: hoisted.toastError },
 }));
 
+vi.mock("@/components/ai/message-generator", () => ({
+  MessageGenerator: ({ leadId }: { leadId: string }) => (
+    <div data-testid="drawer-message-generator">Mensagem IA real {leadId}</div>
+  ),
+}));
+
 const baseLead: LeadListItem = {
   id: "lead-1",
   user_id: "user-1",
@@ -187,10 +193,14 @@ describe("LeadDetailDrawer", () => {
     });
   });
 
-  it("Mensagens IA mostra placeholder enquanto issue #33 não chega", async () => {
+  it("Mensagens IA usa a experiência real da issue #33 no drawer", async () => {
     render(<LeadDetailDrawer {...defaultProps} />);
     await userEvent.click(screen.getByRole("tab", { name: /mensagens ia/i }));
-    expect(screen.getByText(/em breve/i)).toBeInTheDocument();
+    expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/issue #33/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId("drawer-message-generator")).toHaveTextContent(
+      "lead-1",
+    );
   });
 
   it("inline create de tag faz POST /api/tags e adiciona à seleção", async () => {

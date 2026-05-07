@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiErrorResponse } from "@/lib/api/errors";
 import {
   listLeads,
   type LeadListItem,
@@ -102,10 +103,11 @@ export async function GET(request: Request) {
         "cache-control": "no-store",
       },
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao exportar leads. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "GET /api/leads/export", userId: user.id },
+      "Falha ao exportar leads. Tente novamente.",
     );
   }
 }

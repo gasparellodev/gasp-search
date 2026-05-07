@@ -5,14 +5,16 @@ const supabaseMocks = vi.hoisted(() => ({
   createServerSupabase: vi.fn(),
 }));
 
-const runAndPersistMock = vi.hoisted(() => vi.fn());
+const createSearchJobMock = vi.hoisted(() => vi.fn());
+const executeSearchJobMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: supabaseMocks.createServerSupabase,
 }));
 
 vi.mock("@/lib/apify/run-and-persist", () => ({
-  runAndPersist: runAndPersistMock,
+  createSearchJob: createSearchJobMock,
+  executeSearchJob: executeSearchJobMock,
 }));
 
 const autoEnrichMock = vi.hoisted(() => vi.fn());
@@ -26,6 +28,18 @@ vi.mock("@/lib/env", () => ({
     AUTO_ENRICH_AFTER_GMAPS: true,
   },
 }));
+
+// Mock `after` explicitly to execute synchronously for testing
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: vi.fn((callback) => {
+      // For unit tests, we await the callback execution to observe side-effects
+      void callback();
+    }),
+  };
+});
 
 function makeRequest(body: unknown) {
   return new Request("http://localhost:3000/api/apify/google-maps", {
@@ -41,12 +55,21 @@ async function importRoute() {
 
 beforeEach(() => {
   vi.resetModules();
-  runAndPersistMock.mockReset();
+  createSearchJobMock.mockReset();
+  executeSearchJobMock.mockReset();
   autoEnrichMock.mockReset();
+
+  createSearchJobMock.mockResolvedValue("job-1");
+  executeSearchJobMock.mockResolvedValue({
+    jobId: "job-1",
+    status: "succeeded",
+    leadsCount: 3,
+  });
   autoEnrichMock.mockResolvedValue({
     enrichedCount: 0,
     enrichedLeadIds: [],
   });
+
   supabaseMocks.getUser.mockReset();
   supabaseMocks.createServerSupabase.mockReset();
   supabaseMocks.createServerSupabase.mockResolvedValue({
@@ -70,7 +93,7 @@ describe("POST /api/apify/google-maps", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Não autenticado",
     });
-    expect(runAndPersistMock).not.toHaveBeenCalled();
+    expect(createSearchJobMock).not.toHaveBeenCalled();
   });
 
   it("retorna 400 com detalhes quando o body é inválido", async () => {
@@ -93,20 +116,15 @@ describe("POST /api/apify/google-maps", () => {
         }),
       ],
     });
-    expect(runAndPersistMock).not.toHaveBeenCalled();
+    expect(createSearchJobMock).not.toHaveBeenCalled();
   });
 
-  it("chama runAndPersist e retorna payload de sucesso", async () => {
+  it("chama createSearchJob e retorna queued imediatamente, depois chama executeSearchJob em background", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
     });
-    runAndPersistMock.mockResolvedValue({
-      jobId: "job-1",
-      status: "succeeded",
-      leadsCount: 3,
-    });
-    const { POST, maxDuration } = await importRoute();
+    const { POST } = await importRoute();
 
     const response = await POST(
       makeRequest({
@@ -115,34 +133,39 @@ describe("POST /api/apify/google-maps", () => {
       }),
     );
 
-    expect(maxDuration).toBe(300);
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       jobId: "job-1",
-      status: "succeeded",
-      leadsCount: 3,
-      autoEnrichedCount: 0,
+      status: "queued",
     });
-    expect(runAndPersistMock).toHaveBeenCalledWith(
+
+    expect(createSearchJobMock).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: "user-1",
         source: "google_maps",
-        actorId: "compass~crawler-google-places",
         input: expect.objectContaining({
           searchStringsArray: ["barbearia Curitiba PR"],
           maxCrawledPlacesPerSearch: 25,
         }),
-        mapper: expect.any(Function),
       }),
+    );
+
+    // Verificamos o background execution
+    expect(executeSearchJobMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        jobId: "job-1",
+        actorId: "compass~crawler-google-places",
+      })
     );
   });
 
-  it("converte falha do actor em 502 amigável", async () => {
+  it("retorna 502 se createSearchJob falhar (falha de banco)", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
     });
-    runAndPersistMock.mockRejectedValue(new Error("actor explodiu"));
+    createSearchJobMock.mockRejectedValue(new Error("db failure"));
     const { POST } = await importRoute();
 
     const response = await POST(
@@ -151,49 +174,37 @@ describe("POST /api/apify/google-maps", () => {
 
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toEqual({
-      error: "Falha ao executar busca no Google Maps. Tente novamente.",
+      error: "Falha ao criar busca no Google Maps. Tente novamente.",
     });
   });
 
-  it("dispara autoEnrichGoogleMapsJob após sucesso e retorna autoEnrichedCount", async () => {
+  it("dispara autoEnrich no background após executeSearchJob com sucesso", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
     });
-    runAndPersistMock.mockResolvedValue({
-      jobId: "job-7",
-      status: "succeeded",
-      leadsCount: 3,
-    });
-    autoEnrichMock.mockResolvedValue({
-      enrichedCount: 2,
-      enrichedLeadIds: ["lead-a", "lead-b"],
-    });
 
+    // Config do mock garante que o after executa
     const { POST } = await importRoute();
     const response = await POST(
       makeRequest({ searchStringsArray: ["barbearia Curitiba PR"] }),
     );
 
     expect(response.status).toBe(200);
+
+    // Asserções do workflow no background
     expect(autoEnrichMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", jobId: "job-7" }),
+      expect.objectContaining({ userId: "user-1", jobId: "job-1" }),
     );
-    await expect(response.json()).resolves.toEqual({
-      jobId: "job-7",
-      status: "succeeded",
-      leadsCount: 3,
-      autoEnrichedCount: 2,
-    });
   });
 
-  it("não dispara autoEnrich quando runAndPersist retorna failed", async () => {
+  it("não dispara autoEnrich se executeSearchJob retornar failed no background", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
     });
-    runAndPersistMock.mockResolvedValue({
-      jobId: "job-8",
+    executeSearchJobMock.mockResolvedValue({
+      jobId: "job-1",
       status: "failed",
       leadsCount: 0,
     });

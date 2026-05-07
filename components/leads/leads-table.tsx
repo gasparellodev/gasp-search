@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   flexRender,
@@ -8,7 +9,14 @@ import {
   useReactTable,
   type ColumnDef,
 } from "@tanstack/react-table";
-import { ArrowDown, ArrowUp, ArrowUpDown, Loader2, Sparkles } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Loader2,
+  Search,
+  Sparkles,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -265,7 +273,9 @@ export function LeadsTable({
           />
         ),
         cell: ({ row }) => (
-          <span className="font-medium">{row.original.name}</span>
+          <span className="block max-w-56 truncate font-medium">
+            {row.original.name}
+          </span>
         ),
       },
       {
@@ -280,7 +290,7 @@ export function LeadsTable({
           />
         ),
         cell: ({ row }) => (
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground block max-w-40 truncate">
             {row.original.category ?? "—"}
           </span>
         ),
@@ -297,7 +307,7 @@ export function LeadsTable({
           />
         ),
         cell: ({ row }) => (
-          <span className="text-muted-foreground">
+          <span className="text-muted-foreground block max-w-36 truncate">
             {formatLocation(row.original)}
           </span>
         ),
@@ -306,7 +316,7 @@ export function LeadsTable({
         id: "contact",
         header: () => <span className="px-2">Contato</span>,
         cell: ({ row }) => (
-          <span className="text-muted-foreground truncate">
+          <span className="text-muted-foreground block max-w-52 truncate">
             {bestContact(row.original)}
           </span>
         ),
@@ -337,7 +347,7 @@ export function LeadsTable({
             return <span className="text-muted-foreground">—</span>;
           }
           return (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex max-w-48 flex-wrap gap-1">
               {tags.map((tag) => (
                 <Badge
                   key={tag.id}
@@ -402,11 +412,22 @@ export function LeadsTable({
 
   if (leads.length === 0) {
     return (
-      <div className="border-border bg-card text-card-foreground rounded-lg border p-12 text-center">
-        <p className="text-base font-medium">Nenhum lead encontrado</p>
-        <p className="text-muted-foreground mt-1 text-sm">
-          Faça uma nova busca em <strong>Buscar</strong> para captar leads.
-        </p>
+      <div className="border-border bg-card text-card-foreground flex h-full min-h-0 items-center justify-center rounded-lg border border-dashed p-8 text-center sm:p-12">
+        <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+          <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-md">
+            <Search className="size-5" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="text-base font-medium">Nenhum lead encontrado</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Faça uma nova busca para captar e qualificar seus primeiros
+              leads.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/search">Faça sua primeira busca</Link>
+          </Button>
+        </div>
       </div>
     );
   }
@@ -415,9 +436,12 @@ export function LeadsTable({
   const rangeEnd = Math.min(rangeStart + leads.length - 1, totalCount);
 
   return (
-    <>
+    <div
+      data-testid="leads-table-shell"
+      className="flex h-full min-h-0 flex-col gap-4"
+    >
       {selectedIds.size > 0 ? (
-        <div className="border-border bg-muted/40 flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-2">
+        <div className="border-border bg-muted/40 flex min-w-0 shrink-0 flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-2">
           <p className="text-sm">
             <strong>{selectedIds.size}</strong> selecionado(s)
             {selectedIds.size > ENRICH_MAX_LEADS ? (
@@ -426,7 +450,7 @@ export function LeadsTable({
               </span>
             ) : null}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
             <Button
               type="button"
               variant="outline"
@@ -454,8 +478,11 @@ export function LeadsTable({
         </div>
       ) : null}
 
-      <div className="border-border overflow-hidden rounded-lg border">
-        <Table>
+      <div
+        data-testid="leads-table-scroll"
+        className="border-border min-h-0 max-w-full flex-1 overflow-auto rounded-lg border"
+      >
+        <Table className="min-w-[56rem]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -488,13 +515,16 @@ export function LeadsTable({
         </Table>
       </div>
 
-      <div className="text-muted-foreground flex flex-col gap-3 px-1 text-sm sm:flex-row sm:items-center sm:justify-between">
+      <div
+        data-testid="leads-table-pagination"
+        className="text-muted-foreground flex min-w-0 shrink-0 flex-col gap-3 px-1 text-sm lg:flex-row lg:items-center lg:justify-between"
+      >
         <p>
           Mostrando <strong>{rangeStart}</strong>–<strong>{rangeEnd}</strong>{" "}
           de <strong>{totalCount}</strong>
         </p>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <label className="flex min-w-0 items-center gap-2">
             <span className="text-xs">Itens por página</span>
             <select
               aria-label="Itens por página"
@@ -518,7 +548,7 @@ export function LeadsTable({
           >
             Anterior
           </Button>
-          <span className="text-xs">
+          <span className="text-xs whitespace-nowrap">
             Página {page} de {Math.max(totalPages, 1)}
           </span>
           <Button
@@ -541,6 +571,6 @@ export function LeadsTable({
         }}
         tags={tags}
       />
-    </>
+    </div>
   );
 }

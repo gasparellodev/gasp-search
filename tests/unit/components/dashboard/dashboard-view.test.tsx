@@ -101,4 +101,31 @@ describe("DashboardView", () => {
       await screen.findByText("Nenhuma busca executada ainda."),
     ).toBeInTheDocument();
   });
+
+  it("renderiza CTA quando a base ainda está vazia", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetchOnce({
+        ...summary,
+        totalLeads: 0,
+        newLeadsLast7Days: 0,
+        leadsByStage: {
+          new: 0,
+          contacted: 0,
+          in_conversation: 0,
+          qualified: 0,
+          closed_won: 0,
+          closed_lost: 0,
+        },
+        recentSearches: [],
+      }),
+    );
+
+    render(<DashboardView />);
+
+    expect(await screen.findByText("Base ainda vazia")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /faça sua primeira busca/i }),
+    ).toHaveAttribute("href", "/search");
+  });
 });

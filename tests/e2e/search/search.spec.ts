@@ -18,8 +18,19 @@ test.describe("search", () => {
         contentType: "application/json",
         body: JSON.stringify({
           jobId: "job-e2e",
+          status: "queued",
+        }),
+      });
+    });
+    await page.route("**/api/search-jobs/job-e2e", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "job-e2e",
           status: "succeeded",
-          leadsCount: 2,
+          results_count: 2,
+          error_message: null,
         }),
       });
     });

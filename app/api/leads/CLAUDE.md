@@ -74,6 +74,8 @@ Erros: `401 Não autenticado`, `502 Falha ao exportar leads`.
 4. **Mensagens de erro em PT-BR** com shape `{ error, issues? }`.
 5. **`tagIds` em create/update é ignorado** aqui — gerido em endpoint dedicado
    (`/api/leads/[id]/tags`) na issue #22, para manter contratos isolados.
+6. Falhas inesperadas usam `apiErrorResponse()` para log estruturado com
+   `requestId`, `route` e `userId`, mantendo resposta amigável ao cliente.
 
 ## Arquivos
 
@@ -86,6 +88,7 @@ Erros: `401 Não autenticado`, `502 Falha ao exportar leads`.
 ## Dependências
 
 - `@/lib/supabase/server` (createServerSupabase)
+- `@/lib/api/errors` (log estruturado + resposta amigável)
 - `@/lib/leads/list-leads` (listLeads + tipos)
 - `@/lib/leads/crud` (createLead, getLead, updateLead, deleteLead)
 - `@/lib/validators/leads` (schemas)

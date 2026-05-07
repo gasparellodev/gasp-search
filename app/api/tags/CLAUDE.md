@@ -45,6 +45,8 @@ Exclui tag. ON DELETE CASCADE remove `lead_tags` automaticamente.
 2. **`PGRST116`** (no rows) em update vira **404** — `updateTag` retorna
    `null` neste caso.
 3. **Color default** vem do schema (`#0ea5e9`) quando o body omite.
+4. Falhas inesperadas usam `apiErrorResponse()` para log estruturado com
+   `requestId`, `route` e `userId`, sem expor stack ao cliente.
 
 ## Arquivos
 
@@ -59,3 +61,4 @@ Exclui tag. ON DELETE CASCADE remove `lead_tags` automaticamente.
 - `@/lib/leads/tags-crud` (createTag, updateTag, deleteTag, DuplicateTagError)
 - `@/lib/validators/tags` (createTagSchema, updateTagSchema)
 - `@/lib/supabase/server`
+- `@/lib/api/errors`

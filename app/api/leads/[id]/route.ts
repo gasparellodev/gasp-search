@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { deleteLead, getLead, updateLead } from "@/lib/leads/crud";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { updateLeadSchema } from "@/lib/validators/leads";
@@ -31,10 +32,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
     }
     return NextResponse.json(lead);
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao carregar lead. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "GET /api/leads/[id]", userId: user.id },
+      "Falha ao carregar lead. Tente novamente.",
     );
   }
 }
@@ -76,10 +78,11 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
     }
     return NextResponse.json(lead);
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao atualizar lead. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "PATCH /api/leads/[id]", userId: user.id },
+      "Falha ao atualizar lead. Tente novamente.",
     );
   }
 }
@@ -100,10 +103,11 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
     }
     return new Response(null, { status: 204 });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao excluir lead. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "DELETE /api/leads/[id]", userId: user.id },
+      "Falha ao excluir lead. Tente novamente.",
     );
   }
 }

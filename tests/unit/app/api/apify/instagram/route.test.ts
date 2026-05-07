@@ -5,14 +5,16 @@ const supabaseMocks = vi.hoisted(() => ({
   createServerSupabase: vi.fn(),
 }));
 
-const runAndPersistMock = vi.hoisted(() => vi.fn());
+const createSearchJobMock = vi.hoisted(() => vi.fn());
+const executeSearchJobMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: supabaseMocks.createServerSupabase,
 }));
 
 vi.mock("@/lib/apify/run-and-persist", () => ({
-  runAndPersist: runAndPersistMock,
+  createSearchJob: createSearchJobMock,
+  executeSearchJob: executeSearchJobMock,
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -20,6 +22,18 @@ vi.mock("@/lib/env", () => ({
     APIFY_INSTAGRAM_ACTOR_ID: "apify~instagram-scraper",
   },
 }));
+
+// Mock `after` explicitly to execute synchronously for testing
+vi.mock("next/server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/server")>();
+  return {
+    ...actual,
+    after: vi.fn((callback) => {
+      // For unit tests, we await the callback execution to observe side-effects
+      void callback();
+    }),
+  };
+});
 
 function makeRequest(body: unknown) {
   return new Request("http://localhost:3000/api/apify/instagram", {
@@ -35,7 +49,16 @@ async function importRoute() {
 
 beforeEach(() => {
   vi.resetModules();
-  runAndPersistMock.mockReset();
+  createSearchJobMock.mockReset();
+  executeSearchJobMock.mockReset();
+
+  createSearchJobMock.mockResolvedValue("job-ig-1");
+  executeSearchJobMock.mockResolvedValue({
+    jobId: "job-ig-1",
+    status: "succeeded",
+    leadsCount: 12,
+  });
+
   supabaseMocks.getUser.mockReset();
   supabaseMocks.createServerSupabase.mockReset();
   supabaseMocks.createServerSupabase.mockResolvedValue({
@@ -50,7 +73,7 @@ describe("POST /api/apify/instagram", () => {
       error: null,
     });
     const { POST } = await importRoute();
-    const response = await POST(makeRequest({ search: "barbearia" }));
+    const response = await POST(makeRequest({ search: "barbearia", searchType: "user" }));
     expect(response.status).toBe(401);
   });
 
@@ -82,45 +105,50 @@ describe("POST /api/apify/instagram", () => {
     expect(response.status).toBe(400);
   });
 
-  it("dispara runAndPersist com mapper Instagram e responde 200", async () => {
+  it("chama createSearchJob e retorna queued imediatamente, depois chama executeSearchJob em background", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
-    });
-    runAndPersistMock.mockResolvedValue({
-      jobId: "job-ig-1",
-      status: "succeeded",
-      leadsCount: 12,
     });
 
     const { POST } = await importRoute();
     const response = await POST(
       makeRequest({ search: "barbearia", searchType: "user" }),
     );
+
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       jobId: "job-ig-1",
-      status: "succeeded",
-      leadsCount: 12,
+      status: "queued",
     });
 
-    expect(runAndPersistMock).toHaveBeenCalledTimes(1);
-    const arg = runAndPersistMock.mock.calls[0]![0];
-    expect(arg.userId).toBe("user-1");
-    expect(arg.source).toBe("instagram");
-    expect(arg.actorId).toBe("apify~instagram-scraper");
-    expect(typeof arg.mapper).toBe("function");
+    // Validar se createSearchJob foi chamado
+    expect(createSearchJobMock).toHaveBeenCalledTimes(1);
+    const createArg = createSearchJobMock.mock.calls[0]![0];
+    expect(createArg.userId).toBe("user-1");
+    expect(createArg.source).toBe("instagram");
+    expect(createArg.input).toMatchObject({ search: "barbearia", searchType: "user" });
+
+    // Validar se executeSearchJob foi chamado no background
+    expect(executeSearchJobMock).toHaveBeenCalledTimes(1);
+    const execArg = executeSearchJobMock.mock.calls[0]![0];
+    expect(execArg.userId).toBe("user-1");
+    expect(execArg.jobId).toBe("job-ig-1");
+    expect(execArg.source).toBe("instagram");
+    expect(execArg.actorId).toBe("apify~instagram-scraper");
+    expect(typeof execArg.mapper).toBe("function");
   });
 
-  it("retorna 502 quando runAndPersist lança", async () => {
+  it("retorna 502 quando createSearchJob lança erro", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
     });
-    runAndPersistMock.mockRejectedValue(new Error("apify down"));
+    createSearchJobMock.mockRejectedValue(new Error("db down"));
 
     const { POST } = await importRoute();
-    const response = await POST(makeRequest({ search: "barbearia" }));
+    const response = await POST(makeRequest({ search: "barbearia", searchType: "user" }));
     expect(response.status).toBe(502);
+    expect(executeSearchJobMock).not.toHaveBeenCalled();
   });
 });

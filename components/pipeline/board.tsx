@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   DndContext,
@@ -12,8 +13,10 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   LEAD_STAGES,
@@ -59,11 +62,13 @@ export function PipelineBoard({
 }: PipelineBoardProps) {
   const router = useRouter();
   const [optimistic, setOptimistic] = useState<Board>(board);
+  const [focusedStage, setFocusedStage] = useState<LeadStage>("new");
   const [, startTransition] = useTransition();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
+  const isEmpty = LEAD_STAGES.every((stage) => optimistic[stage].length === 0);
 
   function findStageOf(leadId: string): LeadStage | null {
     for (const stage of LEAD_STAGES) {
@@ -130,22 +135,74 @@ export function PipelineBoard({
     void moveLead({ leadId, toStage: overId });
   }
 
+  if (isEmpty) {
+    return (
+      <div className="border-border bg-card flex min-h-0 flex-1 items-center justify-center rounded-lg border border-dashed p-8 text-center">
+        <div className="mx-auto flex max-w-sm flex-col items-center gap-3">
+          <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-md">
+            <Search className="size-5" aria-hidden="true" />
+          </div>
+          <div>
+            <p className="font-medium">Nenhum lead no pipeline</p>
+            <p className="text-muted-foreground mt-1 text-sm">
+              Faça sua primeira busca para alimentar os estágios do Kanban.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/search">Faça sua primeira busca</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 overflow-x-auto pb-2">
-        {LEAD_STAGES.map((stage) => (
-          <Column
-            key={stage}
-            stage={stage}
-            label={STAGE_LABEL[stage]}
-            accent={STAGE_ACCENT[stage]}
-            cards={optimistic[stage]}
-          />
-        ))}
+      <div
+        data-testid="pipeline-viewport"
+        className="flex min-h-0 flex-1 flex-col gap-4"
+      >
+        <div className="shrink-0 md:hidden">
+          <label
+            htmlFor="pipeline-stage"
+            className="text-muted-foreground text-xs font-medium uppercase"
+          >
+            Visualizar estágio
+          </label>
+          <select
+            id="pipeline-stage"
+            aria-label="Visualizar estágio"
+            value={focusedStage}
+            onChange={(event) => setFocusedStage(event.target.value as LeadStage)}
+            className="border-input bg-background mt-1 h-9 w-full rounded-md border px-2 text-sm"
+          >
+            {LEAD_STAGES.map((stage) => (
+              <option key={stage} value={stage}>
+                {STAGE_LABEL[stage]} ({optimistic[stage].length})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div
+          data-testid="pipeline-board"
+          className="flex h-full min-h-0 min-w-0 flex-1 gap-4 overflow-x-auto pb-2"
+        >
+          {LEAD_STAGES.map((stage) => (
+            <Column
+              key={stage}
+              stage={stage}
+              label={STAGE_LABEL[stage]}
+              accent={STAGE_ACCENT[stage]}
+              cards={optimistic[stage]}
+              highlighted={focusedStage === stage}
+            />
+          ))}
+        </div>
       </div>
     </DndContext>
   );
@@ -156,9 +213,10 @@ interface ColumnProps {
   label: string;
   accent: string;
   cards: PipelineCard[];
+  highlighted?: boolean;
 }
 
-function Column({ stage, label, accent, cards }: ColumnProps) {
+function Column({ stage, label, accent, cards, highlighted }: ColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id: stage });
   return (
     <section
@@ -166,16 +224,19 @@ function Column({ stage, label, accent, cards }: ColumnProps) {
       role="region"
       aria-label={label}
       className={cn(
-        "border-border bg-card flex w-72 shrink-0 flex-col gap-3 rounded-lg border p-3 transition-colors",
-        isOver && "bg-muted/40",
+        "border-border bg-card flex h-full min-h-0 w-[28rem] min-w-0 shrink-0 flex-col gap-3 overflow-hidden rounded-lg border p-3 transition-colors",
+        (isOver || highlighted) && "bg-muted/40",
       )}
     >
-      <header className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label}</span>
+      <header className="flex shrink-0 items-center justify-between text-sm">
+        <span className="truncate font-medium">{label}</span>
         <span className="text-muted-foreground text-xs">{cards.length}</span>
       </header>
-      <div className={cn("border-l-2 pl-3", accent)}>
-        <div className="flex flex-col gap-2">
+      <div className={cn("min-h-0 min-w-0 flex-1 border-l-2 pl-3", accent)}>
+        <div
+          data-testid={`pipeline-column-list-${stage}`}
+          className="flex h-full min-h-0 flex-col gap-2 overflow-y-auto pr-1"
+        >
           {cards.length === 0 ? (
             <p className="text-muted-foreground text-xs italic">Sem leads</p>
           ) : (
@@ -202,13 +263,15 @@ function Card({ card }: { card: PipelineCard }) {
       {...listeners}
       {...attributes}
       className={cn(
-        "border-border bg-background hover:bg-muted/50 cursor-grab rounded-md border p-3 text-sm shadow-sm transition-colors",
+        "border-border bg-background hover:bg-muted/50 min-w-0 cursor-grab rounded-md border p-3 text-sm shadow-sm transition-colors",
         isDragging && "opacity-50",
       )}
     >
       <p className="font-medium">{card.name}</p>
       {card.category ? (
-        <p className="text-muted-foreground mt-0.5 text-xs">{card.category}</p>
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          {card.category}
+        </p>
       ) : null}
       {card.city || card.state ? (
         <p className="text-muted-foreground mt-0.5 text-xs">

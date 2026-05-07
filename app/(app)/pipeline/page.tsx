@@ -10,8 +10,8 @@ export default async function PipelinePage() {
   const board = await listLeadsByStage({ supabase });
 
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="flex h-[calc(100dvh-6.5rem)] min-h-0 min-w-0 flex-col gap-6 sm:h-[calc(100dvh-7.5rem)]">
+      <div className="shrink-0">
         <h1 className="text-3xl font-semibold tracking-tight">Pipeline</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Kanban dos seus leads. Arraste o card para mudar o estágio.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
+import { apiErrorResponse } from "@/lib/api/errors";
 import { createLead } from "@/lib/leads/crud";
 import { listLeads } from "@/lib/leads/list-leads";
 import { createServerSupabase } from "@/lib/supabase/server";
@@ -40,10 +41,11 @@ export async function GET(request: Request) {
       pageSize,
       totalPages,
     });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao listar leads. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "GET /api/leads", userId: user.id },
+      "Falha ao listar leads. Tente novamente.",
     );
   }
 }
@@ -85,10 +87,11 @@ export async function POST(request: Request) {
       input: parsed.data,
     });
     return NextResponse.json(lead, { status: 201 });
-  } catch {
-    return NextResponse.json(
-      { error: "Falha ao criar lead. Tente novamente." },
-      { status: 502 },
+  } catch (error) {
+    return apiErrorResponse(
+      error,
+      { route: "POST /api/leads", userId: user.id },
+      "Falha ao criar lead. Tente novamente.",
     );
   }
 }

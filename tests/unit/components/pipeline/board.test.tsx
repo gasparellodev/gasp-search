@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import { PipelineBoard } from "@/components/pipeline/board";
 import type { PipelineBoard as Board } from "@/lib/leads/list-by-stage";
@@ -81,6 +82,60 @@ describe("PipelineBoard", () => {
     render(<PipelineBoard board={board} />);
     const novo = screen.getByRole("region", { name: /^novo$/i });
     expect(novo.textContent).toMatch(/2/);
+  });
+
+  it("oferece seletor mobile para acessar estágios sem scroll lateral global", async () => {
+    render(<PipelineBoard board={board} />);
+
+    const select = screen.getByLabelText(/visualizar estágio/i);
+    expect(select).toBeInTheDocument();
+    expect(screen.getByTestId("pipeline-board")).toHaveClass("flex");
+    expect(screen.getByTestId("pipeline-board")).toHaveClass("overflow-x-auto");
+
+    await userEvent.selectOptions(select, "qualified");
+
+    expect(select).toHaveValue("qualified");
+    expect(
+      screen.getByRole("region", { name: /^qualificado$/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("mostra estado vazio com CTA quando não há leads no pipeline", () => {
+    render(
+      <PipelineBoard
+        board={{
+          new: [],
+          contacted: [],
+          in_conversation: [],
+          qualified: [],
+          closed_won: [],
+          closed_lost: [],
+        }}
+      />,
+    );
+
+    expect(screen.getByText(/nenhum lead no pipeline/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /faça sua primeira busca/i }),
+    ).toHaveAttribute("href", "/search");
+  });
+
+  it("mantém o board na viewport, com scroll horizontal no board e vertical apenas nas colunas", () => {
+    render(<PipelineBoard board={board} />);
+
+    expect(screen.getByTestId("pipeline-viewport")).toHaveClass("min-h-0");
+    expect(screen.getByTestId("pipeline-viewport")).toHaveClass("flex-1");
+    expect(screen.getByTestId("pipeline-board")).toHaveClass("h-full");
+    expect(screen.getByTestId("pipeline-board")).toHaveClass("overflow-x-auto");
+
+    const novo = screen.getByRole("region", { name: /^novo$/i });
+    expect(novo).toHaveClass("h-full");
+    expect(novo).toHaveClass("w-[28rem]");
+    expect(novo).toHaveClass("shrink-0");
+    expect(novo).toHaveClass("overflow-hidden");
+    expect(screen.getByTestId("pipeline-column-list-new")).toHaveClass(
+      "overflow-y-auto",
+    );
   });
 
   it("moveLead (helper exposto via prop) faz PATCH otimista, refresh em sucesso", async () => {
