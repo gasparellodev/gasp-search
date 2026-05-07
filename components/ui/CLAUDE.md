@@ -20,11 +20,35 @@ Componentes são adicionados como arquivos editáveis no projeto (não como depe
 
 ## Arquivos
 
+Todos os primitives mínimos do MVP estão instalados (issue #12 fechada). Lista completa:
+
 | Path | Propósito |
 |---|---|
-| `button.tsx` | Botão base com variantes (default, destructive, outline, secondary, ghost, link) e sizes (default, sm, lg, icon) |
-
-> Mais primitives em #12 (input, label, card, badge, select, dropdown-menu, dialog, drawer, sheet, tabs, table, form, textarea, checkbox, switch, tooltip, skeleton, sonner, command, avatar, separator, scroll-area).
+| `alert.tsx` | Alert para mensagens inline (sucesso/erro/warning) |
+| `avatar.tsx` | Avatar com fallback de inicials |
+| `badge.tsx` | Pílulas/labels (estágio, contadores, tags) |
+| `button.tsx` | Botão com variantes e sizes |
+| `card.tsx` | Container com header/content/footer |
+| `checkbox.tsx` | Checkbox para forms e bulk selection |
+| `command.tsx` | Combobox/cmdk para multi-select e busca |
+| `dialog.tsx` | Modal centralizado |
+| `drawer.tsx` | Drawer mobile-first (Vaul) |
+| `dropdown-menu.tsx` | Menu dropdown contextual |
+| `form.tsx` | **Custom** — wrapper RHF (shadcn 4.7+ entrega vazio do registry) |
+| `input.tsx` | Input de texto |
+| `input-group.tsx` | Agrupamento de input com addon (left/right icon) |
+| `label.tsx` | Label com `htmlFor` |
+| `scroll-area.tsx` | Scrollbar custom (sidebar, listas longas) |
+| `select.tsx` | Select dropdown nativo-style |
+| `separator.tsx` | Linha horizontal/vertical |
+| `sheet.tsx` | Drawer lateral (Sidebar mobile, LeadDetailDrawer) |
+| `skeleton.tsx` | Placeholder de loading |
+| `sonner.tsx` | Toaster (wrap de Sonner com tema) |
+| `switch.tsx` | Toggle on/off |
+| `table.tsx` | Estrutura de tabela (TanStack consome) |
+| `tabs.tsx` | Tabs (Login form, Lead drawer) |
+| `textarea.tsx` | Multiline input (notas, prompt IA) |
+| `tooltip.tsx` | Tooltip on-hover |
 
 ## Dependências
 
