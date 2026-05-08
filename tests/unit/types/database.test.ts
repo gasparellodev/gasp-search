@@ -23,6 +23,25 @@ describe("types/database", () => {
       | "closed_won"
       | "closed_lost"
     >();
+    expectTypeOf<Enums<"whatsapp_status">>().toEqualTypeOf<
+      | "disconnected"
+      | "qr_pending"
+      | "connecting"
+      | "connected"
+      | "error"
+    >();
+  });
+
+  it("Tables<'whatsapp_instances'> tem user_id e status, com phone_number nullable", () => {
+    type WhatsAppRow = Tables<"whatsapp_instances">;
+    expectTypeOf<WhatsAppRow["id"]>().toBeString();
+    expectTypeOf<WhatsAppRow["user_id"]>().toBeString();
+    expectTypeOf<WhatsAppRow["evo_instance"]>().toBeString();
+    expectTypeOf<WhatsAppRow["status"]>().toEqualTypeOf<
+      Enums<"whatsapp_status">
+    >();
+    expectTypeOf<WhatsAppRow["phone_number"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<WhatsAppRow["qr_code"]>().toEqualTypeOf<string | null>();
   });
 
   it("Tables<'leads'> tem campos de identidade obrigatórios e contato opcional", () => {
@@ -60,10 +79,16 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 6 tabelas esperadas", () => {
+  it("Database['public']['Tables'] cobre as 7 tabelas esperadas", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
-      "profiles" | "tags" | "search_jobs" | "leads" | "lead_tags" | "lead_messages"
+      | "profiles"
+      | "tags"
+      | "search_jobs"
+      | "leads"
+      | "lead_tags"
+      | "lead_messages"
+      | "whatsapp_instances"
     >();
   });
 });

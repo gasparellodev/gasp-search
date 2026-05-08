@@ -234,6 +234,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      whatsapp_instances: {
+        Row: {
+          id: string;
+          user_id: string;
+          evo_instance: string;
+          status: Database["public"]["Enums"]["whatsapp_status"];
+          phone_number: string | null;
+          qr_code: string | null;
+          last_seen_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          evo_instance: string;
+          status?: Database["public"]["Enums"]["whatsapp_status"];
+          phone_number?: string | null;
+          qr_code?: string | null;
+          last_seen_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          evo_instance?: string;
+          status?: Database["public"]["Enums"]["whatsapp_status"];
+          phone_number?: string | null;
+          qr_code?: string | null;
+          last_seen_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -248,6 +284,12 @@ export interface Database {
         | "qualified"
         | "closed_won"
         | "closed_lost";
+      whatsapp_status:
+        | "disconnected"
+        | "qr_pending"
+        | "connecting"
+        | "connected"
+        | "error";
     };
   };
 }
