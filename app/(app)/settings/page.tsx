@@ -7,12 +7,10 @@ export const metadata = { title: "Configurações" };
 export default function SettingsPage() {
   const whatsappEnabled = publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED === "1";
   return (
-    <div className="min-w-0 space-y-6">
+    <div className="min-w-0 space-y-10">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Configurações
-        </h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="sk-h2">Configurações</h1>
+        <p className="sk-body-lg text-muted-foreground mt-2">
           Preferências da conta e integrações.
         </p>
       </div>

@@ -26,8 +26,8 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col gap-6">
       <div className="shrink-0">
-        <h1 className="text-3xl font-semibold tracking-tight">Leads</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="sk-h1">Leads</h1>
+        <p className="sk-body-lg text-muted-foreground mt-2">
           Sua base de leads captados, com filtros e tags.
         </p>
       </div>

@@ -35,8 +35,8 @@ export default async function NewCampaignPage({ searchParams }: PageProps) {
   return (
     <div className="min-w-0 max-w-3xl space-y-6 p-4 sm:p-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight">Nova campanha</h1>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <h1 className="sk-h2">Nova campanha</h1>
+        <p className="sk-body-lg text-muted-foreground mt-2">
           Selecione leads em <code>/leads</code> e volte aqui para escolher
           modo e disparar.
         </p>

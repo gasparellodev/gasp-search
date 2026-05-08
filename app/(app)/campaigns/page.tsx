@@ -46,8 +46,8 @@ export default async function CampaignsListPage() {
     <div className="min-w-0 space-y-6 p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Campanhas</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <h1 className="sk-h2">Campanhas</h1>
+          <p className="sk-body-lg text-muted-foreground mt-2">
             Disparos em massa para WhatsApp dos seus leads.
           </p>
         </div>
