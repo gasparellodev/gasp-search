@@ -301,4 +301,25 @@ describe("LeadsTable", () => {
 
     vi.unstubAllGlobals();
   });
+
+  it("Criar campanha navega para /campaigns/new com IDs selecionados na query", async () => {
+    pushSpy.mockReset();
+    const user = userEvent.setup();
+    render(<LeadsTable {...defaultProps} />);
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: /alfa/i })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: /beta/i })[0]!,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /criar campanha/i }),
+    );
+
+    expect(pushSpy).toHaveBeenCalledWith(
+      "/campaigns/new?leads=lead-1,lead-2",
+    );
+  });
 });

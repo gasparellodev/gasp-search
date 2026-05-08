@@ -14,6 +14,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   Loader2,
+  Megaphone,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -31,6 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LeadDetailDrawer } from "@/components/leads/lead-detail-drawer";
+import { CAMPAIGN_MAX_LEADS } from "@/lib/validators/campaigns";
 import {
   ENRICH_MAX_LEADS,
 } from "@/lib/validators/search";
@@ -446,7 +448,12 @@ export function LeadsTable({
             <strong>{selectedIds.size}</strong> selecionado(s)
             {selectedIds.size > ENRICH_MAX_LEADS ? (
               <span className="text-destructive ml-2">
-                (máximo {ENRICH_MAX_LEADS} por chamada)
+                (enrich: máx {ENRICH_MAX_LEADS} por chamada)
+              </span>
+            ) : null}
+            {selectedIds.size > CAMPAIGN_MAX_LEADS ? (
+              <span className="text-destructive ml-2">
+                (campanha: máx {CAMPAIGN_MAX_LEADS} leads)
               </span>
             ) : null}
           </p>
@@ -473,6 +480,25 @@ export function LeadsTable({
                 <Sparkles className="mr-2 size-4" />
               )}
               Enriquecer selecionados
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={selectedIds.size > CAMPAIGN_MAX_LEADS}
+              title={
+                selectedIds.size > CAMPAIGN_MAX_LEADS
+                  ? `Máximo ${CAMPAIGN_MAX_LEADS} leads por campanha`
+                  : undefined
+              }
+              onClick={() => {
+                const ids = [...selectedIds].join(",");
+                router.push(`/campaigns/new?leads=${ids}`);
+              }}
+              data-testid="leads-toolbar-create-campaign"
+            >
+              <Megaphone className="mr-2 size-4" />
+              Criar campanha
             </Button>
           </div>
         </div>
