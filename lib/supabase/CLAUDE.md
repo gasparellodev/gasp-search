@@ -26,6 +26,7 @@ Clientes Supabase para os 3 contextos do Next.js: Server Components/Actions, Cli
 | `server.ts` | `createServerSupabase()` — cria client com cookies do request via `next/headers` |
 | `client.ts` | `createBrowserSupabase()` — cria browser client; usa `publicEnv` |
 | `middleware.ts` | `updateSession(req)` — refresh cookie + auth gate; redireciona para `/login` ou `/dashboard` conforme estado |
+| `service.ts` | `createServiceSupabase()` — client com `SUPABASE_SERVICE_ROLE_KEY` que **bypassa RLS**. Usar APENAS em handlers públicos (webhook do Evolution); o caller é responsável por verificar autenticidade (HMAC) e filtrar `user_id` em toda escrita. |
 
 ## Dependências
 
