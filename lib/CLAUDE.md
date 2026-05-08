@@ -29,6 +29,8 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `env-public.ts` | Validator das envs `NEXT_PUBLIC_*` apenas. Safe para Client Components. Lê `process.env.NEXT_PUBLIC_*` por chave (Next inlina). |
 | `api/errors.ts` | Helper de erro para API routes com log estruturado (`requestId`, `route`, `userId`) e resposta amigável sem stack. |
 | `validators/search.ts` | Schemas Zod para entradas das buscas Apify |
+| `validators/whatsapp.ts` | Schemas Zod para envio WhatsApp e respostas do Evolution API |
+| `evolution/client.ts` | Wrapper REST do Evolution API (`createEvolutionClient`) + `EvolutionApiError` |
 | `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |
 | `dashboard/summary.ts` | **Server-only.** Agrega métricas e últimas buscas do dashboard |
 | `dashboard/types.ts` | Tipos compartilháveis com Client Components do dashboard |
