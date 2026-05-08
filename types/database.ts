@@ -213,6 +213,12 @@ export interface Database {
           tone: string | null;
           content: string;
           created_at: string;
+          direction: Database["public"]["Enums"]["lead_message_direction"];
+          status: Database["public"]["Enums"]["lead_message_status"];
+          whatsapp_msg_id: string | null;
+          campaign_id: string | null;
+          error_message: string | null;
+          ai_generated: boolean;
         };
         Insert: {
           id?: string;
@@ -222,6 +228,12 @@ export interface Database {
           tone?: string | null;
           content: string;
           created_at?: string;
+          direction?: Database["public"]["Enums"]["lead_message_direction"];
+          status?: Database["public"]["Enums"]["lead_message_status"];
+          whatsapp_msg_id?: string | null;
+          campaign_id?: string | null;
+          error_message?: string | null;
+          ai_generated?: boolean;
         };
         Update: {
           id?: string;
@@ -231,6 +243,12 @@ export interface Database {
           tone?: string | null;
           content?: string;
           created_at?: string;
+          direction?: Database["public"]["Enums"]["lead_message_direction"];
+          status?: Database["public"]["Enums"]["lead_message_status"];
+          whatsapp_msg_id?: string | null;
+          campaign_id?: string | null;
+          error_message?: string | null;
+          ai_generated?: boolean;
         };
         Relationships: [];
       };
@@ -382,6 +400,13 @@ export interface Database {
         | "failed"
         | "cancelled";
       campaign_target_status: "pending" | "sent" | "failed" | "skipped";
+      lead_message_direction: "outbound" | "inbound";
+      lead_message_status:
+        | "queued"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "failed";
     };
   };
 }

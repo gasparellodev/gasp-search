@@ -18,6 +18,7 @@ Clientes e helpers server-only para recursos de IA. Hoje concentra o wrapper do 
 3. **Saída simples.** `generateMessage()` retorna apenas texto final pronto para persistência/envio; sem markdown, alternativas ou metadados.
 4. **Sem cache local de geração.** Mensagens IA são não determinísticas; persistência fica em `lead_messages` via API route futura.
 5. **Histórico ordenado.** `listLeadMessages()` retorna mensagens do lead em `created_at desc`, paginadas em 20 itens.
+6. **Schema estendido em Phase 5.** `lead_messages` ganhou colunas para conversas reais via Evolution: `direction` (`outbound`/`inbound`), `status` (`queued`/`sent`/`delivered`/`read`/`failed`), `whatsapp_msg_id` (UNIQUE para idempotência de webhook), `campaign_id` (FK pra `campaigns`), `error_message`, `ai_generated`. `listLeadMessages()` retorna todos esses campos via `LeadMessage` (Pick estendido).
 
 ## Arquivos
 

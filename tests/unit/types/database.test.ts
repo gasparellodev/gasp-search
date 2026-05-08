@@ -39,6 +39,30 @@ describe("types/database", () => {
     expectTypeOf<Enums<"campaign_target_status">>().toEqualTypeOf<
       "pending" | "sent" | "failed" | "skipped"
     >();
+    expectTypeOf<Enums<"lead_message_direction">>().toEqualTypeOf<
+      "outbound" | "inbound"
+    >();
+    expectTypeOf<Enums<"lead_message_status">>().toEqualTypeOf<
+      "queued" | "sent" | "delivered" | "read" | "failed"
+    >();
+  });
+
+  it("Tables<'lead_messages'> ganha campos da Phase 5 (direction, status, whatsapp_msg_id, campaign_id, ai_generated)", () => {
+    type LeadMessageRow = Tables<"lead_messages">;
+    expectTypeOf<LeadMessageRow["direction"]>().toEqualTypeOf<
+      Enums<"lead_message_direction">
+    >();
+    expectTypeOf<LeadMessageRow["status"]>().toEqualTypeOf<
+      Enums<"lead_message_status">
+    >();
+    expectTypeOf<LeadMessageRow["whatsapp_msg_id"]>().toEqualTypeOf<
+      string | null
+    >();
+    expectTypeOf<LeadMessageRow["campaign_id"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<LeadMessageRow["ai_generated"]>().toBeBoolean();
+    expectTypeOf<LeadMessageRow["error_message"]>().toEqualTypeOf<
+      string | null
+    >();
   });
 
   it("Tables<'campaigns'> tem campos numéricos contadores e textuais opcionais", () => {
