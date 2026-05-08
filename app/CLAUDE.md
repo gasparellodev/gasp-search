@@ -18,8 +18,8 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 2. **Auth gate é responsabilidade do layout `(app)`**, não de cada page. O middleware (`/middleware.ts`) garante o redirect; o layout valida a sessão para Server Components abaixo dele.
 3. **Toda mutation dispara toast** via `sonner` no Client Component que invocou.
 4. **Toda lista tem skeleton + empty state desenhado** (não deixar tela em branco).
-5. **`globals.css` é o único lugar onde tokens de design (CSS variables) vivem.** Componentes consomem via classes Tailwind (`bg-primary`, `text-foreground`).
-6. **Dark mode é default** (`<html className="dark">`). Toggle vai vir via Topbar, persistido em localStorage; refletido na classe do `<html>`.
+5. **`globals.css` é o único lugar onde tokens de design (CSS variables) vivem.** Componentes consomem via classes Tailwind (`bg-primary`, `text-foreground`). Tokens seguem Apple SK ("Storekit"): paleta blue (`#0071e3`), neutros warm (foreground `#1d1d1f`), card alabaster (`#f5f5f7`). Aditivos `--sk-*` (button-bg-hover, link, card-radius, accent-orange, focus-ring) cobrem o que shadcn não modela.
+6. **Light mode é default** (`<ThemeProvider defaultTheme="light">`). Apple SK é fundamentalmente light-first; dark é swap fiel ao `.theme-dark` da Apple. Toggle vem via Topbar, persistido em localStorage pelo `next-themes`; reflete na classe do `<html>`.
 7. **`fetch`/`createServerClient` em Server Components** que dependem do usuário precisam de `cache: 'no-store'`.
 8. **Raiz `/` não renderiza landing**: sempre redireciona para `/login` sem
    sessão ou `/dashboard` com sessão.
@@ -28,9 +28,9 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 
 | Path | Propósito |
 |---|---|
-| `layout.tsx` | Root layout: Inter + JetBrains Mono, lang `pt-BR`, dark default, metadata padrão |
+| `layout.tsx` | Root layout: Inter (variável `--font-inter`, fallback do stack SF Pro), lang `pt-BR`, **light default**, metadata padrão |
 | `page.tsx` | Redirect da raiz: sem sessão → `/login`; logado → `/dashboard` |
-| `globals.css` | Imports Tailwind 4, design tokens (oklch), dark variant, layer base |
+| `globals.css` | Imports Tailwind 4, design tokens Apple SK (hex), `@custom-variant dark`, layer base, e `@layer utilities` com escala tipográfica `.sk-h1`..`.sk-body-sm` |
 | `api/apify/google-maps/route.ts` | API protegida que dispara busca Google Maps no Apify |
 | `api/ai/generate-message/route.ts` | API protegida que gera mensagem IA para um lead e persiste em `lead_messages` |
 | `api/dashboard/route.ts` | API protegida que retorna métricas e últimas buscas para `/dashboard` |
@@ -39,7 +39,7 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 
 ## Dependências
 
-- `next/font/google` (Inter, JetBrains Mono)
+- `next/font/google` (Inter como fallback web; macOS/iOS pegam SF Pro nativo via `-apple-system` no stack)
 - `@/components/ui/*` (shadcn)
 - `@/lib/supabase/server` para auth checks
 - `@/lib/env` validado no boot
