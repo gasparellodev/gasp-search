@@ -30,6 +30,39 @@ vi.mock("@/components/ai/message-generator", () => ({
   ),
 }));
 
+vi.mock("@/components/messages/conversation-thread", () => ({
+  ConversationThread: ({ leadId }: { leadId: string }) => (
+    <div data-testid="drawer-conversation-thread">Thread {leadId}</div>
+  ),
+}));
+
+vi.mock("@/components/messages/message-composer", () => ({
+  MessageComposer: ({ leadId }: { leadId: string }) => (
+    <div data-testid="drawer-message-composer">Composer {leadId}</div>
+  ),
+}));
+
+vi.mock("@/components/messages/instance-banner", () => ({
+  InstanceBanner: () => <div data-testid="drawer-instance-banner" />,
+}));
+
+const whatsappFlag = { current: "0" as "0" | "1" };
+vi.mock("@/lib/env-public", () => ({
+  publicEnv: new Proxy(
+    {
+      NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon",
+    } as Record<string, string>,
+    {
+      get(target, prop) {
+        if (prop === "NEXT_PUBLIC_WHATSAPP_ENABLED") return whatsappFlag.current;
+        return target[prop as string];
+      },
+    },
+  ),
+}));
+
 const baseLead: LeadListItem = {
   id: "lead-1",
   user_id: "user-1",
@@ -253,5 +286,32 @@ describe("LeadDetailDrawer", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /fechar/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  describe("tab Conversa (feature flag)", () => {
+    afterEach(() => {
+      whatsappFlag.current = "0";
+    });
+
+    it("não mostra a tab Conversa quando NEXT_PUBLIC_WHATSAPP_ENABLED='0'", () => {
+      whatsappFlag.current = "0";
+      render(<LeadDetailDrawer {...defaultProps} />);
+      expect(screen.queryByTestId("tab-conversation")).toBeNull();
+    });
+
+    it("mostra a tab Conversa e renderiza thread + composer quando flag='1'", async () => {
+      whatsappFlag.current = "1";
+      render(<LeadDetailDrawer {...defaultProps} />);
+      const tab = screen.getByTestId("tab-conversation");
+      expect(tab).toBeInTheDocument();
+      await userEvent.click(tab);
+      expect(
+        screen.getByTestId("drawer-conversation-thread"),
+      ).toHaveTextContent("lead-1");
+      expect(
+        screen.getByTestId("drawer-message-composer"),
+      ).toHaveTextContent("lead-1");
+      expect(screen.getByTestId("drawer-instance-banner")).toBeInTheDocument();
+    });
   });
 });

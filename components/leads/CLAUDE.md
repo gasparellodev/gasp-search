@@ -49,7 +49,7 @@ seu drawer de detalhe e helpers locais.
 |---|---|---|
 | `filters-bar.tsx` | Client | Barra de filtros (q, stage, source, hasWebsite, tags multi) sincronizada com URL |
 | `leads-table.tsx` | Client | Tabela TanStack com sort/pageSize/paginação via URL + drawer |
-| `lead-detail-drawer.tsx` | Client | Sheet lateral com tabs e edição inline (stage/score/notes/tags) via PATCH |
+| `lead-detail-drawer.tsx` | Client | Sheet lateral com tabs (Visão geral / Notas / Mensagens IA / Conversa*) e edição inline (stage/score/notes/tags) via PATCH. *Tab Conversa só visível com `NEXT_PUBLIC_WHATSAPP_ENABLED='1'`. |
 
 ## Dependências
 
