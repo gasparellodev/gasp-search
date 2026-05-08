@@ -37,6 +37,10 @@ export default defineConfig({
         "components/leads/**/*.{ts,tsx}",
         "components/pipeline/**/*.{ts,tsx}",
         "components/ai/**/*.{ts,tsx}",
+        // Schemas de domínio em `types/` que carregam lógica de validação
+        // runtime (não-só type aliases) entram no coverage. Type-only files
+        // como `database.ts` ficam de fora.
+        "types/lead-site.ts",
       ],
       exclude: [
         "**/*.d.ts",
