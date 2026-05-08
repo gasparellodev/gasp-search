@@ -31,6 +31,7 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `validators/search.ts` | Schemas Zod para entradas das buscas Apify |
 | `validators/whatsapp.ts` | Schemas Zod para envio WhatsApp e respostas do Evolution API |
 | `evolution/client.ts` | Wrapper REST do Evolution API (`createEvolutionClient`) + `EvolutionApiError` |
+| `evolution/templates.ts` | `renderTemplate`/`extractPlaceholders`/`validateTemplate` para campanhas modo template |
 | `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |
 | `dashboard/summary.ts` | **Server-only.** Agrega métricas e últimas buscas do dashboard |
 | `dashboard/types.ts` | Tipos compartilháveis com Client Components do dashboard |

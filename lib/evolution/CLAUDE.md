@@ -23,9 +23,9 @@ Wrapper server-only para a [Evolution API](https://github.com/EvolutionAPI/evolu
 | Path | Propósito |
 |---|---|
 | `client.ts` | Factory `createEvolutionClient()` + `EvolutionApiError` + funções `createInstance`/`getQRCode`/`sendText`/`getStatus`/`deleteInstance` |
+| `templates.ts` | `renderTemplate(text, lead)` + `extractPlaceholders` + `validateTemplate` para campanhas modo `template`. Placeholders suportados: `nome`, `cidade`, `estado`, `categoria`, `rating`, `website`, `telefone` |
 
 > Próximas issues vão somar:
-> - `templates.ts` (#94) — render de placeholders {{nome}}, {{cidade}}, etc.
 > - `webhook.ts` (#98) — parser de payloads inbound + verify HMAC
 > - `rate-limit.ts` (#97) — throttle in-memory por usuário
 > - `send.ts` (#101) — função pura de envio reutilizada por send 1-a-1 e processor de campanha
