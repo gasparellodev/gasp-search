@@ -6,6 +6,10 @@ import { Check, ChevronDown, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { MessageGenerator } from "@/components/ai/message-generator";
+import { ConversationThread } from "@/components/messages/conversation-thread";
+import { InstanceBanner } from "@/components/messages/instance-banner";
+import { MessageComposer } from "@/components/messages/message-composer";
+import { publicEnv } from "@/lib/env-public";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -145,6 +149,11 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
           <TabsTrigger value="overview">Visão geral</TabsTrigger>
           <TabsTrigger value="notes">Notas</TabsTrigger>
           <TabsTrigger value="messages">Mensagens IA</TabsTrigger>
+          {publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED === "1" && (
+            <TabsTrigger value="conversation" data-testid="tab-conversation">
+              Conversa
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent
@@ -167,6 +176,20 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
         >
           <MessageGenerator leadId={snapshot.id} />
         </TabsContent>
+
+        {publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED === "1" && (
+          <TabsContent
+            value="conversation"
+            className="min-h-0 flex-1 flex flex-col"
+            data-testid="conversation-tab-content"
+          >
+            <InstanceBanner />
+            <div className="flex-1 min-h-0">
+              <ConversationThread leadId={snapshot.id} />
+            </div>
+            <MessageComposer leadId={snapshot.id} />
+          </TabsContent>
+        )}
       </Tabs>
 
       <SheetFooter className="border-t px-4 py-4 sm:px-6">
