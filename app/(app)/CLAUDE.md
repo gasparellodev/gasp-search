@@ -49,7 +49,9 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 | `leads/[id]/page.tsx` | Server | Detalhe do lead com `MessageGenerator` |
 | `pipeline/page.tsx` | Server | Placeholder até #29 |
 | `pipeline/loading.tsx` | Server | Skeleton de rota do Kanban |
-| `settings/page.tsx` | Server | Placeholder |
+| `settings/page.tsx` | Server | Placeholder + `<InstanceCard />` (WhatsApp) condicional |
+| `messages/page.tsx` | Server | Inbox WhatsApp Web style — `<ConversationList />` + placeholder de seleção. Redireciona se feature flag desligada. |
+| `messages/[leadId]/page.tsx` | Server | Thread específica — list + thread + composer + banner. |
 
 ## Dependências
 
