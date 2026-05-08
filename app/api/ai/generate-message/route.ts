@@ -106,6 +106,10 @@ export async function POST(request: Request) {
       goal: parsed.data.goal,
     });
 
+    // Rascunho de IA: nasce com `ai_generated=true` e `status='queued'`.
+    // Não conta como conversa real até passar pelo /api/whatsapp/send (que
+    // promove status='sent' e preenche whatsapp_msg_id). A inbox /messages
+    // filtra por (direction='inbound' OR whatsapp_msg_id IS NOT NULL).
     const { data: message, error: messageError } = await supabase
       .from("lead_messages")
       .insert({
@@ -114,6 +118,8 @@ export async function POST(request: Request) {
         channel: parsed.data.channel,
         tone: parsed.data.tone,
         content,
+        ai_generated: true,
+        status: "queued",
       })
       .select("id, content")
       .single();

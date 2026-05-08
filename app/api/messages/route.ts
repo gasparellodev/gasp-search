@@ -27,10 +27,12 @@ export async function GET(request: Request) {
   const page = pageRaw ? Number.parseInt(pageRaw, 10) : 1;
 
   try {
+    // /messages é o chat real — não mostra rascunho de IA não enviado.
     const result = await listLeadMessages({
       supabase,
       leadId,
       page: Number.isFinite(page) ? page : 1,
+      realOnly: true,
     });
     return NextResponse.json({
       messages: result.messages,
