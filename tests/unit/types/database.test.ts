@@ -131,7 +131,7 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 9 tabelas esperadas", () => {
+  it("Database['public']['Tables'] cobre as 10 tabelas esperadas (incluindo lead_sites do M1.1)", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
       | "profiles"
@@ -143,6 +143,75 @@ describe("types/database", () => {
       | "whatsapp_instances"
       | "campaigns"
       | "campaign_targets"
+      | "lead_sites"
     >();
+  });
+
+  it("Tables<'lead_sites'> tem todas as 14 colunas tipadas (AC8 da issue #153)", () => {
+    type LeadSiteRow = Tables<"lead_sites">;
+    expectTypeOf<LeadSiteRow["id"]>().toBeString();
+    expectTypeOf<LeadSiteRow["user_id"]>().toBeString();
+    expectTypeOf<LeadSiteRow["lead_id"]>().toBeString();
+    expectTypeOf<LeadSiteRow["slug"]>().toBeString();
+    expectTypeOf<LeadSiteRow["status"]>().toEqualTypeOf<
+      Enums<"lead_site_status">
+    >();
+    // variables é jsonb na DB → Json no TS (validado em runtime via Zod, ver M1.2).
+    expectTypeOf<LeadSiteRow["generation_error"]>().toEqualTypeOf<
+      string | null
+    >();
+    expectTypeOf<LeadSiteRow["generated_at"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<LeadSiteRow["published_at"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<LeadSiteRow["sent_at"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<LeadSiteRow["view_count"]>().toBeNumber();
+    expectTypeOf<LeadSiteRow["last_viewed_at"]>().toEqualTypeOf<
+      string | null
+    >();
+    expectTypeOf<LeadSiteRow["created_at"]>().toBeString();
+    expectTypeOf<LeadSiteRow["updated_at"]>().toBeString();
+
+    // Sanity: todas as 14 colunas estão presentes (não mais, não menos)
+    type Cols = keyof LeadSiteRow;
+    expectTypeOf<Cols>().toEqualTypeOf<
+      | "id"
+      | "user_id"
+      | "lead_id"
+      | "slug"
+      | "status"
+      | "variables"
+      | "generation_error"
+      | "generated_at"
+      | "published_at"
+      | "sent_at"
+      | "view_count"
+      | "last_viewed_at"
+      | "created_at"
+      | "updated_at"
+    >();
+  });
+
+  it("Enums<'lead_site_status'> tem 4 valores casando a check constraint", () => {
+    expectTypeOf<Enums<"lead_site_status">>().toEqualTypeOf<
+      "draft" | "published" | "sent" | "archived"
+    >();
+  });
+
+  it("TablesInsert<'lead_sites'> exige user_id, lead_id e slug; demais opcionais via defaults", () => {
+    type LeadSiteInsert = TablesInsert<"lead_sites">;
+    const sample: LeadSiteInsert = {
+      user_id: "u1",
+      lead_id: "l1",
+      slug: "barbearia-bigode-abc123",
+    };
+    expect(sample).toBeDefined();
+  });
+
+  it("TablesUpdate<'lead_sites'> permite atualização parcial (status, view_count, etc.)", () => {
+    type LeadSiteUpdate = TablesUpdate<"lead_sites">;
+    const sample: LeadSiteUpdate = {
+      status: "published",
+      published_at: new Date().toISOString(),
+    };
+    expect(sample.status).toBe("published");
   });
 });

@@ -372,6 +372,57 @@ export interface Database {
         };
         Relationships: [];
       };
+      lead_sites: {
+        Row: {
+          id: string;
+          user_id: string;
+          lead_id: string;
+          slug: string;
+          status: Database["public"]["Enums"]["lead_site_status"];
+          variables: Json;
+          generation_error: string | null;
+          generated_at: string | null;
+          published_at: string | null;
+          sent_at: string | null;
+          view_count: number;
+          last_viewed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          lead_id: string;
+          slug: string;
+          status?: Database["public"]["Enums"]["lead_site_status"];
+          variables?: Json;
+          generation_error?: string | null;
+          generated_at?: string | null;
+          published_at?: string | null;
+          sent_at?: string | null;
+          view_count?: number;
+          last_viewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          lead_id?: string;
+          slug?: string;
+          status?: Database["public"]["Enums"]["lead_site_status"];
+          variables?: Json;
+          generation_error?: string | null;
+          generated_at?: string | null;
+          published_at?: string | null;
+          sent_at?: string | null;
+          view_count?: number;
+          last_viewed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -407,6 +458,9 @@ export interface Database {
         | "delivered"
         | "read"
         | "failed";
+      // lead_sites.status é um text com check constraint (não é um enum nativo
+      // do Postgres), mas modelamos como union type pra type-safety no TS.
+      lead_site_status: "draft" | "published" | "sent" | "archived";
     };
   };
 }
