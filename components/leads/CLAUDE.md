@@ -29,11 +29,15 @@ seu drawer de detalhe e helpers locais.
    `router.refresh()` é chamado em sucesso para o Server Component re-buscar.
    A tab **Mensagens IA** renderiza a experiência real de geração via
    `MessageGenerator`; não manter placeholders de issue já entregue.
-6. **Bulk select + Enriquecer** (issue #28): cada linha tem checkbox; toolbar
-   acima da tabela aparece com contagem quando há seleção. Botão dispara
-   POST `/api/apify/enrich` com até `ENRICH_MAX_LEADS` (25). Toasts de loading,
-   success e error usam o id `bulk-enrich` para deduplicar. `router.refresh()`
-   após sucesso para reler dados do server.
+6. **Bulk select + Enriquecer + Criar campanha** (issues #28, #126): cada linha
+   tem checkbox; toolbar acima da tabela aparece com contagem quando há seleção.
+   - "Enriquecer selecionados" dispara POST `/api/apify/enrich` com até
+     `ENRICH_MAX_LEADS` (25). Toasts de loading/success/error usam o id
+     `bulk-enrich` para deduplicar. `router.refresh()` após sucesso.
+   - "Criar campanha" navega para `/campaigns/new?leads=<id1>,<id2>,...`
+     respeitando `CAMPAIGN_MAX_LEADS` (50). Acima do limite, botão fica
+     disabled com tooltip.
+   - Enrich é **exclusivamente manual** — não há mais auto-enrich pós-busca.
 7. **Estado vazio desenhado**: nada de tela em branco quando `leads.length === 0`.
 8. **Responsividade**: filtros usam grid responsivo e inputs `w-full` em
    mobile. A tabela deve conter overflow horizontal no próprio bloco
