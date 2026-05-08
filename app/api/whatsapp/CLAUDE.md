@@ -26,9 +26,9 @@ Route handlers REST do recurso WhatsApp (Phase 5). Conectam a UI ao Evolution AP
 |---|---|
 | `instance/route.ts` | GET status, POST cria instância, DELETE desconecta |
 | `instance/qr/route.ts` | GET consulta QR Code do Evolution e cacheia em DB |
+| `send/route.ts` | POST envia mensagem 1-a-1 (auth + zod + rate-limit + delegação a `lib/evolution/send`) |
 
 > Próximas issues vão somar:
-> - `send/route.ts` (#97) — POST 1-a-1
 > - `webhook/route.ts` (#98) — POST público com HMAC
 
 ## Dependências

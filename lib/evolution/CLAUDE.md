@@ -24,11 +24,11 @@ Wrapper server-only para a [Evolution API](https://github.com/EvolutionAPI/evolu
 |---|---|
 | `client.ts` | Factory `createEvolutionClient()` + `EvolutionApiError` + funções `createInstance`/`getQRCode`/`sendText`/`getStatus`/`deleteInstance` |
 | `templates.ts` | `renderTemplate(text, lead)` + `extractPlaceholders` + `validateTemplate` para campanhas modo `template`. Placeholders suportados: `nome`, `cidade`, `estado`, `categoria`, `rating`, `website`, `telefone` |
+| `rate-limit.ts` | `checkRateLimit(userId, intervalMs)` — throttle in-memory por user. Default 3s. Bypass por campanha (que tem throttle próprio). |
+| `send.ts` | `sendWhatsAppMessage({ supabase, userId, leadId, content, campaignId, aiGenerated })` — função pura reutilizada por `/api/whatsapp/send` e processor de campanha. Insere `lead_messages` queued, chama Evolution, atualiza pra sent/failed, promove `lead.stage` `new`→`contacted`. |
 
 > Próximas issues vão somar:
 > - `webhook.ts` (#98) — parser de payloads inbound + verify HMAC
-> - `rate-limit.ts` (#97) — throttle in-memory por usuário
-> - `send.ts` (#101) — função pura de envio reutilizada por send 1-a-1 e processor de campanha
 
 ## Dependências
 
