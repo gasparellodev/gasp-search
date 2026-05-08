@@ -8,10 +8,10 @@ test.describe("smoke", () => {
     await expect(page).toHaveTitle(/Gasp Search/);
   });
 
-  test("html tem lang pt-BR e classe dark", async ({ page }) => {
+  test("html tem lang pt-BR e tema light por default (Apple SK)", async ({ page }) => {
     await page.goto("/");
     const html = page.locator("html");
     await expect(html).toHaveAttribute("lang", "pt-BR");
-    await expect(html).toHaveClass(/dark/);
+    await expect(html).toHaveClass(/light/);
   });
 });
