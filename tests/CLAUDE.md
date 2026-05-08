@@ -14,9 +14,10 @@ tests/
 │   ├── app/             # specs RTL para Server/Client Components
 │   └── components/      # specs RTL para componentes não-shadcn
 ├── e2e/                 # Playwright (chromium)
+│   ├── _helpers/        # auth.ts (login real + skip declarativo)
 │   ├── smoke.spec.ts    # carrega `/`
 │   ├── responsive.spec.ts # regressão de menu mobile e overflow horizontal
-│   └── ...              # fluxos por área
+│   └── ...              # fluxos por área (leads, campaigns, whatsapp, integration, pipeline)
 └── fixtures/            # JSON fixtures para mappers Apify
 ```
 
