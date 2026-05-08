@@ -18,7 +18,7 @@ Migrations SQL versionadas que definem o schema do banco. Aplicado via Supabase 
 3. **Dedup de leads** via unique index parcial: `unique (user_id, source, website) where website is not null`. Evita falha em rows com NULL.
 4. **Triggers `security definer`** (como `handle_new_user`) precisam de `set search_path = public` para evitar search-path injection.
 5. **Enums** versionados. Adição: `alter type ... add value`. Remoção exige migration nova (não edite o tipo existente).
-6. **`updated_at` auto-managed** via `tg_set_updated_at()` trigger. Não mexer manualmente em código de aplicação.
+6. **`updated_at` auto-managed** via `tg_set_updated_at()` (legado, 0001_init) ou `set_updated_at()` (Phase 7+, 0010_lead_sites). Funcionalmente idênticas; mantemos as duas pra não quebrar triggers existentes.
 
 ## Aplicar migration
 
@@ -57,6 +57,11 @@ npx supabase gen types typescript --local > types/database.ts
 | Path | Propósito |
 |---|---|
 | `migrations/0001_init.sql` | Schema inicial: 6 tabelas, 3 enums, 6 RLS policies, 2 triggers, 5 índices/uniques |
+| `migrations/0002_fix_lead_upsert_constraints.sql` | Ajuste de constraints de dedup em leads |
+| `migrations/0003_whatsapp_instances.sql` | Tabela `whatsapp_instances` (Phase 5) |
+| `migrations/0004_campaigns.sql` | Tabelas `campaigns` + `campaign_targets` (Phase 5) |
+| `migrations/0005_lead_messages_ext.sql` | Extensão de `lead_messages` (direction/status/campaign_id/ai_generated) |
+| `migrations/0010_lead_sites.sql` | Phase 7 M1.1: tabela `lead_sites` (sites por lead), 3 índices, 4 RLS policies, função `set_updated_at` + trigger, check constraint em `status` |
 
 ## Dependências
 

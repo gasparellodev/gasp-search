@@ -12,7 +12,9 @@ tests/
 │   ├── sanity.test.ts   # smoke do setup
 │   ├── lib/             # espelha lib/
 │   ├── app/             # specs RTL para Server/Client Components
-│   └── components/      # specs RTL para componentes não-shadcn
+│   ├── components/      # specs RTL para componentes não-shadcn
+│   ├── supabase/migrations/  # validação SQL das migrations (string assertions)
+│   └── types/           # type-level tests com expectTypeOf (Database, Enums, Tables<>)
 ├── e2e/                 # Playwright (chromium)
 │   ├── _helpers/        # auth.ts (login real + skip declarativo)
 │   ├── smoke.spec.ts    # carrega `/`
@@ -33,6 +35,9 @@ tests/
 - Crie em `tests/e2e/<area>/<fluxo>.spec.ts`.
 - Use `baseURL` (configurado em `playwright.config.ts`).
 - Em CI, roda contra `npm start` (production build); local roda contra `npm run dev`.
+
+### Migrations SQL (`tests/unit/supabase/migrations/`)
+- Para cada nova migration `supabase/migrations/NNNN_*.sql` adicione `tests/unit/supabase/migrations/NNNN_*.test.ts` que faz `readFileSync` do SQL e usa `toMatch` / `toContain` pra assertar tabelas, índices, RLS policies, triggers e check constraints. CI não roda Postgres real — esse padrão de inspeção do SQL é a defesa primária.
 
 ### Fixtures
 - JSON em `tests/fixtures/<source>/<nome>.json`.
