@@ -136,9 +136,7 @@ function MetricCard({
         <Icon className="text-muted-foreground size-4" aria-hidden="true" />
       </CardHeader>
       <CardContent>
-        <p className="text-3xl font-semibold tabular-nums tracking-tight">
-          {formatCount(value)}
-        </p>
+        <p className="sk-h2 tabular-nums">{formatCount(value)}</p>
       </CardContent>
     </Card>
   );

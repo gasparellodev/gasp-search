@@ -28,6 +28,7 @@ Foundation do sistema Apple SK ("Storekit") foi aplicada diretamente nas primiti
 - **`card.tsx`**: radius `var(--sk-card-radius)` (18px); `shadow-sm` em vez de `ring-1` para hairline.
 - **`dialog.tsx` / `drawer.tsx` / `sheet.tsx`**: backdrop `bg-black/40 backdrop-blur-sm`; cantos via `var(--sk-card-radius)`.
 - **`tabs.tsx`**: trigger `rounded-full` para pill ativo (variant default).
+- **`table.tsx`**: `TableCell` ganha `px-3 py-4` em vez de `p-2` — linhas respiram (Apple breathing layout).
 
 ## Arquivos
 

@@ -60,10 +60,8 @@ export default async function LeadDetailPage({
       <header className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              {lead.name}
-            </h1>
-            <p className="text-muted-foreground mt-1 text-sm">
+            <h1 className="sk-h1">{lead.name}</h1>
+            <p className="sk-body-lg text-muted-foreground mt-2">
               {compact([lead.category, location]) || "Lead sem categoria"}
             </p>
           </div>
