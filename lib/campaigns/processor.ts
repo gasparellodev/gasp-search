@@ -1,0 +1,211 @@
+import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { generateMessage, type LeadForMessage } from "@/lib/ai/anthropic";
+import { sendWhatsAppMessage } from "@/lib/evolution/send";
+import { renderTemplate } from "@/lib/evolution/templates";
+import type {
+  AiMessageChannel,
+  AiMessageTone,
+} from "@/lib/validators/ai";
+import type { Database } from "@/types/database";
+
+// ----------------------------------------------------------------------------
+// Processor inline de campanha. Loop pelos targets pendentes, com throttle
+// configurável (default 3s). Checa cancelamento a cada iteração e atualiza
+// counters em campaigns conforme processa.
+// ----------------------------------------------------------------------------
+
+export type ProcessOptions = {
+  supabase: SupabaseClient<Database>;
+  userId: string;
+  campaignId: string;
+  throttleMs?: number;
+  // Permite injeção em testes sem depender de timer real.
+  sleep?: (ms: number) => Promise<void>;
+  sendImpl?: typeof sendWhatsAppMessage;
+  generateMessageImpl?: typeof generateMessage;
+};
+
+const DEFAULT_THROTTLE_MS = 3_000;
+
+const defaultSleep = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+type CampaignRow = {
+  id: string;
+  status: string;
+  mode: "template" | "ai_per_lead";
+  template_text: string | null;
+  ai_channel: AiMessageChannel | null;
+  ai_tone: AiMessageTone | null;
+  ai_goal: string | null;
+};
+
+type LeadRow = LeadForMessage & { id: string };
+
+export async function processCampaign({
+  supabase,
+  userId,
+  campaignId,
+  throttleMs = DEFAULT_THROTTLE_MS,
+  sleep = defaultSleep,
+  sendImpl = sendWhatsAppMessage,
+  generateMessageImpl = generateMessage,
+}: ProcessOptions): Promise<{ sent: number; failed: number }> {
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select(
+      "id, status, mode, template_text, ai_channel, ai_tone, ai_goal",
+    )
+    .eq("id", campaignId)
+    .maybeSingle<CampaignRow>();
+  if (!campaign) return { sent: 0, failed: 0 };
+
+  await supabase
+    .from("campaigns")
+    .update({ status: "running", started_at: new Date().toISOString() })
+    .eq("id", campaignId);
+
+  const { data: targets } = await supabase
+    .from("campaign_targets")
+    .select("lead_id, status")
+    .eq("campaign_id", campaignId)
+    .eq("status", "pending");
+
+  let sent = 0;
+  let failed = 0;
+  const targetList = targets ?? [];
+
+  for (let i = 0; i < targetList.length; i++) {
+    const target = targetList[i]!;
+    // Verifica cancelamento mid-run.
+    const { data: current } = await supabase
+      .from("campaigns")
+      .select("status")
+      .eq("id", campaignId)
+      .maybeSingle<{ status: string }>();
+    if (current?.status === "cancelled") break;
+
+    const { data: lead } = await supabase
+      .from("leads")
+      .select(
+        "id, name, source, category, city, state, country, phone, email, website, instagram_handle, whatsapp, has_website, rating, reviews_count, followers_count, stage, score, notes",
+      )
+      .eq("id", target.lead_id)
+      .maybeSingle<LeadRow>();
+
+    if (!lead) {
+      await supabase
+        .from("campaign_targets")
+        .update({ status: "skipped", error_message: "lead removido" })
+        .eq("campaign_id", campaignId)
+        .eq("lead_id", target.lead_id);
+      continue;
+    }
+
+    let content: string;
+    try {
+      if (campaign.mode === "template") {
+        content = renderTemplate(campaign.template_text ?? "", lead);
+      } else {
+        content = await generateMessageImpl(lead, {
+          channel: campaign.ai_channel ?? "whatsapp",
+          tone: campaign.ai_tone ?? "consultivo",
+          goal: campaign.ai_goal ?? "iniciar uma conversa comercial",
+        });
+      }
+    } catch (err) {
+      await supabase
+        .from("campaign_targets")
+        .update({
+          status: "failed",
+          error_message:
+            err instanceof Error ? err.message : "render/generate falhou",
+        })
+        .eq("campaign_id", campaignId)
+        .eq("lead_id", target.lead_id);
+      failed++;
+      await incrementCounter(supabase, campaignId, "failed_count");
+      if (i < targetList.length - 1) await sleep(throttleMs);
+      continue;
+    }
+
+    const result = await sendImpl({
+      supabase,
+      userId,
+      leadId: target.lead_id,
+      content,
+      campaignId,
+      aiGenerated: campaign.mode === "ai_per_lead",
+    });
+
+    if (result.ok) {
+      await supabase
+        .from("campaign_targets")
+        .update({
+          status: "sent",
+          sent_message_id: result.messageId,
+        })
+        .eq("campaign_id", campaignId)
+        .eq("lead_id", target.lead_id);
+      sent++;
+      await incrementCounter(supabase, campaignId, "sent_count");
+    } else {
+      await supabase
+        .from("campaign_targets")
+        .update({
+          status: "failed",
+          error_message: result.error ?? result.reason,
+        })
+        .eq("campaign_id", campaignId)
+        .eq("lead_id", target.lead_id);
+      failed++;
+      await incrementCounter(supabase, campaignId, "failed_count");
+    }
+
+    if (i < targetList.length - 1) await sleep(throttleMs);
+  }
+
+  // Decide status final
+  const { data: finalCampaign } = await supabase
+    .from("campaigns")
+    .select("status")
+    .eq("id", campaignId)
+    .maybeSingle<{ status: string }>();
+  if (finalCampaign?.status !== "cancelled") {
+    await supabase
+      .from("campaigns")
+      .update({
+        status: failed === 0 ? "completed" : "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", campaignId);
+  }
+
+  return { sent, failed };
+}
+
+async function incrementCounter(
+  supabase: SupabaseClient<Database>,
+  campaignId: string,
+  column: "sent_count" | "failed_count",
+) {
+  const { data } = await supabase
+    .from("campaigns")
+    .select("sent_count, failed_count")
+    .eq("id", campaignId)
+    .maybeSingle<{ sent_count: number; failed_count: number }>();
+  if (!data) return;
+  const current = data[column] ?? 0;
+  if (column === "sent_count") {
+    await supabase
+      .from("campaigns")
+      .update({ sent_count: current + 1 })
+      .eq("id", campaignId);
+  } else {
+    await supabase
+      .from("campaigns")
+      .update({ failed_count: current + 1 })
+      .eq("id", campaignId);
+  }
+}
