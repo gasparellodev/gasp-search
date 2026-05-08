@@ -21,6 +21,10 @@ Componentes do shell autenticado: Sidebar, Topbar, ThemeToggle, UserMenu.
    no wrapper principal; cada página/componente deve conter scroll localmente
    quando inevitável. Sidebar usa `h-full` para ocupar toda a lateral da
    viewport.
+8. **Apple SK chrome (issue #145)**: Sidebar não tem borda lateral nem
+   separador interno — Topbar desenha a única hairline horizontal do shell
+   (`border-b border-border`). Topbar usa efeito vidro Apple
+   (`bg-background/80 backdrop-blur-xl`).
 
 ## Arquivos
 
