@@ -270,6 +270,90 @@ export interface Database {
         };
         Relationships: [];
       };
+      campaigns: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          mode: Database["public"]["Enums"]["campaign_mode"];
+          template_text: string | null;
+          ai_channel: string | null;
+          ai_tone: string | null;
+          ai_goal: string | null;
+          status: Database["public"]["Enums"]["campaign_status"];
+          total_count: number;
+          sent_count: number;
+          failed_count: number;
+          started_at: string | null;
+          completed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          mode: Database["public"]["Enums"]["campaign_mode"];
+          template_text?: string | null;
+          ai_channel?: string | null;
+          ai_tone?: string | null;
+          ai_goal?: string | null;
+          status?: Database["public"]["Enums"]["campaign_status"];
+          total_count?: number;
+          sent_count?: number;
+          failed_count?: number;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          mode?: Database["public"]["Enums"]["campaign_mode"];
+          template_text?: string | null;
+          ai_channel?: string | null;
+          ai_tone?: string | null;
+          ai_goal?: string | null;
+          status?: Database["public"]["Enums"]["campaign_status"];
+          total_count?: number;
+          sent_count?: number;
+          failed_count?: number;
+          started_at?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      campaign_targets: {
+        Row: {
+          campaign_id: string;
+          lead_id: string;
+          status: Database["public"]["Enums"]["campaign_target_status"];
+          error_message: string | null;
+          sent_message_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          campaign_id: string;
+          lead_id: string;
+          status?: Database["public"]["Enums"]["campaign_target_status"];
+          error_message?: string | null;
+          sent_message_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          campaign_id?: string;
+          lead_id?: string;
+          status?: Database["public"]["Enums"]["campaign_target_status"];
+          error_message?: string | null;
+          sent_message_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -290,6 +374,14 @@ export interface Database {
         | "connecting"
         | "connected"
         | "error";
+      campaign_mode: "template" | "ai_per_lead";
+      campaign_status:
+        | "draft"
+        | "running"
+        | "completed"
+        | "failed"
+        | "cancelled";
+      campaign_target_status: "pending" | "sent" | "failed" | "skipped";
     };
   };
 }

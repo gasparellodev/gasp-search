@@ -30,6 +30,34 @@ describe("types/database", () => {
       | "connected"
       | "error"
     >();
+    expectTypeOf<Enums<"campaign_mode">>().toEqualTypeOf<
+      "template" | "ai_per_lead"
+    >();
+    expectTypeOf<Enums<"campaign_status">>().toEqualTypeOf<
+      "draft" | "running" | "completed" | "failed" | "cancelled"
+    >();
+    expectTypeOf<Enums<"campaign_target_status">>().toEqualTypeOf<
+      "pending" | "sent" | "failed" | "skipped"
+    >();
+  });
+
+  it("Tables<'campaigns'> tem campos numéricos contadores e textuais opcionais", () => {
+    type CampaignRow = Tables<"campaigns">;
+    expectTypeOf<CampaignRow["mode"]>().toEqualTypeOf<Enums<"campaign_mode">>();
+    expectTypeOf<CampaignRow["template_text"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<CampaignRow["ai_channel"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<CampaignRow["sent_count"]>().toBeNumber();
+    expectTypeOf<CampaignRow["failed_count"]>().toBeNumber();
+  });
+
+  it("Tables<'campaign_targets'> usa PK composta (campaign_id, lead_id)", () => {
+    type Target = Tables<"campaign_targets">;
+    expectTypeOf<Target["campaign_id"]>().toBeString();
+    expectTypeOf<Target["lead_id"]>().toBeString();
+    expectTypeOf<Target["status"]>().toEqualTypeOf<
+      Enums<"campaign_target_status">
+    >();
+    expectTypeOf<Target["sent_message_id"]>().toEqualTypeOf<string | null>();
   });
 
   it("Tables<'whatsapp_instances'> tem user_id e status, com phone_number nullable", () => {
@@ -79,7 +107,7 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 7 tabelas esperadas", () => {
+  it("Database['public']['Tables'] cobre as 9 tabelas esperadas", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
       | "profiles"
@@ -89,6 +117,8 @@ describe("types/database", () => {
       | "lead_tags"
       | "lead_messages"
       | "whatsapp_instances"
+      | "campaigns"
+      | "campaign_targets"
     >();
   });
 });
