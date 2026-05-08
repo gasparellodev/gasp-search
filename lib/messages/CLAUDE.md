@@ -9,11 +9,15 @@ Helpers server-side da inbox `/messages` (Phase 5). Distintos de `lib/ai/message
 - Server-only (`import "server-only"`).
 - RLS é a defesa primária — apenas use `createServerSupabase()`. Nada de `createServiceSupabase()` aqui.
 
+## Regras de negócio
+
+1. **Inbox = chat real.** `listConversations()` aplica filtro `direction.eq.inbound,whatsapp_msg_id.not.is.null` — drafts de IA salvos pelo `/api/ai/generate-message` ficam de fora. Critério: outbound real é o que ganhou `whatsapp_msg_id` em `lib/evolution/send.ts` após `sendText`.
+
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
-| `list-conversations.ts` | `listConversations(supabase)` — agrega `lead_messages` por `lead_id` pegando a última, enriquece com `leads.name`/`phone` |
+| `list-conversations.ts` | `listConversations(supabase)` — agrega `lead_messages` por `lead_id` pegando a última (já filtrada como real), enriquece com `leads.name`/`phone` |
 
 ## Dependências
 

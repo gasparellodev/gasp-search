@@ -8,7 +8,7 @@ Endpoints REST autenticados para recursos de IA. Toda chamada exige usuário Sup
 
 ### `POST /api/ai/generate-message`
 
-Valida `{ leadId, channel, tone, goal? }`, carrega o lead do usuário via RLS, chama `generateMessage()` e persiste o resultado em `lead_messages`.
+Valida `{ leadId, channel, tone, goal? }`, carrega o lead do usuário via RLS, chama `generateMessage()` e persiste o resultado em `lead_messages` como **draft** (`ai_generated: true`, `status: 'queued'`, `whatsapp_msg_id: null`). O draft só vira mensagem real ao passar pelo `/api/whatsapp/send` — que promove `status='sent'` e preenche `whatsapp_msg_id`. Inbox `/messages` filtra drafts via `direction.eq.inbound,whatsapp_msg_id.not.is.null`.
 
 **Response:** `200 { content, messageId }`.
 
