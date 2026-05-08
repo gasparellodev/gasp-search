@@ -11,6 +11,10 @@ const VALID_ENV = {
   APIFY_WEBSITE_CONTACT_ACTOR_ID: "vdrmota~contact-info-scraper",
   ANTHROPIC_API_KEY: "sk-ant-123",
   ANTHROPIC_MODEL: "claude-sonnet-4-6",
+  EVOLUTION_API_URL: "http://localhost:8080",
+  EVOLUTION_API_KEY: "evo-key-1234567890",
+  EVOLUTION_WEBHOOK_SECRET: "whsec-1234567890abcdef",
+  NEXT_PUBLIC_WHATSAPP_ENABLED: "0",
 } as const;
 
 let savedEnv: NodeJS.ProcessEnv;
@@ -74,6 +78,67 @@ describe("lib/env (server)", () => {
     Object.assign(process.env, e);
     await expect(import("@/lib/env")).rejects.toThrow(/ANTHROPIC_API_KEY/);
   });
+
+  it("aplica default de EVOLUTION_API_URL quando ausente", async () => {
+    const e = { ...VALID_ENV } as Record<string, string | undefined>;
+    delete e.EVOLUTION_API_URL;
+    Object.assign(process.env, e);
+    const { env } = await import("@/lib/env");
+    expect(env.EVOLUTION_API_URL).toBe("http://localhost:8080");
+  });
+
+  it("rejeita EVOLUTION_API_URL inválida", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      EVOLUTION_API_URL: "not-a-url",
+    });
+    await expect(import("@/lib/env")).rejects.toThrow(/EVOLUTION_API_URL/);
+  });
+
+  it("aplica default '0' de NEXT_PUBLIC_WHATSAPP_ENABLED quando ausente", async () => {
+    const e = { ...VALID_ENV } as Record<string, string | undefined>;
+    delete e.NEXT_PUBLIC_WHATSAPP_ENABLED;
+    Object.assign(process.env, e);
+    const { env } = await import("@/lib/env");
+    expect(env.NEXT_PUBLIC_WHATSAPP_ENABLED).toBe("0");
+  });
+
+  it("rejeita NEXT_PUBLIC_WHATSAPP_ENABLED com valor inválido", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      NEXT_PUBLIC_WHATSAPP_ENABLED: "yes",
+    });
+    await expect(import("@/lib/env")).rejects.toThrow(
+      /NEXT_PUBLIC_WHATSAPP_ENABLED/,
+    );
+  });
+
+  it("permite EVOLUTION_API_KEY ausente quando WhatsApp desabilitado", async () => {
+    const e = { ...VALID_ENV } as Record<string, string | undefined>;
+    delete e.EVOLUTION_API_KEY;
+    delete e.EVOLUTION_WEBHOOK_SECRET;
+    Object.assign(process.env, { ...e, NEXT_PUBLIC_WHATSAPP_ENABLED: "0" });
+    const { env } = await import("@/lib/env");
+    expect(env.EVOLUTION_API_KEY).toBeUndefined();
+  });
+
+  it("rejeita quando WhatsApp habilitado sem EVOLUTION_API_KEY", async () => {
+    const e = { ...VALID_ENV } as Record<string, string | undefined>;
+    delete e.EVOLUTION_API_KEY;
+    Object.assign(process.env, { ...e, NEXT_PUBLIC_WHATSAPP_ENABLED: "1" });
+    await expect(import("@/lib/env")).rejects.toThrow(/EVOLUTION_API_KEY/);
+  });
+
+  it("rejeita quando WhatsApp habilitado com EVOLUTION_WEBHOOK_SECRET curto", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      NEXT_PUBLIC_WHATSAPP_ENABLED: "1",
+      EVOLUTION_WEBHOOK_SECRET: "short",
+    });
+    await expect(import("@/lib/env")).rejects.toThrow(
+      /EVOLUTION_WEBHOOK_SECRET/,
+    );
+  });
 });
 
 describe("lib/env-public (client-safe)", () => {
@@ -84,10 +149,29 @@ describe("lib/env-public (client-safe)", () => {
       NEXT_PUBLIC_APP_URL: "http://localhost:3000",
       NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key-123",
+      NEXT_PUBLIC_WHATSAPP_ENABLED: "0",
     });
     expect(Object.keys(publicEnv)).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(Object.keys(publicEnv)).not.toContain("APIFY_TOKEN");
     expect(Object.keys(publicEnv)).not.toContain("ANTHROPIC_API_KEY");
+    expect(Object.keys(publicEnv)).not.toContain("EVOLUTION_API_KEY");
+  });
+
+  it("aceita NEXT_PUBLIC_WHATSAPP_ENABLED='1'", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      NEXT_PUBLIC_WHATSAPP_ENABLED: "1",
+    });
+    const { publicEnv } = await import("@/lib/env-public");
+    expect(publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED).toBe("1");
+  });
+
+  it("aplica default '0' de NEXT_PUBLIC_WHATSAPP_ENABLED quando ausente", async () => {
+    const e = { ...VALID_ENV } as Record<string, string | undefined>;
+    delete e.NEXT_PUBLIC_WHATSAPP_ENABLED;
+    Object.assign(process.env, e);
+    const { publicEnv } = await import("@/lib/env-public");
+    expect(publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED).toBe("0");
   });
 
   it("rejeita NEXT_PUBLIC_APP_URL inválida", async () => {

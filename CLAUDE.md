@@ -88,14 +88,19 @@ Ver `.env.local.example` para a lista canônica. Todas validadas via Zod em `lib
 | `ANTHROPIC_API_KEY` | server-only |
 | `ANTHROPIC_MODEL` | server-only (default `claude-sonnet-4-6`) |
 | `NEXT_PUBLIC_APP_URL` | client + server |
+| `EVOLUTION_API_URL` | server-only (default `http://localhost:8080`) |
+| `EVOLUTION_API_KEY` | server-only (obrigatório se WhatsApp habilitado) |
+| `EVOLUTION_WEBHOOK_SECRET` | server-only (mín 16 chars; obrigatório se WhatsApp habilitado) |
+| `NEXT_PUBLIC_WHATSAPP_ENABLED` | client + server (`'0'` \| `'1'`, default `'0'`) |
 
 ## Onde está o quê
 
 - **Spec original do produto:** issue/discussão de planejamento (ver issues).
 - **Plano detalhado de execução:** `~/.claude/plans/gasp-search-serialized-forest.md` (local; não commitar).
-- **Backlog completo:** [issues no GitHub](https://github.com/gasparellodev/gasp-search/issues) distribuídas em 5 milestones (Phase 0–4).
+- **Backlog completo:** [issues no GitHub](https://github.com/gasparellodev/gasp-search/issues) distribuídas em 6 milestones (Phase 0–5).
 - **Workflow de PR:** `CONTRIBUTING.md`.
 - **CI:** `.github/workflows/ci.yml`.
+- **Evolution API (dev local):** `docker/evolution/README.md`.
 
 ## Como evoluir este `CLAUDE.md`
 
