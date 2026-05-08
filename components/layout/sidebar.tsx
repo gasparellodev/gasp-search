@@ -7,9 +7,11 @@ import {
   Search,
   Users,
   Kanban,
+  MessagesSquare,
   Settings,
   Menu,
 } from "lucide-react";
+import { publicEnv } from "@/lib/env-public";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,13 +31,32 @@ interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
 }
 
-export const NAV_ITEMS: readonly NavItem[] = [
+const BASE_NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/search", label: "Buscar", icon: Search },
   { href: "/leads", label: "Leads", icon: Users },
   { href: "/pipeline", label: "Pipeline", icon: Kanban },
   { href: "/settings", label: "Configurações", icon: Settings },
 ];
+
+const WHATSAPP_NAV_ITEMS: readonly NavItem[] = [
+  { href: "/messages", label: "Mensagens", icon: MessagesSquare },
+];
+
+// Insere itens de WhatsApp logo antes de Configurações quando habilitado.
+function buildNavItems(): readonly NavItem[] {
+  if (publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED !== "1") return BASE_NAV_ITEMS;
+  const settingsIndex = BASE_NAV_ITEMS.findIndex(
+    (item) => item.href === "/settings",
+  );
+  return [
+    ...BASE_NAV_ITEMS.slice(0, settingsIndex),
+    ...WHATSAPP_NAV_ITEMS,
+    ...BASE_NAV_ITEMS.slice(settingsIndex),
+  ];
+}
+
+export const NAV_ITEMS: readonly NavItem[] = buildNavItems();
 
 function NavLinks({
   pathname,
