@@ -17,3 +17,4 @@ Migrations SQL aplicadas em ordem numérica.
 | `0001_init.sql` | Schema inicial: profiles, tags, search_jobs, leads, lead_tags, lead_messages + RLS + triggers |
 | `0002_fix_lead_upsert_constraints.sql` | Substitui dedup de leads por índices únicos parciais (website / instagram_handle) |
 | `0003_whatsapp_instances.sql` | Phase 5 — tabela `whatsapp_instances` (1:1 user) + enum `whatsapp_status` + RLS por user_id |
+| `0004_campaigns.sql` | Phase 5 — tabelas `campaigns` + `campaign_targets` + 3 enums (campaign_mode, campaign_status, campaign_target_status) + RLS |
