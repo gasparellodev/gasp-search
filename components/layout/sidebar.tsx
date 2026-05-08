@@ -8,6 +8,7 @@ import {
   Users,
   Kanban,
   MessagesSquare,
+  Send,
   Settings,
   Menu,
 } from "lucide-react";
@@ -41,6 +42,7 @@ const BASE_NAV_ITEMS: readonly NavItem[] = [
 
 const WHATSAPP_NAV_ITEMS: readonly NavItem[] = [
   { href: "/messages", label: "Mensagens", icon: MessagesSquare },
+  { href: "/campaigns", label: "Campanhas", icon: Send },
 ];
 
 // Insere itens de WhatsApp logo antes de Configurações quando habilitado.

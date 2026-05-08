@@ -1,4 +1,5 @@
-import "server-only";
+// Sem `server-only`: este módulo é puro (sem secrets) e é usado tanto no
+// server (processor de campanha) quanto no client (preview no campaign-form).
 import type { LeadForMessage } from "@/lib/ai/anthropic";
 
 // ----------------------------------------------------------------------------
