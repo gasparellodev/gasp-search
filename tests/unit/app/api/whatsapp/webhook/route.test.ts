@@ -91,8 +91,16 @@ beforeEach(() => {
 });
 
 describe("POST /api/whatsapp/webhook", () => {
-  it("retorna 401 sem assinatura", async () => {
-    const body = makeBody({});
+  it("retorna 401 sem assinatura quando instância não está cadastrada", async () => {
+    const body = makeBody({
+      event: "connection.update",
+      instance: "ghost_instance",
+      data: { state: "open" },
+    });
+    const { client } = makeServiceClient({
+      whatsapp_instances: { select: { data: null } },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
     const { POST } = await import("@/app/api/whatsapp/webhook/route");
     const res = await POST(makeReq(body, null));
     expect(res.status).toBe(401);
@@ -103,6 +111,26 @@ describe("POST /api/whatsapp/webhook", () => {
     const { POST } = await import("@/app/api/whatsapp/webhook/route");
     const res = await POST(makeReq(body, "0".repeat(64)));
     expect(res.status).toBe(401);
+  });
+
+  it("aceita sem assinatura quando instância está cadastrada (Evolution v2 compat)", async () => {
+    const body = makeBody({
+      event: "connection.update",
+      instance: "user_aabbccdd",
+      data: { state: "open", owner: "5511999998888@s.whatsapp.net" },
+    });
+    const { client, calls } = makeServiceClient({
+      whatsapp_instances: {
+        select: { data: { user_id: "u1", status: "qr_pending" } },
+      },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
+    const { POST } = await import("@/app/api/whatsapp/webhook/route");
+    const res = await POST(makeReq(body, null));
+    expect(res.status).toBe(200);
+    expect(calls).toContainEqual(
+      expect.objectContaining({ table: "whatsapp_instances", op: "update" }),
+    );
   });
 
   it("retorna 400 em JSON inválido com sig válida", async () => {

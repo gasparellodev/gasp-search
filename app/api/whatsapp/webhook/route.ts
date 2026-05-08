@@ -155,8 +155,12 @@ export async function POST(request: Request) {
   const rawBody = await request.text();
   const signature = pickSignature(request.headers);
 
-  if (!verifyHmac(rawBody, signature, env.EVOLUTION_WEBHOOK_SECRET ?? "")) {
-    return NextResponse.json({ error: "invalid signature" }, { status: 401 });
+  // HMAC primary path — quando o originador assina (proxy, futura versão do
+  // Evolution, ou config customizada). Se inválido, rejeita imediatamente.
+  if (signature) {
+    if (!verifyHmac(rawBody, signature, env.EVOLUTION_WEBHOOK_SECRET ?? "")) {
+      return NextResponse.json({ error: "invalid signature" }, { status: 401 });
+    }
   }
 
   let payload: unknown;
@@ -174,6 +178,20 @@ export async function POST(request: Request) {
 
   try {
     const supabase = createServiceSupabase();
+
+    // Fallback de auth para Evolution v2.x, que não assina webhooks
+    // nativamente: aceita só quando o `instance` do payload bate com uma row
+    // de `whatsapp_instances` (criada via /api/whatsapp/instance autenticado).
+    if (!signature) {
+      const known = await lookupUserByInstance(supabase, event.instance);
+      if (!known) {
+        return NextResponse.json(
+          { error: "unauthorized" },
+          { status: 401 },
+        );
+      }
+    }
+
     await handleEvent(supabase, event);
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {

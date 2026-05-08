@@ -14,10 +14,10 @@ function makeSupabase(opts: {
 }) {
   let leadsCallTarget: ChainResult | null = null;
 
+  const orderFn = vi.fn(async () => opts.messagesResult);
+  const orFn = vi.fn(() => ({ order: orderFn }));
   const messagesQueryBuilder = {
-    select: vi.fn(() => ({
-      order: vi.fn(async () => opts.messagesResult),
-    })),
+    select: vi.fn(() => ({ or: orFn })),
   };
 
   const leadsQueryBuilder = {
@@ -35,7 +35,10 @@ function makeSupabase(opts: {
     throw new Error(`unexpected table ${table}`);
   });
 
-  return { client: { from } as unknown as Parameters<typeof listConversations>[0] };
+  return {
+    client: { from } as unknown as Parameters<typeof listConversations>[0],
+    spies: { orFn },
+  };
 }
 
 describe("listConversations", () => {
@@ -128,5 +131,16 @@ describe("listConversations", () => {
       leadsResult: { data: [], error: null },
     });
     await expect(listConversations(client)).rejects.toThrow(/rls/);
+  });
+
+  it("aplica filtro de mensagens reais (inbound OR outbound enviado)", async () => {
+    const { client, spies } = makeSupabase({
+      messagesResult: { data: [], error: null },
+      leadsResult: { data: [], error: null },
+    });
+    await listConversations(client);
+    expect(spies.orFn).toHaveBeenCalledWith(
+      "direction.eq.inbound,whatsapp_msg_id.not.is.null",
+    );
   });
 });

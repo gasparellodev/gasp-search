@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/api/errors";
-import { createEvolutionClient } from "@/lib/evolution/client";
+import { createEvolutionClient, EvolutionApiError } from "@/lib/evolution/client";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 // Endpoint chamado pelo frontend em polling (a cada ~2s) enquanto a instância
@@ -33,7 +33,26 @@ export async function GET() {
     }
 
     const evolution = createEvolutionClient();
-    const qr = await evolution.getQRCode(existing.evo_instance);
+    let qr;
+    try {
+      qr = await evolution.getQRCode(existing.evo_instance);
+    } catch (cause) {
+      // Estado órfão: row no DB existe mas instância sumiu do Evolution
+      // (container resetado, instância apagada por outro path, etc.). Em
+      // vez de loopar 502, faz self-heal: zera a row pra UI voltar pro
+      // estado "disconnected" e o user clica Conectar de novo.
+      if (cause instanceof EvolutionApiError && cause.status === 404) {
+        await supabase
+          .from("whatsapp_instances")
+          .delete()
+          .eq("user_id", user.id);
+        return NextResponse.json(
+          { qrcode: null, status: "disconnected" },
+          { headers: { "Cache-Control": "no-store" } },
+        );
+      }
+      throw cause;
+    }
     // Se o Evolution não retornar QR (já pareado), a UI tira a tela de QR
     // e aguarda webhook 'connection.update' marcar 'connected'.
     if (qr.qrcode) {

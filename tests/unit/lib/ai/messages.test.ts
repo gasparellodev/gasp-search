@@ -7,6 +7,13 @@ type ChainResult = {
   error: { message: string } | null;
 };
 
+type AfterEq = {
+  order: (column: string, opts: { ascending: boolean }) => {
+    range: (from: number, to: number) => Promise<ChainResult>;
+  };
+  or: (filter: string) => AfterEq;
+};
+
 function createSupabaseMock(result: ChainResult) {
   const range = vi.fn<(from: number, to: number) => Promise<ChainResult>>(
     async () => result,
@@ -14,9 +21,12 @@ function createSupabaseMock(result: ChainResult) {
   const order = vi.fn<(column: string, opts: { ascending: boolean }) => {
     range: typeof range;
   }>(() => ({ range }));
-  const eq = vi.fn<(column: string, value: string) => { order: typeof order }>(
-    () => ({ order }),
-  );
+  const afterEq: AfterEq = {
+    order,
+    or: vi.fn(() => afterEq),
+  };
+  const or = afterEq.or as ReturnType<typeof vi.fn>;
+  const eq = vi.fn<(column: string, value: string) => AfterEq>(() => afterEq);
   const select = vi.fn<(query: string, opts?: { count: "exact" }) => {
     eq: typeof eq;
   }>(() => ({ eq }));
@@ -28,7 +38,7 @@ function createSupabaseMock(result: ChainResult) {
     client: { from } as unknown as Parameters<
       typeof listLeadMessages
     >[0]["supabase"],
-    spies: { from, select, eq, order, range },
+    spies: { from, select, eq, or, order, range },
   };
 }
 
@@ -118,5 +128,35 @@ describe("listLeadMessages", () => {
     await expect(
       listLeadMessages({ supabase: client, leadId: "lead-1" }),
     ).rejects.toThrow(/Falha ao listar mensagens/);
+  });
+
+  it("realOnly=true filtra para inbound ou outbound já enviado (whatsapp_msg_id)", async () => {
+    const { client, spies } = createSupabaseMock({
+      data: [],
+      count: 0,
+      error: null,
+    });
+
+    await listLeadMessages({
+      supabase: client,
+      leadId: "lead-1",
+      realOnly: true,
+    });
+
+    expect(spies.or).toHaveBeenCalledWith(
+      "direction.eq.inbound,whatsapp_msg_id.not.is.null",
+    );
+  });
+
+  it("realOnly default (false) não aplica filtro .or() — preserva drawer de IA", async () => {
+    const { client, spies } = createSupabaseMock({
+      data: [],
+      count: 0,
+      error: null,
+    });
+
+    await listLeadMessages({ supabase: client, leadId: "lead-1" });
+
+    expect(spies.or).not.toHaveBeenCalled();
   });
 });

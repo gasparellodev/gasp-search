@@ -17,11 +17,12 @@ vi.mock("@/lib/supabase/server", () => ({
 vi.mock("@/lib/evolution/client", () => ({
   createEvolutionClient: evolutionMocks.createEvolutionClient,
   EvolutionApiError: class extends Error {
-    constructor(
-      message: string,
-      public options: { status: number; code: string },
-    ) {
+    status: number;
+    code: string;
+    constructor(message: string, options: { status: number; code: string }) {
       super(message);
+      this.status = options.status;
+      this.code = options.code;
     }
   },
 }));
@@ -30,6 +31,7 @@ function makeSupabase(opts: {
   selectData?: unknown;
   selectError?: unknown;
   updateError?: unknown;
+  deleteError?: unknown;
 }) {
   const maybeSingle = vi.fn(async () => ({
     data: opts.selectData ?? null,
@@ -43,11 +45,16 @@ function makeSupabase(opts: {
   }));
   const update = vi.fn(() => ({ eq: eqUpdate }));
 
-  const from = vi.fn(() => ({ select, update }));
+  const eqDelete = vi.fn(async () => ({
+    error: opts.deleteError ?? null,
+  }));
+  const del = vi.fn(() => ({ eq: eqDelete }));
+
+  const from = vi.fn(() => ({ select, update, delete: del }));
 
   return {
     client: { auth: { getUser: supabaseMocks.getUser }, from },
-    spies: { from, select, eqSelect, maybeSingle, update, eqUpdate },
+    spies: { from, select, eqSelect, maybeSingle, update, eqUpdate, del, eqDelete },
   };
 }
 
@@ -155,5 +162,25 @@ describe("GET /api/whatsapp/instance/qr", () => {
     const { GET } = await import("@/app/api/whatsapp/instance/qr/route");
     const res = await GET();
     expect(res.status).toBe(502);
+  });
+
+  it("404 do Evolution: self-heal deleta row órfã e retorna disconnected", async () => {
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    });
+    const { client, spies } = makeSupabase({
+      selectData: { evo_instance: "user_xx", status: "qr_pending" },
+    });
+    supabaseMocks.createServerSupabase.mockResolvedValue(client);
+    const { EvolutionApiError } = await import("@/lib/evolution/client");
+    evolutionMocks.getQRCode.mockRejectedValue(
+      new EvolutionApiError("not found", { status: 404, code: "HTTP_ERROR" }),
+    );
+    const { GET } = await import("@/app/api/whatsapp/instance/qr/route");
+    const res = await GET();
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ qrcode: null, status: "disconnected" });
+    expect(spies.del).toHaveBeenCalled();
   });
 });

@@ -25,9 +25,13 @@ export type ConversationItem = {
 export async function listConversations(
   supabase: SupabaseClient<Database>,
 ): Promise<ConversationItem[]> {
+  // Inbox = chat real. Mensagens só aparecem se entraram (inbound) ou
+  // foram efetivamente enviadas pelo Evolution (whatsapp_msg_id NOT NULL).
+  // Drafts de IA salvos pelo /api/ai/generate-message ficam de fora.
   const { data: messages, error: msgErr } = await supabase
     .from("lead_messages")
     .select("lead_id, content, created_at, direction, status")
+    .or("direction.eq.inbound,whatsapp_msg_id.not.is.null")
     .order("created_at", { ascending: false });
   if (msgErr) throw new Error(`Falha listar mensagens: ${msgErr.message}`);
 

@@ -224,6 +224,8 @@ describe("POST /api/ai/generate-message", () => {
       channel: "whatsapp",
       tone: "consultivo",
       content: "Olá, vi a Barbearia Bigode...",
+      ai_generated: true,
+      status: "queued",
     });
   });
 
