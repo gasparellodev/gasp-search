@@ -21,6 +21,12 @@ const messages: LeadMessage[] = [
     tone: "direto",
     content: "Mensagem mais nova",
     created_at: "2026-05-07T12:02:00Z",
+    direction: "outbound",
+    status: "sent",
+    whatsapp_msg_id: null,
+    campaign_id: null,
+    ai_generated: true,
+    error_message: null,
   },
   {
     id: "message-1",
@@ -29,6 +35,12 @@ const messages: LeadMessage[] = [
     tone: "consultivo",
     content: "Mensagem antiga",
     created_at: "2026-05-07T12:01:00Z",
+    direction: "outbound",
+    status: "sent",
+    whatsapp_msg_id: null,
+    campaign_id: null,
+    ai_generated: true,
+    error_message: null,
   },
 ];
 

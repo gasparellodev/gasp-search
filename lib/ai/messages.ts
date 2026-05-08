@@ -6,7 +6,18 @@ export const LEAD_MESSAGES_PAGE_SIZE = 20;
 
 export type LeadMessage = Pick<
   Tables<"lead_messages">,
-  "id" | "lead_id" | "channel" | "tone" | "content" | "created_at"
+  | "id"
+  | "lead_id"
+  | "channel"
+  | "tone"
+  | "content"
+  | "created_at"
+  | "direction"
+  | "status"
+  | "whatsapp_msg_id"
+  | "campaign_id"
+  | "ai_generated"
+  | "error_message"
 >;
 
 export type ListLeadMessagesResult = {
@@ -17,7 +28,8 @@ export type ListLeadMessagesResult = {
   totalPages: number;
 };
 
-const MESSAGE_SELECT = "id, lead_id, channel, tone, content, created_at";
+const MESSAGE_SELECT =
+  "id, lead_id, channel, tone, content, created_at, direction, status, whatsapp_msg_id, campaign_id, ai_generated, error_message";
 
 export async function listLeadMessages({
   supabase,

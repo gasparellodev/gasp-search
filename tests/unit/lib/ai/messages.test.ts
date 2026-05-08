@@ -39,10 +39,16 @@ describe("listLeadMessages", () => {
         {
           id: "message-2",
           lead_id: "lead-1",
-          channel: "email",
+          channel: "whatsapp",
           tone: "direto",
           content: "Segunda mensagem",
           created_at: "2026-05-07T12:02:00Z",
+          direction: "outbound",
+          status: "sent",
+          whatsapp_msg_id: "evo-2",
+          campaign_id: null,
+          ai_generated: true,
+          error_message: null,
         },
       ],
       count: 41,
@@ -57,7 +63,7 @@ describe("listLeadMessages", () => {
 
     expect(spies.from).toHaveBeenCalledWith("lead_messages");
     expect(spies.select).toHaveBeenCalledWith(
-      "id, lead_id, channel, tone, content, created_at",
+      "id, lead_id, channel, tone, content, created_at, direction, status, whatsapp_msg_id, campaign_id, ai_generated, error_message",
       { count: "exact" },
     );
     expect(spies.eq).toHaveBeenCalledWith("lead_id", "lead-1");
@@ -70,7 +76,17 @@ describe("listLeadMessages", () => {
       page: 2,
       pageSize: 20,
       totalPages: 3,
-      messages: [{ id: "message-2", content: "Segunda mensagem" }],
+      messages: [
+        {
+          id: "message-2",
+          content: "Segunda mensagem",
+          direction: "outbound",
+          status: "sent",
+          whatsapp_msg_id: "evo-2",
+          ai_generated: true,
+          campaign_id: null,
+        },
+      ],
     });
   });
 
