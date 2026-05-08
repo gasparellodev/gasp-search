@@ -142,14 +142,21 @@ export function ConversationThread({ leadId }: Props) {
             >
               <div
                 className={cn(
-                  "max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm",
+                  "max-w-[75%] rounded-[var(--sk-card-radius)] px-4 py-2 text-sm shadow-sm",
                   out
-                    ? "bg-emerald-500/15 dark:bg-emerald-500/20"
-                    : "bg-muted",
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card text-card-foreground",
                 )}
               >
                 <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                <div className="mt-1 flex items-center justify-end gap-1 text-xs text-muted-foreground">
+                <div
+                  className={cn(
+                    "mt-1 flex items-center justify-end gap-1 text-xs",
+                    out
+                      ? "text-primary-foreground/70"
+                      : "text-muted-foreground",
+                  )}
+                >
                   <span>
                     {new Date(m.created_at).toLocaleTimeString("pt-BR", {
                       hour: "2-digit",

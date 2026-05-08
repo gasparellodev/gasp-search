@@ -15,8 +15,8 @@ Componentes da inbox `/messages` (Phase 5). Layout 2 colunas (lista + thread + c
 | Path | Propósito |
 |---|---|
 | `conversation-list.tsx` | Lista lateral de conversas com busca, status visual da última msg, link pra `/messages/[leadId]` |
-| `conversation-thread.tsx` | Painel de chat com bubbles in/out, status (✓/✓✓/✓✓ azul/⚠️) e auto-scroll |
-| `message-composer.tsx` | Textarea + botão Enviar; atalho Ctrl+Enter; disabled se WhatsApp desconectado |
+| `conversation-thread.tsx` | Painel de chat com bubbles iMessage-style (Apple SK): outbound azul `--primary`, inbound alabaster `--card`, radius 18px via `--sk-card-radius`. Status (✓/✓✓/✓✓ azul/⚠️) e auto-scroll. |
+| `message-composer.tsx` | Textarea + botão Enviar dentro de Card alabaster (`--sk-card-radius` 18px). Textarea sem borda própria — Card é a moldura visual. Atalho Ctrl+Enter; disabled se WhatsApp desconectado. |
 | `instance-banner.tsx` | Banner de aviso quando instância não está connected, com link pra /settings |
 
 ## Dependências

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 
 type Props = {
@@ -63,40 +64,39 @@ export function MessageComposer({ leadId }: Props) {
   };
 
   return (
-    <div
-      className="flex items-end gap-2 border-t bg-background p-3"
-      data-testid="message-composer"
-    >
-      <Textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-            e.preventDefault();
-            void send();
+    <div className="p-3" data-testid="message-composer">
+      <Card className="flex flex-row items-end gap-2 p-3">
+        <Textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              void send();
+            }
+          }}
+          placeholder={
+            connected
+              ? "Digite a mensagem (Ctrl+Enter para enviar)..."
+              : "Conecte o WhatsApp em Configurações para enviar."
           }
-        }}
-        placeholder={
-          connected
-            ? "Digite a mensagem (Ctrl+Enter para enviar)..."
-            : "Conecte o WhatsApp em Configurações para enviar."
-        }
-        disabled={!connected || busy}
-        rows={2}
-        className="min-h-10 resize-none"
-      />
-      <Button
-        onClick={send}
-        disabled={disabled}
-        size="icon"
-        aria-label="Enviar mensagem"
-      >
-        {busy ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Send className="size-4" />
-        )}
-      </Button>
+          disabled={!connected || busy}
+          rows={2}
+          className="min-h-10 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 focus-visible:ring-offset-0"
+        />
+        <Button
+          onClick={send}
+          disabled={disabled}
+          size="icon"
+          aria-label="Enviar mensagem"
+        >
+          {busy ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Send className="size-4" />
+          )}
+        </Button>
+      </Card>
     </div>
   );
 }

@@ -190,7 +190,7 @@ export function PipelineBoard({
 
         <div
           data-testid="pipeline-board"
-          className="flex h-full min-h-0 min-w-0 flex-1 gap-4 overflow-x-auto pb-2"
+          className="flex h-full min-h-0 min-w-0 flex-1 gap-6 overflow-x-auto pb-2"
         >
           {LEAD_STAGES.map((stage) => (
             <Column
@@ -224,7 +224,8 @@ function Column({ stage, label, accent, cards, highlighted }: ColumnProps) {
       role="region"
       aria-label={label}
       className={cn(
-        "border-border bg-card flex h-full min-h-0 w-[28rem] min-w-0 shrink-0 flex-col gap-3 overflow-hidden rounded-lg border p-3 transition-colors",
+        // Apple SK: coluna alabaster com radius 18px e shadow sutil em vez de border.
+        "bg-card flex h-full min-h-0 w-[28rem] min-w-0 shrink-0 flex-col gap-3 overflow-hidden rounded-[var(--sk-card-radius)] p-4 shadow-sm transition-colors",
         (isOver || highlighted) && "bg-muted/40",
       )}
     >
@@ -263,7 +264,8 @@ function Card({ card }: { card: PipelineCard }) {
       {...listeners}
       {...attributes}
       className={cn(
-        "border-border bg-background hover:bg-muted/50 min-w-0 cursor-grab rounded-md border p-3 text-sm shadow-sm transition-colors",
+        // Apple SK: card de lead com radius 12px (tamanho médio), shadow sutil.
+        "border-border bg-background hover:bg-muted/50 min-w-0 cursor-grab rounded-xl border p-3 text-sm shadow-sm transition-colors",
         isDragging && "opacity-50",
       )}
     >

@@ -26,6 +26,11 @@ Kanban interativo da página `/pipeline`. Colunas = estágios em
    e não deve virar overflow horizontal global da página.
 5. **Mobile**: há um seletor `Visualizar estágio` como atalho mobile, mas as
    colunas continuam acessíveis pelo trilho horizontal interno.
+6. **Apple SK styling (issue #149)**: colunas usam `bg-card` (alabaster
+   `#f5f5f7` light / `#1d1d1f` dark) com `rounded-[var(--sk-card-radius)]`
+   (18px) e `shadow-sm` em vez de borda. Trilho horizontal usa `gap-6` entre
+   colunas (24px). Cards de lead usam `rounded-xl` (12px) — radius médio,
+   menor que o de coluna, para hierarquia visual.
 4. **`onMoveCommand` (prop)** existe apenas para testes — permite chamar
    `moveLead` diretamente, sem simular o cycle de pointer events que o
    dnd-kit usa.
