@@ -14,7 +14,7 @@ interface TopbarProps {
  */
 export function Topbar({ email, name, avatarUrl }: TopbarProps) {
   return (
-    <header className="bg-background/95 sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between gap-2 border-b px-4 backdrop-blur sm:px-6">
+    <header className="bg-background/80 sticky top-0 z-30 flex h-14 min-w-0 items-center justify-between gap-2 border-b border-border px-4 backdrop-blur-xl sm:px-6">
       <MobileNav />
       <div className="ml-auto flex min-w-0 items-center justify-end gap-2">
         <ThemeToggle />

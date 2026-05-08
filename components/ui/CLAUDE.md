@@ -18,6 +18,17 @@ Componentes são adicionados como arquivos editáveis no projeto (não como depe
 2. **Variantes adicionais** vão para um arquivo wrapper na pasta da área (`components/leads/lead-button.tsx`), não no `components/ui/button.tsx`.
 3. **Removidos**: nunca delete um componente sem grep antes para garantir que não está em uso.
 
+### Customizações Apple SK (issue #145)
+
+Foundation do sistema Apple SK ("Storekit") foi aplicada diretamente nas primitives porque rebuildar todas como wrappers não escala. Se o `shadcn` CLI for usado para regenerar, **mergear manualmente** preservando estes deltas:
+
+- **`button.tsx`**: base `rounded-full` (pill em todos os sizes não-grouped); variant `default` com `hover:bg-[var(--sk-button-bg-hover)] active:bg-[var(--sk-button-bg-active)]`; variant `link` consome `--sk-link`; novo size `super` (h-14 px-8 text-[17px] tracking-[-0.022em]); `focus-visible:ring-4`. Sizes em `[data-slot=button-group]` flipam para `rounded-lg` para virar segmented control.
+- **`badge.tsx`**: variant `link` consome `--sk-link`; nova variant `announce` consumindo `--sk-accent-orange`.
+- **`input.tsx` / `textarea.tsx`**: foco `ring-1 + offset-1` (mais discreto que o ring-4 do botão).
+- **`card.tsx`**: radius `var(--sk-card-radius)` (18px); `shadow-sm` em vez de `ring-1` para hairline.
+- **`dialog.tsx` / `drawer.tsx` / `sheet.tsx`**: backdrop `bg-black/40 backdrop-blur-sm`; cantos via `var(--sk-card-radius)`.
+- **`tabs.tsx`**: trigger `rounded-full` para pill ativo (variant default).
+
 ## Arquivos
 
 Todos os primitives mínimos do MVP estão instalados (issue #12 fechada). Lista completa:

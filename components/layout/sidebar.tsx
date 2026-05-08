@@ -16,7 +16,6 @@ import { publicEnv } from "@/lib/env-public";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetClose,
@@ -136,7 +135,7 @@ export function Sidebar() {
   return (
     <aside
       aria-label="Navegação principal"
-      className="bg-sidebar text-sidebar-foreground border-sidebar-border hidden h-full w-60 flex-shrink-0 border-r md:flex md:flex-col"
+      className="bg-sidebar text-sidebar-foreground hidden h-full w-60 flex-shrink-0 md:flex md:flex-col"
     >
       <div className="px-6 pt-6 pb-4">
         <p className="text-primary text-xs font-medium tracking-wider uppercase">
@@ -144,8 +143,6 @@ export function Sidebar() {
         </p>
         <h2 className="text-lg font-semibold tracking-tight">Gasp Search</h2>
       </div>
-
-      <Separator className="bg-sidebar-border" />
 
       <ScrollArea className="flex-1 px-3 py-4">
         <NavLinks pathname={pathname} />
