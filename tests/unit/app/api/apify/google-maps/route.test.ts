@@ -17,15 +17,9 @@ vi.mock("@/lib/apify/run-and-persist", () => ({
   executeSearchJob: executeSearchJobMock,
 }));
 
-const autoEnrichMock = vi.hoisted(() => vi.fn());
-vi.mock("@/lib/apify/auto-enrich", () => ({
-  autoEnrichGoogleMapsJob: autoEnrichMock,
-}));
-
 vi.mock("@/lib/env", () => ({
   env: {
     APIFY_GOOGLE_MAPS_ACTOR_ID: "compass~crawler-google-places",
-    AUTO_ENRICH_AFTER_GMAPS: true,
   },
 }));
 
@@ -57,17 +51,12 @@ beforeEach(() => {
   vi.resetModules();
   createSearchJobMock.mockReset();
   executeSearchJobMock.mockReset();
-  autoEnrichMock.mockReset();
 
   createSearchJobMock.mockResolvedValue("job-1");
   executeSearchJobMock.mockResolvedValue({
     jobId: "job-1",
     status: "succeeded",
     leadsCount: 3,
-  });
-  autoEnrichMock.mockResolvedValue({
-    enrichedCount: 0,
-    enrichedLeadIds: [],
   });
 
   supabaseMocks.getUser.mockReset();
@@ -178,27 +167,26 @@ describe("POST /api/apify/google-maps", () => {
     });
   });
 
-  it("dispara autoEnrich no background após executeSearchJob com sucesso", async () => {
+  it("não dispara enrich automaticamente após sucesso (enrich é exclusivamente manual)", async () => {
+    // Regressão: o handler não pode chamar enrich pós-search. Enrich só roda
+    // via POST /api/apify/enrich (botão "Enriquecer selecionados" na UI).
+    // O arquivo lib/apify/auto-enrich.ts foi deletado — typecheck quebra se
+    // alguém reintroduzir o import.
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
     });
 
-    // Config do mock garante que o after executa
     const { POST } = await importRoute();
     const response = await POST(
       makeRequest({ searchStringsArray: ["barbearia Curitiba PR"] }),
     );
 
     expect(response.status).toBe(200);
-
-    // Asserções do workflow no background
-    expect(autoEnrichMock).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: "user-1", jobId: "job-1" }),
-    );
+    expect(executeSearchJobMock).toHaveBeenCalledTimes(1);
   });
 
-  it("não dispara autoEnrich se executeSearchJob retornar failed no background", async () => {
+  it("não dispara enrich mesmo quando executeSearchJob retorna failed", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
@@ -210,9 +198,11 @@ describe("POST /api/apify/google-maps", () => {
     });
 
     const { POST } = await importRoute();
-    await POST(
+    const response = await POST(
       makeRequest({ searchStringsArray: ["barbearia Curitiba PR"] }),
     );
-    expect(autoEnrichMock).not.toHaveBeenCalled();
+
+    expect(response.status).toBe(200);
+    expect(executeSearchJobMock).toHaveBeenCalledTimes(1);
   });
 });

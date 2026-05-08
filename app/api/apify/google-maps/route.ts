@@ -2,7 +2,6 @@ import { after, NextResponse } from "next/server";
 import type { ZodError } from "zod";
 import { apiErrorResponse } from "@/lib/api/errors";
 import { env } from "@/lib/env";
-import { autoEnrichGoogleMapsJob } from "@/lib/apify/auto-enrich";
 import {
   mapGoogleMapsPlace,
   type GoogleMapsPlace,
@@ -64,9 +63,11 @@ export async function POST(request: Request) {
     });
 
     // Execução do actor Apify em background — não bloqueia a resposta.
+    // Enrich de contato é exclusivamente manual (botão "Enriquecer
+    // selecionados" em /leads → POST /api/apify/enrich).
     after(async () => {
       try {
-        const result = await executeSearchJob<GoogleMapsPlace>({
+        await executeSearchJob<GoogleMapsPlace>({
           supabase,
           userId: user.id,
           jobId,
@@ -75,14 +76,6 @@ export async function POST(request: Request) {
           input: parsed.data,
           mapper: mapGoogleMapsPlace,
         });
-
-        if (env.AUTO_ENRICH_AFTER_GMAPS && result.status === "succeeded") {
-          await autoEnrichGoogleMapsJob({
-            supabase,
-            userId: user.id,
-            jobId,
-          });
-        }
       } catch {
         // executeSearchJob já marca o job como "failed" internamente.
         // Não relançar para não crashar o background callback.
