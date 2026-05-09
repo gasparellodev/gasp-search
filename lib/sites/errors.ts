@@ -77,3 +77,55 @@ export class GenerationError extends Error {
     this.name = "GenerationError";
   }
 }
+
+/**
+ * Lançado pelo orquestrador `generateLeadSite` (#159) quando o `leadId`
+ * recebido não existe ou não pertence ao usuário autenticado.
+ *
+ * **RLS-as-error:** Supabase com RLS habilitado retorna `null` em
+ * `maybeSingle()` para rows fora do escopo `auth.uid()`. Tratamos como
+ * not-found pra não vazar a existência do lead alheio (defesa contra
+ * enumeração).
+ *
+ * `leadId` é incluído no payload pra observabilidade — não é considerado
+ * PII (UUIDs sem contexto).
+ */
+export class LeadNotFoundError extends Error {
+  constructor(public readonly leadId: string) {
+    super(`Lead ${leadId} not found or not accessible`);
+    this.name = "LeadNotFoundError";
+  }
+}
+
+/**
+ * Lançado pelo orquestrador `generateLeadSite` (#159) quando o usuário
+ * excede o limite de gerações por janela (5 por 60s, persistido em
+ * `generation_throttle` — migration 0011).
+ *
+ * `retryAfterSec` é o tempo (em segundos) até a tentativa mais antiga
+ * sair da janela — útil pra UI exibir countdown ou ajustar `Retry-After`
+ * em respostas HTTP futuras.
+ */
+export class RateLimitError extends Error {
+  constructor(public readonly retryAfterSec: number) {
+    super(`Rate limit exceeded; retry after ${retryAfterSec}s`);
+    this.name = "RateLimitError";
+  }
+}
+
+/**
+ * Lançado pelo orquestrador `generateLeadSite` (#159) quando o objeto
+ * `variables` final (após merge de brand assets + IA copy + lead data)
+ * falha em `SiteVariables.parse(...)`.
+ *
+ * Indica bug ou drift de schema/IA — o caller deve persistir o erro em
+ * `lead_sites.generation_error` e devolver `error: 'validation'`. Não
+ * vaza o conteúdo de `variables` na message (PII potencial); o `cause`
+ * carrega o `ZodError` pra triagem em logs estruturados.
+ */
+export class SiteVariablesValidationError extends Error {
+  constructor(public readonly cause: unknown) {
+    super("SiteVariables schema validation failed");
+    this.name = "SiteVariablesValidationError";
+  }
+}

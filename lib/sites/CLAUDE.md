@@ -13,7 +13,10 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 - Pipeline de brand assets (`brand-assets.ts` +
   `brand-assets.types.ts`, #156) — cascata logo, cor primária com WCAG,
   fotos com fallback, carros placeholder.
-- Futuramente: orquestração `generateLeadSite` (#159).
+- Orquestração `generateLeadSite(leadId)` (`app/actions/lead-site.ts`, #159)
+  — combina os helpers acima com auth, rate-limit DB-backed
+  (`generation_throttle`, migration 0011), URL sanitization e validação
+  Zod final antes do persist em `lead_sites`.
 
 ## Como adicionar
 
@@ -58,9 +61,9 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 | Path | Propósito |
 |---|---|
 | `slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` com retry × 5 contra `lead_sites.slug`. Lança `SlugCollisionError` em exhaustão. Alfabeto sem `0/o/1/i/l`. |
-| `errors.ts` | `SlugCollisionError` (slug) + `GenerationError` / `GenerationErrorCode` (copy IA) — todos com contexto estruturado pra observabilidade. |
+| `errors.ts` | `SlugCollisionError` (slug) + `GenerationError` / `GenerationErrorCode` (copy IA) + `LeadNotFoundError` / `RateLimitError` / `SiteVariablesValidationError` (orquestrador #159) — todos com contexto estruturado pra observabilidade. |
 | `generate-copy.ts` | `generateCopy(input)` — 1 call Anthropic Sonnet 4.6 com tool use forçado `emit_site_copy` + system prompt cacheado. Valida output via `SiteCopySchema.parse`. Sem retry interno; orquestrador (#159) decide via `GenerationError.retryable`. Exporta `SYSTEM_PROMPT`, `GENERATION_VERSION='v1.0.0'`, `GENERATION_MODEL='claude-sonnet-4-6'`. |
-| `sanitize.ts` | `sanitizeHex(input)` + `DEFAULT_HEX='#0C0C0C'`. Defesa em profundidade contra CSS injection: as cores `primary_color`/`text_on_primary` em `lead_sites.variables` são injetadas em `style="--site-primary: ..."` no `<SitePage>` wrapper. Mesmo com Zod no schema (#154), o banco pode ser editado fora do app e React `style` inline aceita qualquer string. Regex estrita `/^#[0-9a-f]{6}$/i`; tudo que não bate retorna `DEFAULT_HEX`. |
+| `sanitize.ts` | `sanitizeHex(input)` + `DEFAULT_HEX='#0C0C0C'` + `safeUrl(input)`. **`sanitizeHex`**: defesa em profundidade contra CSS injection — regex estrita `/^#[0-9a-f]{6}$/i`. **`safeUrl`**: defesa em profundidade contra script injection em URLs vindas do pipeline de brand assets — só aceita `http:`/`https:`, retorna `null` para `javascript:`/`data:`/`file:`/`vbscript:`/qualquer outro scheme. Aplicado em todas URLs de imagem antes do `SiteVariables.parse` no orquestrador `generateLeadSite` (#159). |
 | `site-form.schema.ts` | `SiteFormSchema` Zod do form público de captura (`SiteForm` em #161). Compartilhado entre Client Component (`react-hook-form` + `zodResolver`) e Server Action `submitSiteForm` — fonte única de verdade. Aceita `phone` com formatação livre (10–13 dígitos numéricos pós-strip); `lgpd: z.literal(true)` (consentimento obrigatório). |
 | `stock-photos.schema.ts` | `stockManifestSchema` Zod + enums `stockCarCategoryEnum` (`sedan|suv|picape|hatch|esportivo`) e `stockCarConditionEnum` (`0km|seminovo`). Tipos derivados `StockManifest`, `StockCarEntry`. URL é estritamente `/assets/stock/<file>.png` na V1. |
 | `stock-photos.manifest.json` | Manifest V1 co-localizado: 14 carros (sea-doo NÃO incluído — jet ski não cabe em placeholder de concessionária). Importado via `import` JSON pra zero filesystem em runtime serverless. |
