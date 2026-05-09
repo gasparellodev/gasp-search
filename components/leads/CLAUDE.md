@@ -54,15 +54,21 @@ seu drawer de detalhe e helpers locais.
 | `filters-bar.tsx` | Client | Barra de filtros (q, stage, source, hasWebsite, tags multi) sincronizada com URL |
 | `leads-table.tsx` | Client | Tabela TanStack com sort/pageSize/paginação via URL + drawer |
 | `lead-detail-drawer.tsx` | Client | Sheet lateral com tabs (Visão geral / Notas / Mensagens IA / Conversa*) e edição inline (stage/score/notes/tags) via PATCH. *Tab Conversa só visível com `NEXT_PUBLIC_WHATSAPP_ENABLED='1'`. |
+| `lead-site-card.tsx` | Server | Card "Site do lead" na ficha `/leads/[id]` (#167). Faz `select` em `lead_sites` via Supabase com RLS e renderiza 4 estados (`none`/`draft`, `published`, `sent`, `archived`). Datas formatadas com `Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })`. URL composta com `NEXT_PUBLIC_APP_URL` (nunca hardcoded). Exporta `LeadSiteCardView` puro pra unit test. |
+| `lead-site-card-actions.tsx` | Client | Cluster de botões interativo do `<LeadSiteCard />`. Usa `useTransition` pra `generateLeadSite` (Server Action de #159), clipboard API pra copiar URL. Buttons "Editar" (#168), "Regerar" / "Arquivar" / "Restaurar" (#169) e "Enviar via WhatsApp" (#171) ficam **disabled em V1** com tooltip indicando issue de origem (decisão PO refinement #11). |
+| `lead-site-card-types.ts` | (types) | Tipos compartilhados entre Server e Client component (`LeadSiteCardData`, `LeadSiteStatus`). Subset serializável da `Row` do Supabase — não vaza `user_id` pra Client. |
 
 ## Dependências
 
 - `@tanstack/react-table` para a estrutura de colunas/rows
 - `@/components/ai/message-generator`
-- `@/components/ui/{table,sheet,button,badge,separator}` (shadcn)
+- `@/components/ui/{table,sheet,button,badge,separator,card,tooltip}` (shadcn)
 - `next/navigation` (`useRouter`, `usePathname`, `useSearchParams`)
 - `@/lib/validators/leads` (constantes e tipos)
 - `@/lib/leads/list-leads` (tipos `LeadListItem`)
+- `@/lib/supabase/server` (`createServerSupabase` para `<LeadSiteCard />`)
+- `@/lib/env-public` (`NEXT_PUBLIC_APP_URL` para compor `/sites/<slug>`)
+- `@/app/actions/lead-site` (`generateLeadSite` de #159)
 
 ## Quando atualizar este `CLAUDE.md`
 
