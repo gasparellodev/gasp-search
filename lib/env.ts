@@ -40,6 +40,11 @@ const serverEnvSchema = z
     EVOLUTION_API_KEY: z.string().min(1).optional(),
     EVOLUTION_WEBHOOK_SECRET: z.string().optional(),
     NEXT_PUBLIC_WHATSAPP_ENABLED: z.enum(["0", "1"]).default("0"),
+    // Test-only seed (Phase 7 #166). Apenas relevante em dev/test.
+    // Em produção a rota `/api/__test__/seed-lead-site` retorna 404
+    // independentemente desses valores.
+    TEST_SEED_TOKEN: z.string().min(16).optional(),
+    TEST_SEED_USER_ID: z.string().uuid().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.NEXT_PUBLIC_WHATSAPP_ENABLED !== "1") return;

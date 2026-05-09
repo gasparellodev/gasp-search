@@ -33,4 +33,4 @@ payloads grandes e padronizar o "shape válido" de cada domínio.
 | `google-maps-place.json` | Resposta sintética do Apify Google Maps Scraper para validar o mapper `lib/apify/google-maps.ts`. |
 | `instagram/` | Fixtures do Apify Instagram (perfil + posts). |
 | `website-contact/` | Fixtures de scraping de website contact pages. |
-| `site-variables.ts` | `validSiteVariablesFixture` (passa em `SiteVariables.parse()`) e `validSiteCopyFixture` (passa em `SiteCopySchema.parse()`) — reutilizados em `tests/unit/types/lead-site.test.ts` e nas issues #158 (generateCopy IA) e #159 (orquestrador `generateLeadSite`). |
+| `site-variables.ts` | `validSiteVariablesFixture` (passa em `SiteVariables.parse()`) e `validSiteCopyFixture` (passa em `SiteCopySchema.parse()`) — reutilizados em `tests/unit/types/lead-site.test.ts`, nas issues #158 (generateCopy IA), #159 (orquestrador `generateLeadSite`) e #166 (helpers E2E `tests/e2e/sites/helpers.ts`). |
