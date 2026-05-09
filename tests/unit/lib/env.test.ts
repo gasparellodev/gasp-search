@@ -139,6 +139,28 @@ describe("lib/env (server)", () => {
       /EVOLUTION_WEBHOOK_SECRET/,
     );
   });
+
+  it("trata TEST_SEED_TOKEN/TEST_SEED_USER_ID vazios como undefined (GH Actions injeta '' p/ secrets ausentes)", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      TEST_SEED_TOKEN: "",
+      TEST_SEED_USER_ID: "",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.TEST_SEED_TOKEN).toBeUndefined();
+    expect(env.TEST_SEED_USER_ID).toBeUndefined();
+  });
+
+  it("aceita TEST_SEED_TOKEN/TEST_SEED_USER_ID válidos quando preenchidos", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      TEST_SEED_TOKEN: "abcdef0123456789",
+      TEST_SEED_USER_ID: "00000000-0000-4000-8000-000000000000",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.TEST_SEED_TOKEN).toBe("abcdef0123456789");
+    expect(env.TEST_SEED_USER_ID).toBe("00000000-0000-4000-8000-000000000000");
+  });
 });
 
 describe("lib/env-public (client-safe)", () => {
