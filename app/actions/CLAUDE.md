@@ -51,7 +51,7 @@ Caso contrário, prefira API route REST em `app/api/`.
 |---|---|
 | `site-form.ts` | `submitSiteForm(siteId, payload)` — Server Action chamada pelo `<SiteForm>` público (#161). MVP: stub que valida via `SiteFormSchema` e retorna `{ success: true }`. Persistência em `site_form_submissions` é follow-up. |
 | `site-announcement.ts` | `submitAnnouncement(siteId, payload)` — Server Action stub V1 chamada pelo `<AnnounceForm>` público (#163). Valida via `AnnouncementSchema` e retorna `{ ok: true } \| { ok: false; error }`. **Nota**: usa `ok` em vez de `success` (variação aprovada na issue #163 — a discriminated union shape do retorno está documentada inline). Persistência em `lead_announcements` é follow-up (tabela ainda não existe). Sem PII em logs. |
-| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. **Também exporta `updateLeadSiteVariables(leadSiteId, patch)`** (#168): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`) → `SiteVariables.partial().safeParse` → `safeUrl` em URLs → merge shallow → `SiteVariables.parse` final → update via service_role → `updateTag` + `revalidatePath`. Retorno `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'validation' \| 'db_error'; message }`. **Mais `archiveLeadSite(leadSiteId)` e `restoreLeadSite(leadSiteId)`** (#169): ambas com pipeline auth → fetch row (RLS) → status guard → update via service_role → `updateTag` + `revalidatePath`. `archiveLeadSite` exige status `'published' \| 'sent'` e seta `status='archived'` + `archived_at=now`. `restoreLeadSite` exige status `'archived'` e seta `status='published'` + `archived_at=null`. Retorno compartilhado `LeadSiteStatusActionResult = { ok: true } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'db_error'; message }`. |
+| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. **Também exporta `updateLeadSiteVariables(leadSiteId, patch)`** (#168): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`) → `SiteVariables.partial().safeParse` → `safeUrl` em URLs → merge shallow → `SiteVariables.parse` final → update via service_role → `updateTag` + `revalidatePath`. Retorno `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'validation' \| 'db_error'; message }`. **Mais `archiveLeadSite(leadSiteId)` e `restoreLeadSite(leadSiteId)`** (#169): ambas com pipeline auth → fetch row (RLS) → status guard → update via service_role → `updateTag` + `revalidatePath`. `archiveLeadSite` exige status `'published' \| 'sent'` e seta `status='archived'` + `archived_at=now`. `restoreLeadSite` exige status `'archived'` e seta `status='published'` + `archived_at=null`. Retorno compartilhado `LeadSiteStatusActionResult = { ok: true } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'db_error'; message }`. **Mais `sendLeadSiteWhatsApp(leadSiteId)`** (#171): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`, re-send permitido) → fetch `leads.name` → `renderTemplate(SITE_PREVIEW_TEMPLATE, { business_name, site_url })` → `sendWhatsAppMessage` (Phase 6 helper: insere `lead_messages`, chama Evolution sendText, atualiza status, promove `lead.stage`) → update via service_role `status='sent'`, `sent_at=now` → `updateTag` + `revalidatePath`. Retorno `SendLeadSiteWhatsAppResult = { ok: true } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'whatsapp_error' \| 'db_error'; message }`. `whatsapp_error` carrega mensagem PT-BR mapeada do `reason` do helper Evolution (instance_disconnected / lead_missing_phone / evolution_error). |
 
 ## Dependências
 
@@ -108,6 +108,21 @@ Sucesso → `{ ok: true }`. Persistência: `status='archived'`, `archived_at=now
 | Update DB error | `db_error` |
 
 Sucesso → `{ ok: true }`. Persistência: `status='published'`, `archived_at=null`, `updated_at=now`.
+
+### `sendLeadSiteWhatsApp` (#171)
+
+| Caminho | error |
+|---|---|
+| Sem auth | `auth` |
+| Site inexistente / RLS bloqueia | `not_found` |
+| Status ≠ `'published'` e ≠ `'sent'` (ex: `'draft'`, `'archived'`) | `invalid_status` |
+| `renderTemplate` lança (variável faltante) | `whatsapp_error` |
+| `sendWhatsAppMessage` retorna `instance_disconnected` / `lead_not_found` / `lead_missing_phone` / `evolution_error` | `whatsapp_error` (com `message` mapeada PT-BR) |
+| Update lead_sites pós-envio falha | `db_error` |
+
+Sucesso → `{ ok: true }`. Persistência: `lead_sites.status='sent'`, `sent_at=now`, `updated_at=now`. **Re-send permitido** (status `'sent'` aceito como input). Cada chamada insere uma nova entrada em `lead_messages` (timeline) via `sendWhatsAppMessage`.
+
+**Logs PII-safe**: errorName + errorMessage + reason (Evolution). Não loga conteúdo da mensagem nem telefone do destinatário.
 
 ## Quando atualizar este `CLAUDE.md`
 

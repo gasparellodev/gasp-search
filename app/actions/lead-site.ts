@@ -45,6 +45,8 @@ import "server-only";
 import { revalidatePath, updateTag } from "next/cache";
 import { ZodError } from "zod";
 
+import { env } from "@/lib/env";
+import { sendWhatsAppMessage } from "@/lib/evolution/send";
 import {
   GENERATION_MODEL,
   GENERATION_VERSION,
@@ -66,6 +68,8 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 import { slugify } from "@/lib/utils/slug";
 import type { Database } from "@/types/database";
 import { SiteVariables } from "@/types/lead-site";
+import { renderTemplate } from "@/lib/whatsapp/render-template";
+import { SITE_PREVIEW_TEMPLATE } from "@/lib/whatsapp/templates";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
 
@@ -1189,6 +1193,244 @@ export async function restoreLeadSite(
   }
 
   // Step 5: Cache invalidation
+  updateTag(`site:${existing.slug}`);
+  if (existing.lead_id) {
+    revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// sendLeadSiteWhatsApp (#171) — envia o site gerado via WhatsApp (Evolution)
+// ---------------------------------------------------------------------------
+
+/**
+ * Retorno discriminado de `sendLeadSiteWhatsApp` (#171).
+ *
+ * Erros:
+ *  - `auth`            — usuário não autenticado.
+ *  - `not_found`       — leadSiteId não existe ou não pertence ao usuário (RLS).
+ *  - `invalid_status`  — status do site não é `'published'` ou `'sent'`
+ *                        (defesa em profundidade — UI já bloqueia).
+ *  - `whatsapp_error`  — falha no transporte Evolution (instância
+ *                        desconectada, lead sem telefone válido, erro HTTP do
+ *                        provider, etc.). A mensagem amigável vem do helper
+ *                        `whatsappReasonMessage` para o usuário.
+ *  - `db_error`        — falha de infra na escrita do tracking
+ *                        (`status='sent'`, `sent_at=now`).
+ */
+export type SendLeadSiteWhatsAppResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error:
+        | "auth"
+        | "not_found"
+        | "invalid_status"
+        | "whatsapp_error"
+        | "db_error";
+      message: string;
+    };
+
+/**
+ * Mapeia o `reason` discriminado de `sendWhatsAppMessage` (Phase 6) pra
+ * mensagem amigável em PT-BR — usuário final vê isso via toast.
+ */
+function whatsappReasonMessage(
+  reason:
+    | "instance_disconnected"
+    | "lead_not_found"
+    | "lead_missing_phone"
+    | "evolution_error",
+): string {
+  switch (reason) {
+    case "instance_disconnected":
+      return "Instância do WhatsApp desconectada. Reconecte em Configurações.";
+    case "lead_not_found":
+      return "Lead não encontrado para envio.";
+    case "lead_missing_phone":
+      return "O lead não possui telefone cadastrado.";
+    case "evolution_error":
+      return "Falha ao enviar via WhatsApp. Tente novamente em instantes.";
+  }
+}
+
+/**
+ * Server Action `sendLeadSiteWhatsApp(leadSiteId)` — dispara a prévia do site
+ * gerado para o lead via WhatsApp/Evolution (#171).
+ *
+ * Pipeline:
+ *  1. Auth (Supabase) — sem usuário → `error: 'auth'`.
+ *  2. Fetch `lead_sites` por id (via authenticated client, RLS isola por
+ *     `user_id`). Inclui `lead:leads(name)` em embed pra montar
+ *     `business_name` na mensagem sem nova query.
+ *  3. **Status guard** — `'published'` ou `'sent'` apenas; reenvio é permitido.
+ *     Caso contrário → `error: 'invalid_status'`.
+ *  4. Constrói `site_url` = `${NEXT_PUBLIC_APP_URL}/sites/${slug}`.
+ *  5. Renderiza `SITE_PREVIEW_TEMPLATE` via `renderTemplate(...)` com
+ *     `{ business_name, site_url }`. Caller é responsável por popular
+ *     todas as variáveis declaradas em `TEMPLATE_VARIABLES`.
+ *  6. Chama `sendWhatsAppMessage` (Phase 6) — esse helper já:
+ *       a. valida instância conectada
+ *       b. extrai/normaliza phone do lead
+ *       c. INSERT lead_messages (status='queued')
+ *       d. POST /message/sendText
+ *       e. update lead_messages → 'sent' (com whatsapp_msg_id) ou 'failed'
+ *       f. promove `lead.stage` `new` → `contacted` no primeiro outbound
+ *     Se falhar → `error: 'whatsapp_error'` com mensagem mapeada.
+ *  7. Update `lead_sites` via service_role: `status='sent'`, `sent_at=now`.
+ *     `published_at` é preservado (esse já reflete a primeira publicação).
+ *  8. Cache invalidation: `updateTag('site:{slug}')` + `revalidatePath`.
+ *
+ * **PII-safe logs:** apenas `errorName + errorMessage` em erros — sem
+ * `cause`, stack, conteúdo da mensagem ou número do destinatário.
+ *
+ * **Idempotência (re-send):** status `'sent'` é aceito como input. Cada
+ * envio insere novo `lead_messages` (timeline ganha entradas). `sent_at`
+ * em `lead_sites` é sobrescrito com o último envio.
+ */
+export async function sendLeadSiteWhatsApp(
+  leadSiteId: string,
+): Promise<SendLeadSiteWhatsAppResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para enviar o site.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id) + fetch lead.name em
+  // query separada (RLS-safe). Não usamos embed `lead:leads(name)` por causa
+  // da ausência de relation declarada no schema gerado — TS estreita a Row
+  // pra `never`. Duas queries simples + RLS é o caminho seguro.
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Status guard — re-send permitido (status='sent' aceito).
+  if (existing.status !== "published" && existing.status !== "sent") {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message: "Apenas sites publicados ou enviados podem ser disparados.",
+    };
+  }
+
+  // Fetch lead.name para popular `business_name` no template. RLS já
+  // garantiu que o user_id corresponde via lead_sites; lead deve existir,
+  // mas defesa em profundidade com fallback.
+  const { data: leadRow } = await server
+    .from("leads")
+    .select("name")
+    .eq("id", existing.lead_id)
+    .maybeSingle();
+  const businessNameRaw = (leadRow?.name ?? "").trim();
+  const businessName =
+    businessNameRaw.length > 0 ? businessNameRaw : "Concessionária";
+
+  // Step 4: Build site_url
+  const siteUrl = `${env.NEXT_PUBLIC_APP_URL}/sites/${existing.slug}`;
+
+  // Step 5: Render template — `renderTemplate` (single-brace) lança em
+  // variável faltante (defensiva). Aqui passamos as duas declaradas em
+  // `TEMPLATE_VARIABLES`.
+  let content: string;
+  try {
+    content = renderTemplate(SITE_PREVIEW_TEMPLATE, {
+      business_name: businessName,
+      site_url: siteUrl,
+    });
+  } catch (cause) {
+    // Bug de programação (variable missing). Não expõe internals.
+    console.error("sendLeadSiteWhatsApp.render", {
+      action: "sendLeadSiteWhatsApp",
+      step: "render",
+      leadSiteId,
+      userId,
+      errorName: cause instanceof Error ? cause.name : "unknown",
+      errorMessage: cause instanceof Error ? cause.message : String(cause),
+    });
+    return {
+      ok: false,
+      error: "whatsapp_error",
+      message: "Falha ao montar a mensagem. Tente novamente.",
+    };
+  }
+
+  // Step 6: Send via Evolution (helper Phase 6 cobre instance, lead,
+  // INSERT lead_messages, sendText, update status, lead.stage promotion).
+  const sendOutcome = await sendWhatsAppMessage({
+    supabase: server,
+    userId,
+    leadId: existing.lead_id,
+    content,
+    aiGenerated: false,
+  });
+
+  if (!sendOutcome.ok) {
+    console.error("sendLeadSiteWhatsApp.send", {
+      action: "sendLeadSiteWhatsApp",
+      step: "send",
+      leadSiteId,
+      userId,
+      reason: sendOutcome.reason,
+    });
+    return {
+      ok: false,
+      error: "whatsapp_error",
+      message: whatsappReasonMessage(sendOutcome.reason),
+    };
+  }
+
+  // Step 7: Update lead_sites (status='sent', sent_at=now) via service_role.
+  const service = createServiceSupabase();
+  const nowIso = new Date().toISOString();
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({
+      status: "sent" as const,
+      sent_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", leadSiteId);
+
+  if (updateError) {
+    console.error("sendLeadSiteWhatsApp.persist", {
+      action: "sendLeadSiteWhatsApp",
+      step: "persist",
+      leadSiteId,
+      userId,
+      errorName: updateError.name ?? "unknown",
+      errorMessage: updateError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message:
+        "Mensagem enviada, mas falha ao atualizar o site. Tente reenviar.",
+    };
+  }
+
+  // Step 8: Cache invalidation
   updateTag(`site:${existing.slug}`);
   if (existing.lead_id) {
     revalidatePath(`/leads/${existing.lead_id}`);
