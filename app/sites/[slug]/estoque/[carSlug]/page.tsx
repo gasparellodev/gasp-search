@@ -14,7 +14,11 @@
  * **`SiteVariables.safeParse`** antes do render — defesa em
  * profundidade.
  *
- * **`metadata.robots`**: noindex/nofollow.
+ * **`generateMetadata` dinâmico (#165)**: title `${business_name} —
+ * ${car.brand} ${car.model} ${car.year}` (ex: "Touring Cars — Toyota
+ * Corolla 2022"), OG/Twitter via `buildSiteMetadata` no happy path.
+ * Fallback `noindex/nofollow` puro também quando `cars.find` retorna
+ * undefined — `noindex/nofollow` PRESERVADO em todos os caminhos.
  */
 import "server-only";
 
@@ -24,10 +28,34 @@ import type { Metadata } from "next";
 import { CarDetailSection } from "@/components/sites/stock/CarDetailSection";
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
+import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { SiteVariables } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string; carSlug: string }>;
+}
+
+const NOINDEX_FALLBACK: Metadata = {
+  robots: { index: false, follow: false },
+};
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug, carSlug } = await params;
+  const site = await getSite(slug);
+  if (!site) return NOINDEX_FALLBACK;
+  if (site.status === "draft" || site.status === "archived") {
+    return NOINDEX_FALLBACK;
+  }
+  const parsed = SiteVariables.safeParse(site.variables);
+  if (!parsed.success) return NOINDEX_FALLBACK;
+  const car = parsed.data.cars.find((c) => c.slug === carSlug);
+  if (!car) return NOINDEX_FALLBACK;
+  return buildSiteMetadata({
+    variables: parsed.data,
+    pageLabel: `${car.brand} ${car.model} ${car.year}`,
+  });
 }
 
 export default async function CarDetailPage({ params }: PageProps) {
@@ -67,7 +95,3 @@ export default async function CarDetailPage({ params }: PageProps) {
     </SitePage>
   );
 }
-
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};

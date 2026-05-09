@@ -258,13 +258,72 @@ describe("/sites/[slug] — cache (AC4)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// AC6 — noindex metadata
+// AC6 — generateMetadata dinâmico + noindex em todos os caminhos (#165)
 // ---------------------------------------------------------------------------
 
-describe("/sites/[slug] — noindex (AC6)", () => {
-  it("export `metadata.robots = { index: false, follow: false }`", async () => {
-    const mod = await import("@/app/sites/[slug]/page");
-    expect(mod.metadata).toBeDefined();
-    expect(mod.metadata?.robots).toEqual({ index: false, follow: false });
+describe("/sites/[slug] — generateMetadata (AC6 / #165)", () => {
+  it("happy path: published → title `${business_name} — Concessionária` + noindex preservado", async () => {
+    setSupabaseResponse(makeRow("published"));
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Concessionária`);
+    expect(meta.robots).toEqual({ index: false, follow: false });
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
+    expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+  });
+
+  it("fallback path: getSite null → APENAS noindex (sem title/OG/Twitter)", async () => {
+    setSupabaseResponse(null);
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: "nao-existe" }),
+    });
+
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+    expect(meta.title).toBeUndefined();
+    expect(meta.openGraph).toBeUndefined();
+    expect(meta.twitter).toBeUndefined();
+  });
+
+  it("fallback path: status='draft' → APENAS noindex", async () => {
+    setSupabaseResponse(makeRow("draft"));
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: status='archived' → APENAS noindex", async () => {
+    setSupabaseResponse(makeRow("archived"));
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: variables inválido (safeParse falho) → APENAS noindex", async () => {
+    const broken = {
+      ...SITE_FIXTURE,
+      primary_color: "red",
+    } as unknown as SiteVariables;
+    setSupabaseResponse(makeRow("published", broken));
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
   });
 });

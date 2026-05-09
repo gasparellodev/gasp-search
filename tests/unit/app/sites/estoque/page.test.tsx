@@ -170,9 +170,69 @@ describe("/sites/[slug]/estoque — searchParams", () => {
   });
 });
 
-describe("/sites/[slug]/estoque — metadata", () => {
-  it("export `metadata.robots = { index: false, follow: false }`", async () => {
-    const mod = await import("@/app/sites/[slug]/estoque/page");
-    expect(mod.metadata?.robots).toEqual({ index: false, follow: false });
+describe("/sites/[slug]/estoque — generateMetadata (#165)", () => {
+  it("happy path: published → title `${business_name} — Estoque` + noindex preservado", async () => {
+    getSiteMock.mockResolvedValue(makeRow("published"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/page"
+    );
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Estoque`);
+    expect(meta.robots).toEqual({ index: false, follow: false });
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
+    expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+  });
+
+  it("fallback path: getSite null → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(null);
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: "x" }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+    expect(meta.title).toBeUndefined();
+  });
+
+  it("fallback path: draft → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(makeRow("draft"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: archived → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(makeRow("archived"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: variables inválido → APENAS noindex", async () => {
+    const broken = {
+      ...SITE_FIXTURE,
+      primary_color: "red",
+    } as unknown as SiteVariables;
+    getSiteMock.mockResolvedValue(makeRow("published", broken));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
   });
 });

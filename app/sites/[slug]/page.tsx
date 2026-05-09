@@ -29,8 +29,13 @@
  * `lead_sites.variables`, o componente nunca recebe dados malformados —
  * page cai em `notFound()` em vez de quebrar o React rendering.
  *
- * **`noindex`**: `metadata.robots = { index: false, follow: false }` —
- * site público de lead não deve aparecer em SERP. Hardening adicional
+ * **`generateMetadata` dinâmico (#165)**: substitui o `metadata`
+ * estático antigo. Em happy path emite title, description, OG image
+ * (`logo_url`) e Twitter `summary_large_image` via `buildSiteMetadata`.
+ * Em qualquer caminho de fallback (`null` / `draft` / `archived` /
+ * `safeParse` falho) retorna **apenas** `{ robots: { index: false,
+ * follow: false } }` — sem expor metadata parcial. `noindex/nofollow`
+ * é PRESERVADO em todos os caminhos. Hardening adicional
  * (`X-Robots-Tag` header) fica para V2.
  */
 import "server-only";
@@ -40,10 +45,32 @@ import type { Metadata } from "next";
 
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
+import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { SiteVariables } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+const NOINDEX_FALLBACK: Metadata = {
+  robots: { index: false, follow: false },
+};
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const site = await getSite(slug);
+  if (!site) return NOINDEX_FALLBACK;
+  if (site.status === "draft" || site.status === "archived") {
+    return NOINDEX_FALLBACK;
+  }
+  const parsed = SiteVariables.safeParse(site.variables);
+  if (!parsed.success) return NOINDEX_FALLBACK;
+  return buildSiteMetadata({
+    variables: parsed.data,
+    pageLabel: "Concessionária",
+  });
 }
 
 export default async function Page({ params }: PageProps) {
@@ -77,7 +104,3 @@ export default async function Page({ params }: PageProps) {
 
   return <SitePage variables={parsed.data} siteId={site.id} slug={site.slug} />;
 }
-
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
