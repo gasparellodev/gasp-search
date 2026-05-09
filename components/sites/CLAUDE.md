@@ -71,6 +71,7 @@ componentes:
 | `about/` | Section da rota `/sobre` (`AboutSection` — issue #163). Server-only. Ver `about/CLAUDE.md`. |
 | `contact/` | Section da rota `/contato` (`ContactSection` — issue #163). Server-only com `<SiteForm variant="contact">` aninhado. Ver `contact/CLAUDE.md`. |
 | `advertise/` | Section da rota `/anunciar` (`AdvertiseSection` server + `AnnounceForm` client — issue #163). Form de captura de anúncio com schema Zod compartilhado em `lib/sites/announcement.schema.ts`. Ver `advertise/CLAUDE.md`. |
+| `stock/` | Sections de `/estoque` (lista + filtro multi-select via `?categoria=`) e `/estoque/[carSlug]` (detalhe-do-carro com `<dialog>` lightbox nativo) — issue #164. `<StockSection>` + `<StockGrid>` server, `<StockFilter>` + `<CarGallery>` client. Helper puro `car-categories.ts` com classificação heurística (`classifyCar`) e parser CSV multi-select (`parseCategoriaParam`). `<CarDetailSection>` reusa `<SiteForm variant="car-detail" prefillModel>`. Ver `stock/CLAUDE.md`. |
 
 ## Boundary client/server
 
