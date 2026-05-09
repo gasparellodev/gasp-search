@@ -41,11 +41,13 @@ Fonte canônica do design: §8 do spec mestre em
    `rg -l 'createServiceSupabase|SUPABASE_SERVICE_ROLE_KEY' --type ts --type tsx | sort`
    deve retornar exatamente:
    - `lib/supabase/service.ts` (definição)
+   - `lib/sites/get-site.ts` (helper compartilhado pelas rotas públicas — extraído em #163)
    - `app/actions/lead-site.ts` (caller server-action)
-   - `app/sites/[slug]/page.tsx` (caller server-component)
    - `app/api/whatsapp/webhook/route.ts` (handler webhook HMAC-verificado)
    - `lib/env.ts` (validador da env)
    - arquivos de teste (`tests/...`)
+   As rotas em `app/sites/[slug]/...` consomem `getSite` por dependência;
+   nenhuma toca `createServiceSupabase` direto.
 4. **`SiteVariables.safeParse` antes do render.** Defesa em
    profundidade — se a IA gravou JSON quebrado em
    `lead_sites.variables`, a página cai em `notFound()` em vez de
@@ -67,10 +69,12 @@ Fonte canônica do design: §8 do spec mestre em
 
 | Path | Propósito |
 |---|---|
-| `[slug]/page.tsx` | Rota raiz `/sites/<slug>`. `getSite(slug)` cacheado + status routing + Zod validation + `<SitePage>`. |
+| `[slug]/page.tsx` | Rota raiz `/sites/<slug>`. `getSite(slug)` (de `lib/sites/get-site.ts`) cacheado + status routing + Zod validation + `<SitePage>` (renderiza Home composition). |
+| `[slug]/sobre/page.tsx` | Rota `/sites/<slug>/sobre` (#163). Reutiliza `getSite` + `<SitePage activePage="sobre">` com `<AboutSection>` injetado via children. |
+| `[slug]/contato/page.tsx` | Rota `/sites/<slug>/contato` (#163). Reutiliza `getSite` + `<SitePage activePage="contato">` com `<ContactSection>` injetado via children. |
+| `[slug]/anunciar/page.tsx` | Rota `/sites/<slug>/anunciar` (#163). Reutiliza `getSite` + `<SitePage activePage="anunciar">` com `<AdvertiseSection>` (server) + `<AnnounceForm>` (client) injetados via children. |
 
-> Páginas filhas (sobre/contato/anuncie/estoque/carro) são adicionadas
-> em M2.3-M2.5 (issues #162-#164).
+> Páginas filhas (estoque/carro) são adicionadas em M2.5 (issue #164).
 
 ## Dependências
 

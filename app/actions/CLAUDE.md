@@ -50,6 +50,7 @@ Caso contrário, prefira API route REST em `app/api/`.
 | Path | Propósito |
 |---|---|
 | `site-form.ts` | `submitSiteForm(siteId, payload)` — Server Action chamada pelo `<SiteForm>` público (#161). MVP: stub que valida via `SiteFormSchema` e retorna `{ success: true }`. Persistência em `site_form_submissions` é follow-up. |
+| `site-announcement.ts` | `submitAnnouncement(siteId, payload)` — Server Action stub V1 chamada pelo `<AnnounceForm>` público (#163). Valida via `AnnouncementSchema` e retorna `{ ok: true } \| { ok: false; error }`. **Nota**: usa `ok` em vez de `success` (variação aprovada na issue #163 — a discriminated union shape do retorno está documentada inline). Persistência em `lead_announcements` é follow-up (tabela ainda não existe). Sem PII em logs. |
 | `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. |
 
 ## Dependências

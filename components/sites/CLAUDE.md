@@ -60,7 +60,7 @@ componentes:
 
 | Path | Propósito |
 |---|---|
-| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 — issues #160 + #162).** Wrapper público de `/sites/[slug]`. Recebe `{ variables, siteId, slug }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales` — pasta `home/`) + `<SiteFooter>`. About/Contact/Stock/CarDetail entram em #163-#164. |
+| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 → M2.4 — issues #160 + #162 + #163).** Wrapper público de `/sites/[slug]` e sub-rotas. Recebe `{ variables, siteId, slug, activePage?, children? }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Sem `children`: compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) + `<SiteFooter>` (default M2.3). Com `children`: rendeza-os entre Header e Footer (M2.4 — `/sobre`, `/contato`, `/anunciar`). `activePage` (default `'home'`) propaga pro `<SiteHeader>` para destacar o link ativo no nav. |
 | `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. |
 | `MobileNav.tsx` | **Client Component.** Hambúrguer + menu dropdown com estado `open`. ESC fecha + foco volta ao botão. |
 | `SiteFooter.tsx` | Server Component. 3 colunas: marca/sociais, contato, newsletter (visual). Ícones sociais omitidos individualmente quando URL é `null`. Copyright com ano corrente. |
@@ -68,6 +68,9 @@ componentes:
 | `social-icons.tsx` | SVGs inline de Instagram/Facebook/YouTube/WhatsApp — `lucide-react@^1.14` removeu os ícones de marca por trademark. Pure server-renderable. |
 | `site-nav-links.ts` | Pure data (`buildSiteNavLinks(slug)` + tipos). Compartilhado entre `SiteHeader` (server) e `MobileNav` (client). |
 | `home/` | Sub-componentes Server-only que compõem a Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales` — issue #162). Ver `home/CLAUDE.md`. |
+| `about/` | Section da rota `/sobre` (`AboutSection` — issue #163). Server-only. Ver `about/CLAUDE.md`. |
+| `contact/` | Section da rota `/contato` (`ContactSection` — issue #163). Server-only com `<SiteForm variant="contact">` aninhado. Ver `contact/CLAUDE.md`. |
+| `advertise/` | Section da rota `/anunciar` (`AdvertiseSection` server + `AnnounceForm` client — issue #163). Form de captura de anúncio com schema Zod compartilhado em `lib/sites/announcement.schema.ts`. Ver `advertise/CLAUDE.md`. |
 
 ## Boundary client/server
 
