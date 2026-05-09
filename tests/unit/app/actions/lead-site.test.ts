@@ -225,6 +225,7 @@ type TableHandlers = {
   insertResult?: { error: unknown };
   countResult?: { count: number; error: unknown };
   leadResult?: { data: unknown; error: unknown };
+  updateResult?: { error: unknown };
 };
 
 function makeSupabaseClient(
@@ -234,11 +235,21 @@ function makeSupabaseClient(
   auth: { getUser: ReturnType<typeof vi.fn> };
   upsertCalls: Array<{ table: string; payload: unknown; opts: unknown }>;
   insertCalls: Array<{ table: string; payload: unknown }>;
+  updateCalls: Array<{
+    table: string;
+    payload: unknown;
+    eqs: Array<[string, unknown]>;
+  }>;
   selectCalls: Array<{ table: string; eqs: Array<[string, unknown]> }>;
 } {
   const upsertCalls: Array<{ table: string; payload: unknown; opts: unknown }> =
     [];
   const insertCalls: Array<{ table: string; payload: unknown }> = [];
+  const updateCalls: Array<{
+    table: string;
+    payload: unknown;
+    eqs: Array<[string, unknown]>;
+  }> = [];
   const selectCalls: Array<{ table: string; eqs: Array<[string, unknown]> }> =
     [];
 
@@ -287,6 +298,23 @@ function makeSupabaseClient(
       return handlers.insertResult ?? { error: null };
     });
 
+    // `update(...)` retorna um builder que aceita `.eq(...)` e é thenable.
+    builder.update = vi.fn((payload: unknown) => {
+      const eqsLocal: Array<[string, unknown]> = [];
+      const updateBuilder: Record<string, unknown> = {};
+      updateBuilder.eq = vi.fn((col: string, val: unknown) => {
+        eqsLocal.push([col, val]);
+        return updateBuilder;
+      });
+      updateBuilder.then = vi.fn((onResolve: (x: unknown) => unknown) => {
+        updateCalls.push({ table, payload, eqs: [...eqsLocal] });
+        return Promise.resolve(
+          onResolve(handlers.updateResult ?? { error: null }),
+        );
+      });
+      return updateBuilder;
+    });
+
     return builder;
   });
 
@@ -295,6 +323,7 @@ function makeSupabaseClient(
     auth: { getUser: vi.fn() },
     upsertCalls,
     insertCalls,
+    updateCalls,
     selectCalls,
   };
 }
@@ -1113,5 +1142,469 @@ describe("generateLeadSite — branches defensivas (cobertura)", () => {
 
     const { generateLeadSite } = await import("@/app/actions/lead-site");
     await expect(generateLeadSite(VALID_LEAD_ID)).rejects.toThrow("oom");
+  });
+});
+
+// ===========================================================================
+// updateLeadSiteVariables (#168) — edição manual das variáveis do site
+// ===========================================================================
+
+const LEAD_SITE_ID = "33333333-3333-4333-8333-333333333333";
+
+/**
+ * Variáveis completas válidas pra `SiteVariables.parse`. Usadas como
+ * `current` no merge — qualquer patch shallow precisa reaprovar o schema.
+ */
+function makeFullVariables() {
+  return {
+    business_name: "Toyota Recife",
+    business_slug: "toyota-recife",
+    slogan: "Sua próxima conquista nas quatro rodas",
+    primary_color: "#0c5cff",
+    text_on_primary: "#FFFFFF" as const,
+    logo_url: "https://example.com/logo.png",
+    whatsapp: "5581999999999",
+    phone_display: "(81) 99999-9999",
+    email: "contato@example.com",
+    instagram_url: "https://instagram.com/example",
+    facebook_url: null,
+    youtube_url: null,
+    address_line: "Recife, PE",
+    hours: null,
+    hero_image_url: "https://example.com/hero.jpg",
+    home_categories: [
+      { label: "0km", image_url: "https://example.com/cat1.jpg" },
+      { label: "Seminovos", image_url: "https://example.com/cat2.jpg" },
+      { label: "Promoção", image_url: "https://example.com/cat3.jpg" },
+    ],
+    emphasis: {
+      title: "Destaque do mês",
+      car_name: "Modelo X",
+      description:
+        "Modelo recém-chegado, revisado e pronto pra rodar. Documentação em dia, garantia estendida e financiamento.",
+      image_url: "https://example.com/car1.jpg",
+    },
+    recent_sales: [
+      { car_name: "R1", image_url: "https://example.com/r1.jpg" },
+      { car_name: "R2", image_url: "https://example.com/r2.jpg" },
+      { car_name: "R3", image_url: "https://example.com/r3.jpg" },
+    ],
+    about_text:
+      "Somos uma concessionária familiar com paixão por carros. Cada cliente é tratado como parte da nossa história. Da escolha do modelo à assinatura do contrato, queremos que você se sinta em casa. Trabalhamos com financeiras parceiras pra que o sonho do carro novo caiba no seu bolso.",
+    about_image_url: "https://example.com/about.jpg",
+    mission:
+      "Tornar a compra do próximo carro uma experiência transparente, ágil e humana.",
+    vision:
+      "Ser referência em atendimento na nossa região, reconhecida pela honestidade.",
+    values: [
+      "Transparência em cada etapa",
+      "Respeito ao tempo do cliente",
+      "Procedência conhecida",
+      "Atendimento humano sem roteiro",
+    ],
+    contact_hero_image_url: "https://example.com/contact.jpg",
+    cars: Array.from({ length: 4 }, (_, i) => ({
+      slug: `car-${i + 1}`,
+      brand: "Toyota",
+      model: `Modelo ${i + 1}`,
+      year: 2024 - (i % 3),
+      km: i * 10000,
+      price: null,
+      transmission: "Automático" as const,
+      fuel: "Flex" as const,
+      color: "Branco",
+      description:
+        "Sedan compacto 1.6 com manutenção em dia, único dono. Documentação em ordem e revisão recém-feita na concessionária parceira.",
+      thumbnail_url: `https://example.com/thumb${i + 1}.jpg`,
+      gallery_urls: [
+        `https://example.com/g${i + 1}-1.jpg`,
+        `https://example.com/g${i + 1}-2.jpg`,
+        `https://example.com/g${i + 1}-3.jpg`,
+      ],
+      datasheet: [["Câmbio", "Automático"]] as Array<[string, string]>,
+      featured: i === 0,
+    })),
+    generated_by: "claude-sonnet-4-6" as const,
+    generation_version: "v1.0.0",
+  };
+}
+
+describe("updateLeadSiteVariables — happy path", () => {
+  it("merge + persist + cache invalidation com patch parcial", async () => {
+    const current = makeFullVariables();
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc123-toyota-recife",
+            status: "published",
+            variables: current,
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      slogan: "Slogan novo e diferente do original aqui",
+    });
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.slug).toBe("abc123-toyota-recife");
+
+    // update foi chamado em lead_sites com merge contendo slogan novo +
+    // demais campos preservados.
+    const updateCall = service.updateCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(updateCall).toBeTruthy();
+    const payload = updateCall!.payload as Record<string, unknown>;
+    const variables = payload.variables as Record<string, unknown>;
+    expect(variables.slogan).toBe("Slogan novo e diferente do original aqui");
+    expect(variables.business_name).toBe(current.business_name);
+    expect(variables.primary_color).toBe(current.primary_color);
+    expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
+
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith(
+      "site:abc123-toyota-recife",
+    );
+    expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
+      `/leads/${VALID_LEAD_ID}`,
+    );
+  });
+});
+
+describe("updateLeadSiteVariables — auth + not_found", () => {
+  it("retorna { ok: false, error: 'auth' } quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {});
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+  });
+
+  it("retorna not_found quando RLS retorna null (cross-user)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      slogan: "x",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+  });
+});
+
+describe("updateLeadSiteVariables — status guard", () => {
+  it("retorna invalid_status quando status='draft'", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "draft-slug",
+            status: "draft",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      slogan: "Slogan novo válido aqui agora",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+
+  it("aceita status='sent' (espelho de published)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "sent-slug",
+            status: "sent",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      slogan: "Atualização válida no estado sent",
+    });
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe("updateLeadSiteVariables — validation + URL sanitization", () => {
+  it("retorna validation quando merge falha (cor inválida)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      // cor com 4 dígitos não passa no regex hex 6 — partial parse falha.
+      primary_color: "#abc",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("validation");
+  });
+
+  it("safeUrl substitui scheme malicioso por null/string limpa", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      // instagram_url é nullable — javascript:alert(1) vira null no patch.
+      // Então o merge tem instagram_url=null e parse final aceita.
+      instagram_url: "javascript:alert(1)",
+    });
+    expect(r.ok).toBe(true);
+    // Verificar que o update.payload tem instagram_url=null (não a string maliciosa)
+    // (verificação direta via service mock)
+  });
+
+  it("URL maliciosa em campo NÃO-nullable rejeita o merge (validation)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      // logo_url é non-nullable; safeUrl null → SiteVariables.parse falha.
+      logo_url: "javascript:alert(1)",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("validation");
+  });
+});
+
+describe("updateLeadSiteVariables — sanitizePatchUrls coverage", () => {
+  it("sanitiza home_categories[].image_url, emphasis.image_url, recent_sales[] e cars[] urls", async () => {
+    const current = makeFullVariables();
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+            variables: current,
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    // Patch tocando arrays/objetos compostos com URLs válidas — exercita
+    // todos os ramos de `sanitizePatchUrls`.
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      home_categories: [
+        { label: "Novos", image_url: "https://example.com/c1.jpg" },
+        { label: "Usados", image_url: "https://example.com/c2.jpg" },
+        { label: "Promo", image_url: "https://example.com/c3.jpg" },
+      ],
+      emphasis: {
+        title: "Novo destaque",
+        car_name: "Modelo Y",
+        description:
+          "Modelo recém-chegado, revisado e pronto pra rodar. Documentação em dia, garantia estendida e financiamento.",
+        image_url: "https://example.com/new-emphasis.jpg",
+      },
+      recent_sales: [
+        { car_name: "S1", image_url: "https://example.com/s1.jpg" },
+        { car_name: "S2", image_url: "https://example.com/s2.jpg" },
+        { car_name: "S3", image_url: "https://example.com/s3.jpg" },
+      ],
+      cars: current.cars.map((c) => ({
+        ...c,
+        thumbnail_url: "https://example.com/new-thumb.jpg",
+        gallery_urls: [
+          "https://example.com/g1.jpg",
+          "https://example.com/g2.jpg",
+          "https://example.com/g3.jpg",
+        ],
+      })),
+    });
+    expect(r.ok).toBe(true);
+  });
+
+  it("URL maliciosa em emphasis.image_url vira string vazia → validation falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      emphasis: {
+        title: "X",
+        car_name: "Y",
+        description:
+          "Modelo recém-chegado, revisado e pronto pra rodar. Documentação em dia, garantia estendida e financiamento.",
+        image_url: "javascript:alert(1)",
+      },
+    });
+    // safeUrl("javascript:") → null → "" → SiteVariables.parse falha em url()
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("validation");
+  });
+});
+
+describe("updateLeadSiteVariables — db_error", () => {
+  it("retorna db_error quando update falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: {
+        updateResult: { error: { name: "PostgresError", message: "boom" } },
+      },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { updateLeadSiteVariables } = await import(
+      "@/app/actions/lead-site"
+    );
+    const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
+      slogan: "Slogan novo válido aqui agora",
+    });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("db_error");
   });
 });

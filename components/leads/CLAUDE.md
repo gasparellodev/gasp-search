@@ -55,8 +55,9 @@ seu drawer de detalhe e helpers locais.
 | `leads-table.tsx` | Client | Tabela TanStack com sort/pageSize/paginação via URL + drawer |
 | `lead-detail-drawer.tsx` | Client | Sheet lateral com tabs (Visão geral / Notas / Mensagens IA / Conversa*) e edição inline (stage/score/notes/tags) via PATCH. *Tab Conversa só visível com `NEXT_PUBLIC_WHATSAPP_ENABLED='1'`. |
 | `lead-site-card.tsx` | Server | Card "Site do lead" na ficha `/leads/[id]` (#167). Faz `select` em `lead_sites` via Supabase com RLS e renderiza 4 estados (`none`/`draft`, `published`, `sent`, `archived`). Datas formatadas com `Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })`. URL composta com `NEXT_PUBLIC_APP_URL` (nunca hardcoded). Exporta `LeadSiteCardView` puro pra unit test. |
-| `lead-site-card-actions.tsx` | Client | Cluster de botões interativo do `<LeadSiteCard />`. Usa `useTransition` pra `generateLeadSite` (Server Action de #159), clipboard API pra copiar URL. Buttons "Editar" (#168), "Regerar" / "Arquivar" / "Restaurar" (#169) e "Enviar via WhatsApp" (#171) ficam **disabled em V1** com tooltip indicando issue de origem (decisão PO refinement #11). |
-| `lead-site-card-types.ts` | (types) | Tipos compartilhados entre Server e Client component (`LeadSiteCardData`, `LeadSiteStatus`). Subset serializável da `Row` do Supabase — não vaza `user_id` pra Client. |
+| `lead-site-card-actions.tsx` | Client | Cluster de botões interativo do `<LeadSiteCard />`. Usa `useTransition` pra `generateLeadSite` (Server Action de #159), clipboard API pra copiar URL. Botão "Editar" (#168) **ativo** quando `status IN ('published','sent')` — abre `<LeadSiteEditModal>`. Buttons "Regerar" / "Arquivar" / "Restaurar" (#169) e "Enviar via WhatsApp" (#171) ficam **disabled em V1** com tooltip indicando issue de origem (decisão PO refinement #11). |
+| `LeadSiteEditModal.tsx` | Client | Modal de edição manual das variáveis do site (#168). Radix Dialog + `react-hook-form` + `zodResolver(SiteVariables.partial())`. Default values vêm de `leadSite.variables`. Submit envia **apenas dirty fields** pra `updateLeadSiteVariables` (#168 Server Action). Toast `sonner` em sucesso/erro. `cars[]` editável via `useFieldArray` (mín 4, máx 6). URL inputs são text V1 — upload de arquivo (Vercel Blob picker) é follow-up V2. |
+| `lead-site-card-types.ts` | (types) | Tipos compartilhados entre Server e Client component (`LeadSiteCardData`, `LeadSiteStatus`). Subset serializável da `Row` do Supabase — não vaza `user_id` pra Client. Inclui `variables: SiteVariables \| null` (consumido pelo `<LeadSiteEditModal>`). |
 
 ## Dependências
 
@@ -68,7 +69,8 @@ seu drawer de detalhe e helpers locais.
 - `@/lib/leads/list-leads` (tipos `LeadListItem`)
 - `@/lib/supabase/server` (`createServerSupabase` para `<LeadSiteCard />`)
 - `@/lib/env-public` (`NEXT_PUBLIC_APP_URL` para compor `/sites/<slug>`)
-- `@/app/actions/lead-site` (`generateLeadSite` de #159)
+- `@/app/actions/lead-site` (`generateLeadSite` de #159, `updateLeadSiteVariables` de #168)
+- `@hookform/resolvers/zod` + `react-hook-form` (#168 modal)
 
 ## Quando atualizar este `CLAUDE.md`
 

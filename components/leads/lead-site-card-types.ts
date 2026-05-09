@@ -8,6 +8,7 @@
  */
 
 import type { Database } from "@/types/database";
+import type { SiteVariables } from "@/types/lead-site";
 
 export type LeadSiteStatus = Database["public"]["Enums"]["lead_site_status"];
 
@@ -21,4 +22,10 @@ export interface LeadSiteCardData {
   published_at: string | null;
   sent_at: string | null;
   view_count: number;
+  /**
+   * `variables` JSON (issue #168). Tipado como `SiteVariables | null` —
+   * legado/draft pode persistir `{}` ou `null`. O modal de edição parseia
+   * via `SiteVariables.partial()` antes de enviar e a Server Action faz
+   * a validação final. */
+  variables: SiteVariables | null;
 }

@@ -55,6 +55,7 @@ function makeLeadSite(
     published_at: "2026-05-09T12:00:00.000Z",
     sent_at: null,
     view_count: 0,
+    variables: null,
     ...overrides,
   };
 }
@@ -357,7 +358,7 @@ describe("LeadSiteCardActions — AC3 URL copy", () => {
 // ---------------------------------------------------------------------------
 
 describe("LeadSiteCardActions — AC4 disabled buttons V1", () => {
-  it("estado `published` renderiza editar/regerar/arquivar/whatsapp todos disabled com aria-disabled", () => {
+  it("estado `published` renderiza editar enabled (#168) + regerar/arquivar/whatsapp disabled", () => {
     render(
       <LeadSiteCardActions
         leadSite={makeLeadSite({ status: "published" })}
@@ -365,13 +366,17 @@ describe("LeadSiteCardActions — AC4 disabled buttons V1", () => {
         appUrl={APP_URL}
       />,
     );
-    const ids = [
-      "lead-site-edit-button",
+    // #168 entregue: botão Editar agora está enabled.
+    const editBtn = screen.getByTestId("lead-site-edit-button");
+    expect(editBtn).not.toBeDisabled();
+
+    // #169 / #171 ainda disabled.
+    const stillDisabled = [
       "lead-site-regen-button",
       "lead-site-archive-button",
       "lead-site-whatsapp-button",
     ];
-    for (const id of ids) {
+    for (const id of stillDisabled) {
       const btn = screen.getByTestId(id);
       expect(btn).toBeDisabled();
       expect(btn).toHaveAttribute("aria-disabled", "true");

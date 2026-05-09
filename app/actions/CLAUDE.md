@@ -51,7 +51,7 @@ Caso contrário, prefira API route REST em `app/api/`.
 |---|---|
 | `site-form.ts` | `submitSiteForm(siteId, payload)` — Server Action chamada pelo `<SiteForm>` público (#161). MVP: stub que valida via `SiteFormSchema` e retorna `{ success: true }`. Persistência em `site_form_submissions` é follow-up. |
 | `site-announcement.ts` | `submitAnnouncement(siteId, payload)` — Server Action stub V1 chamada pelo `<AnnounceForm>` público (#163). Valida via `AnnouncementSchema` e retorna `{ ok: true } \| { ok: false; error }`. **Nota**: usa `ok` em vez de `success` (variação aprovada na issue #163 — a discriminated union shape do retorno está documentada inline). Persistência em `lead_announcements` é follow-up (tabela ainda não existe). Sem PII em logs. |
-| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. |
+| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. **Também exporta `updateLeadSiteVariables(leadSiteId, patch)`** (#168): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`) → `SiteVariables.partial().safeParse` → `safeUrl` em URLs → merge shallow → `SiteVariables.parse` final → update via service_role → `updateTag` + `revalidatePath`. Retorno `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'validation' \| 'db_error'; message }`. |
 
 ## Dependências
 
@@ -64,6 +64,8 @@ Caso contrário, prefira API route REST em `app/api/`.
 
 ## Mapa de erros (lead-site.ts)
 
+### `generateLeadSite`
+
 | Caminho | error | Persistido como |
 |---|---|---|
 | Sem auth | `auth` | n/a (não toca DB) |
@@ -73,6 +75,17 @@ Caso contrário, prefira API route REST em `app/api/`.
 | `SiteVariables.parse` falha | `validation` | `status='draft'` + `generation_error` (Zod issues) |
 | `SlugCollisionError` | `db_error` | **NÃO** persiste — falha de infra |
 | Upsert error (race em slug global) | `db_error` | n/a (commit falhou) |
+
+### `updateLeadSiteVariables` (#168)
+
+| Caminho | error | Persistido como |
+|---|---|---|
+| Sem auth | `auth` | n/a |
+| Site inexistente / RLS bloqueia | `not_found` | n/a |
+| Status ≠ `'published'` e ≠ `'sent'` | `invalid_status` | n/a (defesa em profundidade — UI já bloqueia) |
+| `SiteVariables.partial()` falha em campos do patch | `validation` | n/a |
+| `SiteVariables.parse(merged)` final falha (URL maliciosa virou null/empty, etc.) | `validation` | n/a (sem update) |
+| Update DB error | `db_error` | n/a |
 
 ## Quando atualizar este `CLAUDE.md`
 
