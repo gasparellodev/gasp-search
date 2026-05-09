@@ -4,6 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { env } from "@/lib/env";
 import { sendWhatsAppMessage, type SendOutcome } from "@/lib/evolution/send";
+import {
+  checkDailyInstanceLimit,
+  DAILY_INSTANCE_LIMIT,
+} from "@/lib/whatsapp/daily-limit";
 import { renderTemplate } from "@/lib/whatsapp/render-template";
 import { SITE_PREVIEW_TEMPLATE } from "@/lib/whatsapp/templates";
 import type { Database } from "@/types/database";
@@ -31,6 +35,7 @@ import type { Database } from "@/types/database";
 //   - `'whatsapp_error'`  — falha de transporte (mapeada de SendOutcome.reason).
 //   - `'render_error'`    — bug de programação (variável faltante no template).
 //   - `'db_error'`        — falha ao escrever lead_sites.sent.
+//   - `'rate_limit_daily'` — guard hard de 50 envios/dia/instância (#173).
 // ----------------------------------------------------------------------------
 
 export type DispatchSitePreviewResult =
@@ -42,7 +47,8 @@ export type DispatchSitePreviewResult =
         | "invalid_status"
         | "render_error"
         | "whatsapp_error"
-        | "db_error";
+        | "db_error"
+        | "rate_limit_daily";
       // Mensagem livre pra log / persist em campaign_targets.error_message.
       message: string;
     };
@@ -93,6 +99,19 @@ export async function dispatchSitePreview({
       ok: false,
       reason: "invalid_status",
       message: `Site em status '${leadSite.status}' — apenas 'published'/'sent' são elegíveis.`,
+    };
+  }
+
+  // Step 2.5: Guard hard 50 envios/dia/instância (#173). Antes do render+send
+  // pra evitar trabalho desperdiçado e zero risco de tocar Evolution acima do
+  // limite. Em campanhas em massa, o processor mapeia esse `reason` pra
+  // `failed` (não `skipped`) — operador deve ter awareness, não silently skip.
+  const limitCheck = await checkDailyInstanceLimit(userId, supabase);
+  if (!limitCheck.allowed) {
+    return {
+      ok: false,
+      reason: "rate_limit_daily",
+      message: `Limite diário de ${DAILY_INSTANCE_LIMIT} envios atingido para esta instância. Tente amanhã.`,
     };
   }
 

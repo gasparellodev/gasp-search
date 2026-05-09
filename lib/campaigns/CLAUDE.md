@@ -23,13 +23,15 @@ Helpers server-side de campanhas (Phase 5 + extensão Phase 7 M4.3). Concentra o
 
 Per-target loop:
 
-1. Fetch `lead_sites` by `lead_id` via `dispatchSitePreview` helper.
+1. Fetch `lead_sites` by `lead_id` via `dispatchSitePreview` helper (que já aplica `checkDailyInstanceLimit` #173).
 2. Mapeia o resultado pra status do queue row:
    - `ok=true`                              → `'sent'` + counter `sent_count++`.
    - `reason='no_site'|'invalid_status'`    → `'skipped'` com `error_message='<reason>: <message>'`. **Não conta em failed** (lead inelegível, não erro de envio).
-   - `reason='whatsapp_error'|'render_error'|'db_error'` → `'failed'` + counter `failed_count++`.
+   - `reason='whatsapp_error'|'render_error'|'db_error'|'rate_limit_daily'` → `'failed'` + counter `failed_count++`.
 3. Throw inesperado dentro do helper é capturado e tratado como `db_error`.
 4. Throttle entre cada target (mesmo padrão do branch `'message'`).
+
+**Por que `rate_limit_daily` é `failed` e não `skipped`?** Decisão V1 documentada na #173. `skipped` significa "lead inelegível" (sem site, status errado) — operador não precisa de ação. `rate_limit_daily` significa "instância atingiu hard limit anti-ban (50/dia)" — operador **precisa** ver pra retentar amanhã com awareness. Se fosse `skipped`, ficariam invisíveis na fila e o operador não entenderia por que a campanha de hoje "passou tão rápido".
 
 Não usa `campaign.mode`, `template_text`, `ai_*` — esses ficam null em campaigns `site_preview` (validador deve aceitar).
 
@@ -37,7 +39,6 @@ Não usa `campaign.mode`, `template_text`, `ai_*` — esses ficam null em campai
 
 - Tudo roda inline na request da rota POST `/api/campaigns` com `maxDuration=300`. Limite de 50 leads (validado em `lib/validators/campaigns`) mantém o tempo total dentro do envelope.
 - Para campanhas maiores, fica a issue de Phase 5.5: migrar para Vercel Queues ou cron.
-- M4.4 (#173) vai adicionar guard de 50/dia por user pra `type='site_preview'`.
 
 ## Dependências
 

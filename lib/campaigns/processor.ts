@@ -152,6 +152,13 @@ export async function processCampaign({
           .eq("campaign_id", campaignId)
           .eq("lead_id", target.lead_id);
       } else {
+        // Catch-all: 'whatsapp_error' | 'render_error' | 'db_error' |
+        // 'rate_limit_daily' (#173). Todos viram 'failed' — operador
+        // precisa de awareness. Em particular, `rate_limit_daily` é
+        // intencionalmente 'failed' (não 'skipped') pra que a UI mostre
+        // "campanha falhou em N leads — limite diário atingido". Se
+        // fosse skipped, ficariam invisíveis na fila e o operador
+        // dispararia outra campanha amanhã sem entender o gap.
         await supabase
           .from("campaign_targets")
           .update({

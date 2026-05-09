@@ -719,6 +719,68 @@ describe("processCampaign — type='site_preview'", () => {
     );
   });
 
+  it("#173: dispatch retorna rate_limit_daily → marca queue 'failed' (não skipped) e incrementa counter", async () => {
+    // Decisão V1: rate_limit_daily → 'failed' (não 'skipped'). Operador
+    // deve ter awareness — retentar amanhã com consciência, não silently
+    // skip. Justificativa registrada no body da issue #173.
+    const dispatchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "rate_limit_daily",
+      message:
+        "Limite diário de 50 envios atingido para esta instância. Tente amanhã.",
+    });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: {
+        data: [{ lead_id: "lead-1", status: "pending" }],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 1 });
+    const failed = updates.find(
+      (u) =>
+        u.table === "campaign_targets" &&
+        (u.payload as { status?: string }).status === "failed",
+    );
+    expect(failed).toBeDefined();
+    expect(
+      (failed?.payload as { error_message?: string }).error_message,
+    ).toMatch(/rate_limit_daily/);
+    // Garante que NÃO foi marcado como skipped (no_site/invalid_status).
+    const skipped = updates.find(
+      (u) =>
+        u.table === "campaign_targets" &&
+        (u.payload as { status?: string }).status === "skipped",
+    );
+    expect(skipped).toBeUndefined();
+  });
+
   it("AC1+AC3: 3 targets mistos (sent + skipped + failed) — counters corretos e throttle entre cada", async () => {
     const dispatchMock = vi
       .fn()
