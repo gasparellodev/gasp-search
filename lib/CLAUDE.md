@@ -37,6 +37,9 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |
 | `dashboard/summary.ts` | **Server-only.** Agrega métricas e últimas buscas do dashboard |
 | `dashboard/types.ts` | Tipos compartilháveis com Client Components do dashboard |
+| `sites/slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` único globalmente em `lead_sites.slug`. Cliente Supabase recebido por DI. |
+| `sites/errors.ts` | `SlugCollisionError` — erro tipado com `attempts`/`business_name` para o gerador de slug. |
+| `utils/slug.ts` | `slugify(input)` puro — NFKD, lowercase, hífens, fallback `'lead'`. Reusável fora do dominio sites. |
 
 > A medida que features chegam:
 > - `supabase/server.ts`, `client.ts`, `middleware.ts` (#9)
