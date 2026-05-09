@@ -23,6 +23,27 @@
 
 import { z } from "zod";
 
+/**
+ * URL de imagem aceita pelo Site Generator. Pode ser:
+ *   - Absolute URL (`http(s)://...`) — caso clássico (Vercel Blob, Apify, CDNs).
+ *   - Caminho absoluto local (`/assets/...`) — quando o admin gerencia
+ *     imagens manualmente em `public/assets/` (decisão UX 2026-05-09).
+ *
+ * Validação:
+ *   - String não-vazia.
+ *   - Match em `http(s)://...` OU começa com `/`.
+ *
+ * NÃO usado para URLs externas obrigatórias (Instagram/Facebook/YouTube/email)
+ * — essas continuam com `.url()` estrito porque precisam abrir em outro tab.
+ */
+const imageUrlOrPath = z
+  .string()
+  .min(1)
+  .refine(
+    (val) => /^https?:\/\//i.test(val) || val.startsWith("/"),
+    { message: "Must be absolute URL (http/https) or absolute path (/...)." },
+  );
+
 // ---------------------------------------------------------------------------
 // Estoque (carros)
 // ---------------------------------------------------------------------------
@@ -42,8 +63,8 @@ export const SiteCar = z.object({
   fuel: z.enum(["Gasolina", "Etanol", "Flex", "Diesel", "Híbrido", "Elétrico"]),
   color: z.string(),
   description: z.string().min(80).max(800),
-  thumbnail_url: z.string().url(),
-  gallery_urls: z.array(z.string().url()).min(3).max(8),
+  thumbnail_url: imageUrlOrPath,
+  gallery_urls: z.array(imageUrlOrPath).min(3).max(8),
   datasheet: z.array(z.tuple([z.string(), z.string()])),
   featured: z.boolean(),
 });
@@ -60,7 +81,7 @@ export const SiteVariables = z.object({
   slogan: z.string().min(10).max(120),
   primary_color: z.string().regex(/^#[0-9a-f]{6}$/i),
   text_on_primary: z.enum(["#FFFFFF", "#0C0C0C"]),
-  logo_url: z.string().url(),
+  logo_url: imageUrlOrPath,
   whatsapp: z.string().regex(/^\d{10,13}$/),
   phone_display: z.string(),
   email: z.string().email().nullable(),
@@ -71,12 +92,12 @@ export const SiteVariables = z.object({
   hours: z.string().nullable(),
 
   // Home
-  hero_image_url: z.string().url(),
+  hero_image_url: imageUrlOrPath,
   home_categories: z
     .array(
       z.object({
         label: z.string().min(2).max(30),
-        image_url: z.string().url(),
+        image_url: imageUrlOrPath,
       }),
     )
     .length(3),
@@ -84,26 +105,26 @@ export const SiteVariables = z.object({
     title: z.string(),
     car_name: z.string(),
     description: z.string().min(50).max(400),
-    image_url: z.string().url(),
+    image_url: imageUrlOrPath,
   }),
   recent_sales: z
     .array(
       z.object({
         car_name: z.string(),
-        image_url: z.string().url(),
+        image_url: imageUrlOrPath,
       }),
     )
     .length(3),
 
   // Sobre
   about_text: z.string().min(200).max(1500),
-  about_image_url: z.string().url(),
+  about_image_url: imageUrlOrPath,
   mission: z.string().min(40).max(200),
   vision: z.string().min(40).max(200),
   values: z.array(z.string().min(8).max(80)).min(4).max(8),
 
   // Contato
-  contact_hero_image_url: z.string().url(),
+  contact_hero_image_url: imageUrlOrPath,
 
   // Estoque
   cars: z.array(SiteCar).min(4).max(6),

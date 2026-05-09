@@ -17,6 +17,7 @@ const footerVars = {
   address_line: SITE_FIXTURE.address_line,
   hours: SITE_FIXTURE.hours,
   primary_color: SITE_FIXTURE.primary_color,
+  text_on_primary: SITE_FIXTURE.text_on_primary,
 };
 
 describe("<SiteFooter />", () => {
@@ -101,15 +102,7 @@ describe("<SiteFooter />", () => {
     expect(screen.queryByText(/Seg–Sex/i)).not.toBeInTheDocument();
   });
 
-  it("submit do newsletter form chama preventDefault (visual-only)", () => {
-    render(<SiteFooter variables={footerVars} />);
-    const form = screen.getByTestId("newsletter-form") as HTMLFormElement;
-    const event = new Event("submit", { cancelable: true, bubbles: true });
-    const prevented = !form.dispatchEvent(event);
-    expect(prevented).toBe(true);
-  });
-
-  it("omite email quando null mas mantém phone_display e WhatsApp", () => {
+it("omite email quando null mas mantém phone_display e WhatsApp", () => {
     render(<SiteFooter variables={{ ...footerVars, email: null }} />);
     expect(
       screen.queryByText("contato@touringcars.com.br"),

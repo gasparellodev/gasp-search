@@ -23,6 +23,32 @@ describe("<SiteHeader />", () => {
     expect(link).toHaveAttribute("href", `/sites/${slug}`);
   });
 
+  it("renderiza logo como <Image> quando `logo_url` é truthy", () => {
+    render(
+      <SiteHeader variables={headerVars} slug={slug} activePage="home" />,
+    );
+    const img = screen.getByAltText(/touring cars/i);
+    expect(img.tagName.toLowerCase()).toBe("img");
+    expect(img.getAttribute("src")).toBe(headerVars.logo_url);
+    expect(
+      screen.queryByTestId("site-header-logo-text"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("cai em texto estilizado quando `logo_url` é vazio", () => {
+    render(
+      <SiteHeader
+        variables={{ ...headerVars, logo_url: "" }}
+        slug={slug}
+        activePage="home"
+      />,
+    );
+    const text = screen.getByTestId("site-header-logo-text");
+    expect(text).toBeInTheDocument();
+    expect(text).toHaveTextContent(headerVars.business_name);
+    expect(screen.queryByAltText(/touring cars/i)).not.toBeInTheDocument();
+  });
+
   it("renderiza 4 links de navegação no nav desktop", () => {
     render(
       <SiteHeader variables={headerVars} slug={slug} activePage="home" />,

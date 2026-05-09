@@ -1,8 +1,7 @@
 import "server-only";
 
 import type { Anthropic } from "@anthropic-ai/sdk";
-import zodToJsonSchema from "zod-to-json-schema";
-import { ZodError } from "zod";
+import { z, ZodError } from "zod";
 
 import { anthropic } from "@/lib/ai/anthropic";
 import { SiteCopySchema, type SiteCopy } from "@/types/lead-site";
@@ -133,12 +132,13 @@ export async function generateCopy(
     tools: [
       {
         name: TOOL_NAME,
-        // `zod-to-json-schema@3.x` foi tipado pra Zod v3, mas roda em Zod
-        // v4 sem incidente runtime — só precisa cast no input. O retorno
-        // (`Definition`) também não bate exato com `Tool.input_schema` do
-        // SDK; double-cast pontual pra acomodar diferenças sem `any` global.
-        input_schema: zodToJsonSchema(
-          SiteCopySchema as unknown as Parameters<typeof zodToJsonSchema>[0],
+        // Zod v4 tem `z.toJSONSchema()` nativo que emite JSON Schema
+        // draft-2020-12 com `type: "object"` no root — formato que o
+        // Anthropic API exige em `input_schema`. `zod-to-json-schema@3`
+        // emitia output vazio em Zod v4, quebrando a chamada com
+        // `tools.0.custom.input_schema.type: Field required`.
+        input_schema: z.toJSONSchema(
+          SiteCopySchema,
         ) as unknown as Anthropic.Tool["input_schema"],
         description:
           "Emite a copy textual do site (slogan, about, missão, etc.).",

@@ -47,12 +47,9 @@ import { ZodError } from "zod";
 
 import { env } from "@/lib/env";
 import { sendWhatsAppMessage } from "@/lib/evolution/send";
-import {
-  GENERATION_MODEL,
-  GENERATION_VERSION,
-  generateCopy,
-} from "@/lib/sites/generate-copy";
+import { generateCopy } from "@/lib/sites/generate-copy";
 import { extractBrandAssets } from "@/lib/sites/brand-assets";
+import { FALLBACK_IMAGE_URL, mergeSiteVariables } from "@/lib/sites/merge";
 import {
   GenerationError,
   LeadNotFoundError,
@@ -65,7 +62,6 @@ import { generateUniqueSlug } from "@/lib/sites/slug";
 import type { AssetSources } from "@/lib/sites/brand-assets.types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
-import { slugify } from "@/lib/utils/slug";
 import type { Database } from "@/types/database";
 import { SiteVariables } from "@/types/lead-site";
 import {
@@ -150,7 +146,8 @@ const AI_RETRY_BACKOFF_MS = 2_000;
  * Em produção, esse caminho idealmente não é atingido (#156 já garante
  * URLs válidas). Mas é o último guard em defesa em profundidade.
  */
-const FALLBACK_IMAGE_URL = "https://placehold.co/1024x768/0c0c0c/ffffff.png";
+// `FALLBACK_IMAGE_URL` é re-exportado de `lib/sites/merge.ts` pra compartilhar
+// entre o orquestrador e a lógica de merge sem duplicação.
 const FALLBACK_LOGO_URL = "https://placehold.co/256x256/0c0c0c/ffffff.png";
 
 /**
@@ -218,10 +215,12 @@ function logError(
     leadId: string;
     userId: string | null;
     error: unknown;
+    issues?: string;
   },
 ): void {
   // PII-safe: `error.name + error.message` — sem `cause` (pode conter dado
-  // adversarial) e sem stack trace.
+  // adversarial) e sem stack trace. `issues` é opt-in — só path+code (sem
+  // valores) já serializado pelo caller, ver step `validate`.
   const e = payload.error;
   const errorName = e instanceof Error ? e.name : typeof e;
   const errorMessage = e instanceof Error ? e.message : String(e);
@@ -233,6 +232,7 @@ function logError(
     ok: false,
     errorName,
     errorMessage,
+    ...(payload.issues ? { issues: payload.issues } : {}),
   });
 }
 
@@ -354,128 +354,6 @@ async function generateCopyWithRetry(
     }
     throw err;
   }
-}
-
-/**
- * Compõe `SiteVariables` final a partir do lead, brand assets e copy IA.
- *
- * Campos derivados de cada fonte:
- *  - Lead: `business_name`, `business_slug`, `whatsapp`, `phone_display`,
- *          `email`, `instagram_url`, `address_line`.
- *  - Assets: `logo_url`, `primary_color`, `text_on_primary`, hero/about/contact
- *           images, `car_placeholder_urls` (pra `home_categories.image_url`,
- *           `emphasis.image_url`, `recent_sales[].image_url` e `cars[].thumbnail_url`).
- *  - Copy: `slogan`, `home_categories[].label`, `emphasis.{title,description}`,
- *          `about_text`, `mission`, `vision`, `values`, `cars[].{description,...}`.
- *  - Constantes: `generated_by`, `generation_version`.
- */
-function mergeSiteVariables(
-  lead: Lead,
-  assets: AssetSources,
-  copy: Awaited<ReturnType<typeof generateCopy>>,
-): unknown {
-  const businessName = lead.name;
-  const businessSlug = slugify(businessName);
-
-  // WhatsApp: o schema exige 10-13 dígitos. Lead pode ter formatos variados;
-  // melhor esforço strip não-dígitos. Se ficar fora, parse final falha (AC8).
-  const whatsappDigits = (lead.whatsapp ?? lead.phone ?? "").replace(/\D/g, "");
-  const phoneDisplay = lead.phone ?? lead.whatsapp ?? "";
-
-  const instagramUrl =
-    lead.instagram_handle && lead.instagram_handle.length > 0
-      ? `https://instagram.com/${lead.instagram_handle.replace(/^@/, "")}`
-      : null;
-
-  const cityState = [lead.city, lead.state].filter(Boolean).join(", ");
-  const addressLine = cityState.length > 0 ? cityState : null;
-
-  // Mapping de car_placeholder_urls pros 6 carros do schema:
-  // - emphasis.image_url: 0
-  // - recent_sales[0..2]: 1, 2, 3 (length === 3)
-  // - home_categories[0..2]: 0, 1, 2 (reuso ok — image_url só)
-  // - cars[].thumbnail_url e gallery_urls: 4 e 5 com fallback dentre os 6.
-  const carUrls = assets.car_placeholder_urls;
-  const safeCarAt = (i: number): string =>
-    carUrls[i] ?? carUrls[0] ?? FALLBACK_IMAGE_URL;
-
-  // Composição de cars: copy emite 4-6 entries com {description, datasheet,
-  // featured}. Schema completo (#154 SiteCar) exige mais campos. Adicionar
-  // defaults consistentes — esta é a primeira versão; iterações futuras vão
-  // melhorar a heurística.
-  const fullCars = copy.cars.map((c, idx) => ({
-    slug: `car-${idx + 1}`,
-    brand: lead.name.split(" ")[0] ?? "Carro",
-    model: `Modelo ${idx + 1}`,
-    year: new Date().getFullYear() - (idx % 3),
-    km: idx * 12_000,
-    price: null,
-    transmission: "Automático" as const,
-    fuel: "Flex" as const,
-    color: "Branco",
-    description: c.description,
-    thumbnail_url: safeCarAt(idx + 4 < carUrls.length ? idx + 4 : idx),
-    gallery_urls: [
-      safeCarAt(idx % carUrls.length),
-      safeCarAt((idx + 1) % carUrls.length),
-      safeCarAt((idx + 2) % carUrls.length),
-    ],
-    datasheet: c.datasheet,
-    featured: c.featured,
-  }));
-
-  return {
-    // Globais
-    business_name: businessName,
-    business_slug: businessSlug,
-    slogan: copy.slogan,
-    primary_color: assets.primary_color,
-    text_on_primary: assets.text_on_primary,
-    logo_url: assets.logo_url,
-    whatsapp: whatsappDigits,
-    phone_display: phoneDisplay,
-    email: lead.email,
-    instagram_url: instagramUrl,
-    facebook_url: null,
-    youtube_url: null,
-    address_line: addressLine,
-    hours: null,
-
-    // Home
-    hero_image_url: assets.hero_image_url,
-    home_categories: copy.home_categories.map((c, i) => ({
-      label: c.label,
-      image_url: safeCarAt(i),
-    })),
-    emphasis: {
-      title: copy.emphasis.title,
-      car_name: `${lead.name.split(" ")[0] ?? "Modelo"} Destaque`,
-      description: copy.emphasis.description,
-      image_url: safeCarAt(0),
-    },
-    recent_sales: [
-      { car_name: "Recente 1", image_url: safeCarAt(1) },
-      { car_name: "Recente 2", image_url: safeCarAt(2) },
-      { car_name: "Recente 3", image_url: safeCarAt(3) },
-    ],
-
-    // Sobre
-    about_text: copy.about_text,
-    about_image_url: assets.about_image_url,
-    mission: copy.mission,
-    vision: copy.vision,
-    values: copy.values,
-
-    // Contato
-    contact_hero_image_url: assets.contact_hero_image_url,
-
-    // Estoque
-    cars: fullCars,
-
-    // Metadata
-    generated_by: GENERATION_MODEL,
-    generation_version: GENERATION_VERSION,
-  };
 }
 
 /**
@@ -672,11 +550,16 @@ export async function generateLeadSite(
     variables = SiteVariables.parse(merged);
   } catch (cause) {
     const validationError = new SiteVariablesValidationError(cause);
-    logError("validate", { leadId, userId, error: validationError });
     const issuesSerialized =
       cause instanceof ZodError
         ? cause.issues.map((i) => `${i.path.join(".")}: ${i.code}`).join("; ")
         : "unknown";
+    logError("validate", {
+      leadId,
+      userId,
+      error: validationError,
+      issues: issuesSerialized,
+    });
     await persistDraftWithError(service, {
       userId,
       leadId,
@@ -1459,4 +1342,53 @@ export async function sendLeadSiteWhatsApp(
   }
 
   return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// `getLeadSiteCardData(leadId)` — read-only fetch para o `<LeadSiteCardClient>`
+// usado no drawer da ficha do lead. RLS isola por `user_id`. Em caso de erro
+// (RLS/network), retorna `null` graceful — UI mostra estado "none" e usuário
+// pode tentar gerar.
+// ---------------------------------------------------------------------------
+
+export interface LeadSiteCardDataResult {
+  leadSite: {
+    id: string;
+    slug: string;
+    status: "draft" | "published" | "sent" | "archived";
+    generated_at: string | null;
+    published_at: string | null;
+    sent_at: string | null;
+    view_count: number;
+    variables: unknown | null;
+  } | null;
+  appUrl: string;
+}
+
+export async function getLeadSiteCardData(
+  leadId: string,
+): Promise<LeadSiteCardDataResult> {
+  const server = await createServerSupabase();
+
+  const { data, error } = await server
+    .from("lead_sites")
+    .select(
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
+    )
+    .eq("lead_id", leadId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getLeadSiteCardData.fetch", {
+      action: "getLeadSiteCardData",
+      leadId,
+      errorName: error.name ?? "unknown",
+      errorMessage: error.message ?? "",
+    });
+  }
+
+  return {
+    leadSite: (data as LeadSiteCardDataResult["leadSite"]) ?? null,
+    appUrl: env.NEXT_PUBLIC_APP_URL,
+  };
 }

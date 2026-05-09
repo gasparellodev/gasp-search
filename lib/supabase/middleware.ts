@@ -3,10 +3,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { env } from "@/lib/env";
 
-// Rotas que NUNCA exigem sessão (auth flow + OAuth callback).
+// Rotas que NUNCA exigem sessão.
+// - `/login`, `/callback`, `/auth`: auth flow + OAuth callback.
+// - `/sites`: rotas públicas dos sites gerados (Phase 7) — o link é
+//   compartilhado via WhatsApp pro lead, que NÃO tem conta no Gasp.
 // `/` não é público: sem sessão redireciona para /login; logado vai para
 // /dashboard.
-const PUBLIC_PATHS = ["/login", "/callback", "/auth"];
+const PUBLIC_PATHS = ["/login", "/callback", "/auth", "/sites"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some(

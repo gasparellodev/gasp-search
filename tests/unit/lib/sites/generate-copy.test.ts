@@ -218,7 +218,7 @@ describe("generateCopy()", () => {
       const { generateCopy, GENERATION_MODEL } = await import(
         "@/lib/sites/generate-copy"
       );
-      const { default: zodToJsonSchema } = await import("zod-to-json-schema");
+      const { z } = await import("zod");
 
       await generateCopy(makeValidInput());
 
@@ -247,21 +247,14 @@ describe("generateCopy()", () => {
         name: "emit_site_copy",
       });
 
-      // tools[0].name + input_schema deep-equal zodToJsonSchema(SiteCopySchema)
+      // tools[0].name + input_schema deep-equal z.toJSONSchema(SiteCopySchema)
       const tools = request.tools as Array<{
         name: string;
         input_schema: unknown;
       }>;
       expect(tools).toHaveLength(1);
       expect(tools[0]?.name).toBe("emit_site_copy");
-      // Cast como o módulo faz — zod-to-json-schema@3.x foi tipado pra Zod v3
-      // mas runtime funciona em v4. Comparação é do valor produzido, não do
-      // schema input.
-      expect(tools[0]?.input_schema).toEqual(
-        zodToJsonSchema(
-          SiteCopySchema as unknown as Parameters<typeof zodToJsonSchema>[0],
-        ),
-      );
+      expect(tools[0]?.input_schema).toEqual(z.toJSONSchema(SiteCopySchema));
     });
 
     it("envia o input do caller serializado em messages[0].content", async () => {

@@ -143,10 +143,10 @@ describe("<StockSection /> — empty state", () => {
 
     expect(screen.getByTestId("stock-empty")).toBeInTheDocument();
     expect(
-      screen.getByText(/Nenhum veículo nessa categoria/i),
+      screen.getByText(/Nenhum carro encontrado/i),
     ).toBeInTheDocument();
 
-    const link = screen.getByRole("link", { name: /Ver todos os veículos/i });
+    const link = screen.getByRole("link", { name: /Ver estoque completo/i });
     expect(link).toHaveAttribute("href", `/sites/${SLUG}/estoque`);
   });
 

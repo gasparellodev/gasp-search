@@ -58,6 +58,10 @@ export function ContactSection({
 }: ContactSectionProps) {
   const digits = variables.whatsapp.replace(/\D/g, "");
   const whatsappHref = `https://wa.me/${digits}`;
+  // Esconde a linha "Phone" quando o phone_display equivale ao whatsapp
+  // (mesmo número formatado/normalizado) — evita duplicidade visual.
+  const phoneDigits = variables.phone_display.replace(/\D/g, "");
+  const showPhoneLine = phoneDigits.length > 0 && phoneDigits !== digits.replace(/^55/, "") && phoneDigits !== digits;
   const telHref = `tel:+${digits}`;
 
   return (
@@ -81,7 +85,7 @@ export function ContactSection({
               data-testid="contact-channels"
               className="space-y-3 text-base text-foreground md:text-lg"
             >
-              <li>
+              <li className="flex">
                 <a
                   href={whatsappHref}
                   target="_blank"
@@ -92,17 +96,19 @@ export function ContactSection({
                   <span>WhatsApp — {variables.phone_display}</span>
                 </a>
               </li>
-              <li>
-                <a
-                  href={telHref}
-                  className="inline-flex items-center gap-3 hover:text-foreground/80"
-                >
-                  <Phone className="size-5 flex-none" aria-hidden />
-                  <span>{variables.phone_display}</span>
-                </a>
-              </li>
+              {showPhoneLine && (
+                <li className="flex">
+                  <a
+                    href={telHref}
+                    className="inline-flex items-center gap-3 hover:text-foreground/80"
+                  >
+                    <Phone className="size-5 flex-none" aria-hidden />
+                    <span>{variables.phone_display}</span>
+                  </a>
+                </li>
+              )}
               {variables.email && (
-                <li>
+                <li className="flex">
                   <a
                     href={`mailto:${variables.email}`}
                     className="inline-flex items-center gap-3 hover:text-foreground/80"
@@ -113,17 +119,20 @@ export function ContactSection({
                 </li>
               )}
               {variables.address_line && (
-                <li className="inline-flex items-center gap-3">
+                <li className="flex items-center gap-3">
                   <MapPin className="size-5 flex-none" aria-hidden />
                   <span>{variables.address_line}</span>
                 </li>
               )}
-              <li className="inline-flex items-center gap-3">
+              <li className="flex items-center gap-3">
                 <Clock className="size-5 flex-none" aria-hidden />
                 <span>{variables.hours ?? "Sob consulta"}</span>
               </li>
             </ul>
 
+            {(variables.instagram_url ||
+              variables.facebook_url ||
+              variables.youtube_url) && (
             <ul
               data-testid="contact-socials"
               className="mt-2 flex items-center gap-4"
@@ -167,18 +176,8 @@ export function ContactSection({
                   </a>
                 </li>
               )}
-              <li>
-                <a
-                  href={whatsappHref}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="WhatsApp"
-                  className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
-                >
-                  <WhatsappIcon className="size-5" />
-                </a>
-              </li>
             </ul>
+            )}
           </div>
 
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-foreground/5 md:aspect-[5/4]">

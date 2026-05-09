@@ -94,10 +94,19 @@ export function StockFilter({ slug, active }: StockFilterProps) {
             <label
               key={catSlug}
               data-testid={`stock-filter-option-${catSlug}`}
+              style={
+                checked
+                  ? {
+                      backgroundColor: "var(--site-primary)",
+                      color: "var(--site-text-on-primary)",
+                      borderColor: "var(--site-primary)",
+                    }
+                  : undefined
+              }
               className={cn(
                 "inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm transition",
                 checked
-                  ? "border-foreground bg-foreground text-background"
+                  ? ""
                   : "border-foreground/20 bg-background text-foreground hover:border-foreground/40",
               )}
             >

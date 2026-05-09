@@ -82,16 +82,68 @@ export function StockSection({
         {sorted.length === 0 ? (
           <div
             data-testid="stock-empty"
-            className="flex flex-col items-center gap-4 rounded-3xl border border-dashed border-foreground/20 px-6 py-16 text-center"
+            className="mx-auto flex max-w-md flex-col items-center gap-6 px-6 py-20 text-center"
           >
-            <p className="text-base text-foreground/70 md:text-lg">
-              Nenhum veículo nessa categoria no momento.
-            </p>
+            {/* Conceito visual: estrada para o horizonte (Identidade #4).
+                Linhas paralelas convergindo + dashes centrais em accent-primary
+                + linha do horizonte. SVG inline, w-32 h-32, opacity 60%. */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 100 100"
+              className="size-32 opacity-60"
+            >
+              {/* Horizonte (linha sutil) */}
+              <line
+                x1="20"
+                y1="40"
+                x2="80"
+                y2="40"
+                stroke="currentColor"
+                strokeWidth="0.6"
+                opacity="0.3"
+              />
+              {/* Estrada — duas linhas convergindo do bottom ao ponto de fuga (50,40) */}
+              <line
+                x1="10"
+                y1="95"
+                x2="46"
+                y2="40"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              <line
+                x1="90"
+                y1="95"
+                x2="54"
+                y2="40"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+              {/* Faixas centrais tracejadas em accent-primary — perspectiva (mais altas/largas embaixo) */}
+              <rect x="48" y="86" width="4" height="6" rx="0.5" style={{ fill: "var(--site-primary)" }} />
+              <rect x="48.7" y="70" width="2.6" height="4" rx="0.4" style={{ fill: "var(--site-primary)" }} />
+              <rect x="49.2" y="56" width="1.6" height="2.5" rx="0.3" style={{ fill: "var(--site-primary)" }} />
+              <rect x="49.5" y="46" width="1" height="1.5" rx="0.2" style={{ fill: "var(--site-primary)" }} />
+            </svg>
+            <div className="flex flex-col gap-2">
+              <h2 className="text-2xl font-semibold tracking-tight text-foreground">
+                Nenhum carro encontrado
+              </h2>
+              <p className="text-base text-foreground/70 md:text-lg">
+                Tente remover algum filtro ou veja o estoque completo.
+              </p>
+            </div>
             <Link
               href={`/sites/${slug}/estoque`}
-              className="inline-flex items-center rounded-full border border-foreground/20 px-5 py-2 text-sm font-medium text-foreground transition hover:bg-foreground hover:text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+              style={{
+                backgroundColor: "var(--site-primary)",
+                color: "var(--site-text-on-primary)",
+              }}
+              className="inline-flex h-12 items-center justify-center rounded-full px-6 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
             >
-              Ver todos os veículos
+              Ver estoque completo
             </Link>
           </div>
         ) : (

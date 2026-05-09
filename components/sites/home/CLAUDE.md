@@ -57,7 +57,7 @@ issues #163-#164.
 
 | Path | Propósito |
 |---|---|
-| `HomeHero.tsx` | Hero 2-cols com slogan `<h1>` + CTA pill (`primary_color`) → `/estoque`. Imagem hero `next/image fill`. |
+| `HomeHero.tsx` | **Light hero Figma-fiel** (redesign 2026-05-09). Layout 2-cols `md:grid-cols-[1fr_1.5fr]` (60% pra imagem) com `bg-background` (branco), slogan `<h1>` em `text-foreground` (preto) com `clamp(2.5rem, 7vw, 5rem)` à esquerda, CTA pill com `primary_color` do lead via `style={{ backgroundColor: sanitizeHex(...) }}`, cutout do carro via `resolveHeroImageUrl(hero_image_url)` — usa `hero_image_url` do lead ou cai em `SITE_ASSETS.hero.demoCarCutout` (Porsche cinza). `<Image>` com `object-contain object-center`, altura `md:h-[520px] lg:h-[600px]`. Mobile: stack vertical. Chevron-down decorativo (`aria-hidden`) abaixo do hero. **Pré-requisito**: cutout deve ser PNG com fundo transparente — fundo branco se confunde com a página. |
 | `HomeCategories.tsx` | Grid 3-cols (1-col mobile) com cards-imagem e `ChevronRight`. Cada card linka a `/estoque?categoria=<slugify>`. |
 | `HomeForm.tsx` | Wrapper Server sobre `<SiteForm>` (Client) que injeta o título canônico da Home + `variant='home'`. |
 | `HomeEmphasis.tsx` | "Em destaque" 2-cols: imagem left + card alabaster (rounded 25px) com title/car_name/description (`pre-line`). |
@@ -85,6 +85,11 @@ mantém estado de form). Tudo o resto é puro server-render.
   cores hex.
 - `@/lib/utils/slug.slugify` — gera o querystring de
   `?categoria=<slug>`.
+- `@/lib/sites/site-assets.SITE_ASSETS` — `hero.texture` (decorativa
+  fixa) e `hero.demoCarCutout` (fallback do Pulse). Editar paths
+  globais em `lib/sites/site-assets.ts`.
+- `@/lib/sites/site-assets.resolveHeroImageUrl` — `hero_image_url`
+  do lead ou demo cutout global.
 - `@/types/lead-site.SiteVariables` — tipos do payload (campos
   consumidos via `Pick`).
 - `../SiteForm` — wrapper client do form de captura.

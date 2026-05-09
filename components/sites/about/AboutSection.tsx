@@ -66,52 +66,53 @@ export function AboutSection({ variables }: AboutSectionProps) {
           </div>
         </div>
 
-        {/* Mission / Vision / Values */}
-        <div className="mt-16 grid grid-cols-1 gap-6 md:mt-20 md:grid-cols-3 md:gap-8">
+        {/* Mission + Vision — 2 dark cards 2-cols (Figma About.png) */}
+        <div className="mt-12 grid grid-cols-1 gap-6 md:mt-16 md:grid-cols-2 md:gap-8">
           <article
             data-testid="about-mission"
-            className="rounded-[25px] bg-foreground/[0.04] p-8"
+            className="rounded-site-feature bg-site-surface-feature p-8 text-site-text-on-feature md:p-10"
           >
-            <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-foreground/60">
+            <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-site-text-on-feature/60">
               Missão
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-foreground md:text-lg">
+            <p className="mt-4 text-base leading-relaxed text-site-text-on-feature/90 md:text-lg">
               {variables.mission}
             </p>
           </article>
 
           <article
             data-testid="about-vision"
-            className="rounded-[25px] bg-foreground/[0.04] p-8"
+            className="rounded-site-feature bg-site-surface-feature p-8 text-site-text-on-feature md:p-10"
           >
-            <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-foreground/60">
+            <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-site-text-on-feature/60">
               Visão
             </h2>
-            <p className="mt-4 text-base leading-relaxed text-foreground md:text-lg">
+            <p className="mt-4 text-base leading-relaxed text-site-text-on-feature/90 md:text-lg">
               {variables.vision}
             </p>
           </article>
-
-          <article
-            data-testid="about-values"
-            className="rounded-[25px] bg-foreground/[0.04] p-8"
-          >
-            <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-foreground/60">
-              Valores
-            </h2>
-            <ul className="mt-4 space-y-2 text-base leading-relaxed text-foreground md:text-lg">
-              {variables.values.map((value) => (
-                <li key={value} className="flex items-start gap-2">
-                  <span
-                    aria-hidden
-                    className="mt-2 inline-block size-1.5 flex-none rounded-full bg-foreground/60"
-                  />
-                  <span>{value}</span>
-                </li>
-              ))}
-            </ul>
-          </article>
         </div>
+
+        {/* Values — 1 dark wide card (Figma About.png) */}
+        <article
+          data-testid="about-values"
+          className="mt-6 rounded-site-feature bg-site-surface-feature p-8 text-site-text-on-feature md:mt-8 md:p-10"
+        >
+          <h2 className="text-sm font-medium uppercase tracking-[0.18em] text-site-text-on-feature/60">
+            Valores
+          </h2>
+          <ul className="mt-4 space-y-2 text-base leading-relaxed text-site-text-on-feature/90 md:text-lg">
+            {variables.values.map((value) => (
+              <li key={value} className="flex items-start gap-2">
+                <span
+                  aria-hidden
+                  className="mt-2 inline-block size-1.5 flex-none rounded-full bg-site-text-on-feature/60"
+                />
+                <span>{value}</span>
+              </li>
+            ))}
+          </ul>
+        </article>
       </div>
     </section>
   );
