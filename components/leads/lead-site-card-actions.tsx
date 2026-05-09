@@ -5,20 +5,22 @@
  *
  * Server boundary: o `<LeadSiteCard />` (Server Component) busca o
  * `lead_sites` row via Supabase com RLS e passa os dados serializáveis
- * pra cá. **Toda lógica de cliente** (clipboard, useTransition, toast)
- * vive aqui.
+ * pra cá. **Toda lógica de cliente** (clipboard, useTransition, toast,
+ * AlertDialog) vive aqui.
  *
- * **Decisão V1 (refinamento PO 11):** Botões "Regerar" (#169), "Arquivar"
- * / "Restaurar" (#169) e "Enviar via WhatsApp" (#171) são renderizados
- * como **disabled** com tooltip indicando a issue de origem. O botão
- * "Editar" (#168) está ativo e abre `<LeadSiteEditModal>`. Quando as
- * issues remanescentes mergearem, basta remover o `disabled` + fiar o
- * handler real no lugar.
+ * **Histórico de issues:**
+ *  - #167 — Esqueleto do card + estado `none`/`published`/`archived`/`draft`,
+ *           botão Copiar e Pré-visualizar.
+ *  - #168 — Botão "Editar" liga ao `<LeadSiteEditModal>`.
+ *  - #169 — Botões "Regerar" / "Arquivar" / "Restaurar" agora ATIVOS.
+ *           Confirmação destrutiva via `<AlertDialog>` antes de arquivar.
+ *  - #171 — "Enviar via WhatsApp" continua disabled até a issue mergear.
  */
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 import {
   ArchiveRestore,
   ArchiveX,
@@ -32,8 +34,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { generateLeadSite } from "@/app/actions/lead-site";
-import type { GenerateLeadSiteResult } from "@/app/actions/lead-site";
+import {
+  archiveLeadSite,
+  generateLeadSite,
+  restoreLeadSite,
+} from "@/app/actions/lead-site";
+import type {
+  GenerateLeadSiteResult,
+  LeadSiteStatusActionResult,
+} from "@/app/actions/lead-site";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -41,6 +50,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 import { LeadSiteEditModal } from "./LeadSiteEditModal";
 import type { LeadSiteCardData, LeadSiteStatus } from "./lead-site-card-types";
@@ -58,10 +68,13 @@ interface LeadSiteCardActionsProps {
 }
 
 /**
- * Mapeia o `error` discriminated da Server Action pra mensagem amigável
- * em PT-BR (CLAUDE.md §convenções: "PT-BR em mensagens ao usuário").
+ * Mapeia o `error` discriminated da Server Action `generateLeadSite` pra
+ * mensagem amigável em PT-BR (CLAUDE.md §convenções: "PT-BR em mensagens
+ * ao usuário").
  */
-function errorMessage(error: GenerateLeadSiteResult & { ok: false }): string {
+function generateErrorMessage(
+  error: GenerateLeadSiteResult & { ok: false },
+): string {
   switch (error.error) {
     case "auth":
       return "Sessão expirada. Faça login novamente.";
@@ -80,21 +93,45 @@ function errorMessage(error: GenerateLeadSiteResult & { ok: false }): string {
   }
 }
 
+/**
+ * Mapeia o `error` das Server Actions `archiveLeadSite` / `restoreLeadSite`
+ * pra mensagem PT-BR.
+ */
+function statusActionErrorMessage(
+  error: LeadSiteStatusActionResult & { ok: false },
+): string {
+  switch (error.error) {
+    case "auth":
+      return "Sessão expirada. Faça login novamente.";
+    case "not_found":
+      return "Site não encontrado.";
+    case "invalid_status":
+      return "O site não está em um estado que permita esta ação.";
+    case "db_error":
+      return "Erro ao salvar a alteração. Tente novamente.";
+    default:
+      return error.message ?? "Erro desconhecido.";
+  }
+}
+
 export function LeadSiteCardActions({
   leadSite,
   leadId,
   appUrl,
 }: LeadSiteCardActionsProps) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [isGenerating, startGenerateTransition] = useTransition();
+  const [isArchiving, startArchiveTransition] = useTransition();
+  const [isRestoring, startRestoreTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
 
   // ---------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------
   function handleGenerate() {
-    startTransition(async () => {
+    startGenerateTransition(async () => {
       try {
         const result = await generateLeadSite(leadId);
         if (result.ok) {
@@ -104,11 +141,58 @@ export function LeadSiteCardActions({
           router.refresh();
         } else {
           toast.error("Não foi possível gerar o site", {
-            description: errorMessage(result),
+            description: generateErrorMessage(result),
           });
         }
       } catch {
         toast.error("Não foi possível gerar o site", {
+          description: "Erro inesperado. Tente novamente.",
+        });
+      }
+    });
+  }
+
+  function handleArchive() {
+    if (!leadSite) return;
+    startArchiveTransition(async () => {
+      try {
+        const result = await archiveLeadSite(leadSite.id);
+        if (result.ok) {
+          toast.success("Site arquivado", {
+            description: "Você pode restaurá-lo quando quiser.",
+          });
+          setArchiveDialogOpen(false);
+          router.refresh();
+        } else {
+          toast.error("Não foi possível arquivar o site", {
+            description: statusActionErrorMessage(result),
+          });
+        }
+      } catch {
+        toast.error("Não foi possível arquivar o site", {
+          description: "Erro inesperado. Tente novamente.",
+        });
+      }
+    });
+  }
+
+  function handleRestore() {
+    if (!leadSite) return;
+    startRestoreTransition(async () => {
+      try {
+        const result = await restoreLeadSite(leadSite.id);
+        if (result.ok) {
+          toast.success("Site restaurado!", {
+            description: "O site voltou ao estado publicado.",
+          });
+          router.refresh();
+        } else {
+          toast.error("Não foi possível restaurar o site", {
+            description: statusActionErrorMessage(result),
+          });
+        }
+      } catch {
+        toast.error("Não foi possível restaurar o site", {
           description: "Erro inesperado. Tente novamente.",
         });
       }
@@ -137,11 +221,11 @@ export function LeadSiteCardActions({
       <Button
         type="button"
         onClick={handleGenerate}
-        disabled={isPending}
-        aria-busy={isPending}
+        disabled={isGenerating}
+        aria-busy={isGenerating}
         data-testid="lead-site-generate-button"
       >
-        {isPending ? (
+        {isGenerating ? (
           <>
             <Loader2 className="size-4 animate-spin" aria-hidden="true" />
             Gerando…
@@ -156,29 +240,30 @@ export function LeadSiteCardActions({
     );
   }
 
-  // Estado `archived`
+  // Estado `archived` — botão Restaurar ativo (#169)
   if (status === "archived") {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled
-                aria-disabled="true"
-                data-testid="lead-site-restore-button"
-              >
-                <ArchiveRestore className="size-4" aria-hidden="true" />
-                Restaurar
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Disponível em #169</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={handleRestore}
+        disabled={isRestoring}
+        aria-busy={isRestoring}
+        data-testid="lead-site-restore-button"
+      >
+        {isRestoring ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Restaurando…
+          </>
+        ) : (
+          <>
+            <ArchiveRestore className="size-4" aria-hidden="true" />
+            Restaurar
+          </>
+        )}
+      </Button>
     );
   }
 
@@ -237,43 +322,44 @@ export function LeadSiteCardActions({
           />
         ) : null}
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled
-                aria-disabled="true"
-                data-testid="lead-site-regen-button"
-              >
-                <RotateCcw className="size-4" aria-hidden="true" />
-                Regerar
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Disponível em #169</TooltipContent>
-        </Tooltip>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          aria-busy={isGenerating}
+          data-testid="lead-site-regen-button"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Regerando…
+            </>
+          ) : (
+            <>
+              <RotateCcw className="size-4" aria-hidden="true" />
+              Regerar
+            </>
+          )}
+        </Button>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled
-                aria-disabled="true"
-                data-testid="lead-site-archive-button"
-              >
-                <ArchiveX className="size-4" aria-hidden="true" />
-                Arquivar
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Disponível em #169</TooltipContent>
-        </Tooltip>
+        <ArchiveConfirmDialog
+          open={archiveDialogOpen}
+          onOpenChange={setArchiveDialogOpen}
+          isArchiving={isArchiving}
+          onConfirm={handleArchive}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-testid="lead-site-archive-button"
+          >
+            <ArchiveX className="size-4" aria-hidden="true" />
+            Arquivar
+          </Button>
+        </ArchiveConfirmDialog>
 
         <Tooltip>
           <TooltipTrigger asChild>
@@ -295,5 +381,111 @@ export function LeadSiteCardActions({
         </Tooltip>
       </div>
     </TooltipProvider>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Confirm dialog destrutivo (Arquivar)
+// ---------------------------------------------------------------------------
+
+interface ArchiveConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isArchiving: boolean;
+  onConfirm: () => void;
+  children: React.ReactNode;
+}
+
+/**
+ * `<AlertDialog>` (Radix) com `role="alertdialog"` implícito, focus trap,
+ * ESC pra cancelar e backdrop pra fechar. Acessibilidade vetada por
+ * jest-axe nos testes.
+ *
+ * Estilo é minimal e segue o padrão Apple SK do app (alabaster card,
+ * border sutil, foco azul). Não usamos `<Dialog>` porque AlertDialog
+ * tem semântica de confirmação destrutiva específica (browser leitor de
+ * tela anuncia diferente).
+ */
+function ArchiveConfirmDialog({
+  open,
+  onOpenChange,
+  isArchiving,
+  onConfirm,
+  children,
+}: ArchiveConfirmDialogProps) {
+  return (
+    <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <AlertDialogPrimitive.Trigger asChild>
+        {children}
+      </AlertDialogPrimitive.Trigger>
+      <AlertDialogPrimitive.Portal>
+        <AlertDialogPrimitive.Overlay
+          className={cn(
+            "fixed inset-0 z-50 bg-black/40",
+            "data-[state=open]:animate-in data-[state=open]:fade-in-0",
+            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+          )}
+        />
+        <AlertDialogPrimitive.Content
+          data-testid="lead-site-archive-dialog"
+          className={cn(
+            "fixed top-1/2 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))]",
+            "-translate-x-1/2 -translate-y-1/2",
+            "bg-card text-card-foreground",
+            "border border-border rounded-xl shadow-lg",
+            "p-6",
+            "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+          )}
+        >
+          <AlertDialogPrimitive.Title className="text-lg font-semibold leading-none">
+            Arquivar este site?
+          </AlertDialogPrimitive.Title>
+          <AlertDialogPrimitive.Description className="text-muted-foreground mt-2 text-sm">
+            O site ficará indisponível na ficha do lead, mas você pode
+            restaurá-lo a qualquer momento.
+          </AlertDialogPrimitive.Description>
+          <div className="mt-6 flex justify-end gap-2">
+            <AlertDialogPrimitive.Cancel asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isArchiving}
+                data-testid="lead-site-archive-cancel"
+              >
+                Cancelar
+              </Button>
+            </AlertDialogPrimitive.Cancel>
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                // Não fechamos via Action — o handler controla via
+                // setArchiveDialogOpen(false) após sucesso. Isso permite
+                // mostrar o spinner durante a transition.
+                e.preventDefault();
+                onConfirm();
+              }}
+              disabled={isArchiving}
+              aria-busy={isArchiving}
+              data-testid="lead-site-archive-confirm"
+            >
+              {isArchiving ? (
+                <>
+                  <Loader2
+                    className="size-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Arquivando…
+                </>
+              ) : (
+                "Arquivar"
+              )}
+            </Button>
+          </div>
+        </AlertDialogPrimitive.Content>
+      </AlertDialogPrimitive.Portal>
+    </AlertDialogPrimitive.Root>
   );
 }
