@@ -60,13 +60,14 @@ componentes:
 
 | Path | Propósito |
 |---|---|
-| `SitePage.tsx` | **Server Component (stub M2.1 — issue #160).** Wrapper público de `/sites/[slug]`. Recebe `{ variables: SiteVariables, siteId: string, slug: string }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`). MVP renderiza apenas `<h1>` com `business_name` + `data-site-id` para E2E. **Composição completa** (Hero / Categories / Emphasis / RecentSales / About / Contact / Stock / CarDetail) entra em M2.3-M2.5 (issues #162-#164) — a API de props `{ variables, siteId, slug }` é estável e não muda no swap stub→full. |
+| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 — issues #160 + #162).** Wrapper público de `/sites/[slug]`. Recebe `{ variables, siteId, slug }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales` — pasta `home/`) + `<SiteFooter>`. About/Contact/Stock/CarDetail entram em #163-#164. |
 | `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. |
 | `MobileNav.tsx` | **Client Component.** Hambúrguer + menu dropdown com estado `open`. ESC fecha + foco volta ao botão. |
 | `SiteFooter.tsx` | Server Component. 3 colunas: marca/sociais, contato, newsletter (visual). Ícones sociais omitidos individualmente quando URL é `null`. Copyright com ano corrente. |
-| `SiteForm.tsx` | **Client Component.** Form de captura com 3 variantes (`'home'`/`'contact'`/`'car-detail'`). `react-hook-form` + `zodResolver`. `model` read-only quando `variant='car-detail'` com `prefillModel`. LGPD checkbox obrigatório. |
+| `SiteForm.tsx` | **Client Component.** Form de captura com 3 variantes (`'home'`/`'contact'`/`'car-detail'`). `react-hook-form` + `zodResolver`. `model` read-only quando `variant='car-detail'` com `prefillModel`. LGPD checkbox obrigatório. Aceita `title?: string` para override do `<h2>` default (usado por `<HomeForm>` em #162). |
 | `social-icons.tsx` | SVGs inline de Instagram/Facebook/YouTube/WhatsApp — `lucide-react@^1.14` removeu os ícones de marca por trademark. Pure server-renderable. |
 | `site-nav-links.ts` | Pure data (`buildSiteNavLinks(slug)` + tipos). Compartilhado entre `SiteHeader` (server) e `MobileNav` (client). |
+| `home/` | Sub-componentes Server-only que compõem a Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales` — issue #162). Ver `home/CLAUDE.md`. |
 
 ## Boundary client/server
 

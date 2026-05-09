@@ -5,6 +5,14 @@ import type { CSSProperties } from "react";
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariables } from "@/types/lead-site";
 
+import { SiteFooter } from "./SiteFooter";
+import { SiteHeader } from "./SiteHeader";
+import { HomeCategories } from "./home/HomeCategories";
+import { HomeEmphasis } from "./home/HomeEmphasis";
+import { HomeForm } from "./home/HomeForm";
+import { HomeHero } from "./home/HomeHero";
+import { HomeRecentSales } from "./home/HomeRecentSales";
+
 interface SitePageProps {
   variables: SiteVariables;
   siteId: string;
@@ -12,26 +20,20 @@ interface SitePageProps {
 }
 
 /**
- * Wrapper público do site renderizado em `/sites/[slug]` (issue #160).
+ * Wrapper público do site renderizado em `/sites/[slug]` (issue #160 +
+ * #162).
  *
- * **MVP M2.1 — stub mínimo**. Apenas:
- *   - Injeta as CSS vars `--site-primary` e `--site-text-on-primary`
- *     consumidas por todos os Site Components (header, footer, form,
- *     etc.) — issue #161 e em diante.
- *   - Renderiza `<h1>` com `business_name` para desbloquear o E2E
- *     downstream (#166) que afere o nome do negócio.
- *   - Expõe `data-site-id` no wrapper para pinagem em testes Playwright.
+ * Compõe a Home completa: `<SiteHeader>` + 5 seções (`HomeHero`,
+ * `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) +
+ * `<SiteFooter>`.
  *
- * A composição real (Hero / Categories / Emphasis / Recent / About /
- * Contact / Stock / CarDetail) entra em M2.3-M2.5 (issues #162-#164).
- * Mantemos a API contratual `{ variables, siteId, slug }` agora pra que
- * o swap de stub para implementação completa não exija mudar o caller
- * em `app/sites/[slug]/page.tsx`.
+ * **CSS vars**: injeta `--site-primary` e `--site-text-on-primary` no
+ * wrapper — todos os Site Components consomem via `style` inline
+ * sanitizado ou Tailwind v4. Defesa em profundidade via `sanitizeHex`
+ * antes da injeção (input adversarial vira fallback `#0C0C0C`).
  *
- * **Defesa em profundidade**: cores hex passam por `sanitizeHex` antes
- * de virarem CSS vars — mesmo que a validação Zod de `SiteVariables`
- * tenha falhado por algum motivo, a string injetada no `style` é
- * sintaticamente válida (#RRGGBB) ou cai no fallback `#0C0C0C`.
+ * **Pin de teste**: `data-site-id` exposto no wrapper para asserts em
+ * E2E Playwright (#166).
  */
 export function SitePage({ variables, siteId, slug }: SitePageProps) {
   const primary = sanitizeHex(variables.primary_color);
@@ -49,15 +51,30 @@ export function SitePage({ variables, siteId, slug }: SitePageProps) {
       data-site-slug={slug}
       style={cssVars}
     >
-      <main className="mx-auto max-w-3xl px-6 py-16">
-        <h1 className="text-4xl font-bold tracking-tight">
-          {variables.business_name}
-        </h1>
-        <p className="mt-4 text-muted-foreground">
-          Site em construção — composição completa em M2.3-M2.5 (issues
-          #162-#164).
-        </p>
+      <SiteHeader variables={variables} slug={slug} activePage="home" />
+      <main>
+        <HomeHero
+          business_name={variables.business_name}
+          slogan={variables.slogan}
+          hero_image_url={variables.hero_image_url}
+          primary_color={variables.primary_color}
+          text_on_primary={variables.text_on_primary}
+          slug={slug}
+        />
+        <HomeCategories
+          categories={variables.home_categories}
+          slug={slug}
+        />
+        <HomeForm
+          siteId={siteId}
+          slug={slug}
+          primary_color={variables.primary_color}
+          text_on_primary={variables.text_on_primary}
+        />
+        <HomeEmphasis emphasis={variables.emphasis} />
+        <HomeRecentSales recent_sales={variables.recent_sales} />
       </main>
+      <SiteFooter variables={variables} />
     </div>
   );
 }
