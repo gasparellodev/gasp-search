@@ -56,6 +56,8 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 | `slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` com retry × 5 contra `lead_sites.slug`. Lança `SlugCollisionError` em exhaustão. Alfabeto sem `0/o/1/i/l`. |
 | `errors.ts` | `SlugCollisionError` (slug) + `GenerationError` / `GenerationErrorCode` (copy IA) — todos com contexto estruturado pra observabilidade. |
 | `generate-copy.ts` | `generateCopy(input)` — 1 call Anthropic Sonnet 4.6 com tool use forçado `emit_site_copy` + system prompt cacheado. Valida output via `SiteCopySchema.parse`. Sem retry interno; orquestrador (#159) decide via `GenerationError.retryable`. Exporta `SYSTEM_PROMPT`, `GENERATION_VERSION='v1.0.0'`, `GENERATION_MODEL='claude-sonnet-4-6'`. |
+| `sanitize.ts` | `sanitizeHex(input)` + `DEFAULT_HEX='#0C0C0C'`. Defesa em profundidade contra CSS injection: as cores `primary_color`/`text_on_primary` em `lead_sites.variables` são injetadas em `style="--site-primary: ..."` no `<SitePage>` wrapper. Mesmo com Zod no schema (#154), o banco pode ser editado fora do app e React `style` inline aceita qualquer string. Regex estrita `/^#[0-9a-f]{6}$/i`; tudo que não bate retorna `DEFAULT_HEX`. |
+| `site-form.schema.ts` | `SiteFormSchema` Zod do form público de captura (`SiteForm` em #161). Compartilhado entre Client Component (`react-hook-form` + `zodResolver`) e Server Action `submitSiteForm` — fonte única de verdade. Aceita `phone` com formatação livre (10–13 dígitos numéricos pós-strip); `lgpd: z.literal(true)` (consentimento obrigatório). |
 
 ## Contrato de erro do `generateCopy`
 
