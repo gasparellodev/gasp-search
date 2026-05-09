@@ -51,6 +51,10 @@ const cacheMocks = vi.hoisted(() => ({
   revalidatePath: vi.fn(),
 }));
 
+const evolutionMocks = vi.hoisted(() => ({
+  sendWhatsAppMessage: vi.fn(),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: supabaseMocks.serverClient,
 }));
@@ -81,6 +85,10 @@ vi.mock("@/lib/sites/generate-copy", async () => {
 vi.mock("next/cache", () => ({
   updateTag: cacheMocks.updateTag,
   revalidatePath: cacheMocks.revalidatePath,
+}));
+
+vi.mock("@/lib/evolution/send", () => ({
+  sendWhatsAppMessage: evolutionMocks.sendWhatsAppMessage,
 }));
 
 // ---------------------------------------------------------------------------
@@ -346,6 +354,7 @@ beforeEach(() => {
   siteMocks.generateCopy.mockReset();
   cacheMocks.updateTag.mockReset();
   cacheMocks.revalidatePath.mockReset();
+  evolutionMocks.sendWhatsAppMessage.mockReset();
   infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
   warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1948,5 +1957,363 @@ describe("restoreLeadSite — db_error", () => {
     const r = await restoreLeadSite(LEAD_SITE_ID);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toBe("db_error");
+  });
+});
+
+// ===========================================================================
+// sendLeadSiteWhatsApp (#171) — envio do site via WhatsApp / Evolution
+// ===========================================================================
+
+/**
+ * Builder de Supabase server-client para `sendLeadSiteWhatsApp`. O server
+ * client é tocado em duas tabelas:
+ *   - `lead_sites` (status guard + slug)
+ *   - `leads` (lookup de `name` para `business_name` no template)
+ *
+ * Aceita overrides parciais por tabela e devolve o mock compartilhado pra
+ * inspeção (`updateCalls`, `selectCalls`).
+ */
+function makeSendServerClient(opts: {
+  leadSite?: {
+    id: string;
+    lead_id: string;
+    slug: string;
+    status: string;
+  } | null;
+  leadName?: string | null;
+  fetchError?: unknown;
+}) {
+  return makeSupabaseClient({
+    lead_sites: {
+      leadResult: { data: opts.leadSite ?? null, error: opts.fetchError ?? null },
+    },
+    leads: {
+      leadResult: {
+        data: opts.leadName != null ? { name: opts.leadName } : null,
+        error: null,
+      },
+    },
+  });
+}
+
+describe("sendLeadSiteWhatsApp — auth + not_found", () => {
+  it("retorna { ok: false, error: 'auth' } quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+    // Sem auth, nem o helper de envio é tocado.
+    expect(evolutionMocks.sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+
+  it("retorna not_found quando RLS retorna null (cross-user)", async () => {
+    const server = makeSendServerClient({ leadSite: null });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+    expect(evolutionMocks.sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe("sendLeadSiteWhatsApp — status guard", () => {
+  it("retorna invalid_status quando status='draft'", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "draft-slug",
+        status: "draft",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+    expect(evolutionMocks.sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+
+  it("retorna invalid_status quando status='archived'", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "arc",
+        status: "archived",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+
+  it("aceita status='sent' (re-send permitido)", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "sent-slug",
+        status: "sent",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: true,
+      messageId: "m-1",
+      whatsappMsgId: "wa-1",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(true);
+    expect(evolutionMocks.sendWhatsAppMessage).toHaveBeenCalledOnce();
+  });
+});
+
+describe("sendLeadSiteWhatsApp — happy path", () => {
+  it("status='published' → renderiza template, envia, atualiza status='sent' + sent_at + cache", async () => {
+    // env é capturado no boot do módulo (`load()` em lib/env.ts) — tocar
+    // process.env aqui não muda o valor já carregado. Usamos o valor de
+    // VALID_ENV (`http://localhost:3000`) pra construir o site_url esperado.
+    const expectedSiteUrl = `${VALID_ENV.NEXT_PUBLIC_APP_URL}/sites/abc-touring-cars`;
+
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc-touring-cars",
+        status: "published",
+      },
+      leadName: "Touring Cars Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: true,
+      messageId: "msg-id",
+      whatsappMsgId: "wa-msg-id",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+
+    expect(r).toEqual({ ok: true });
+
+    // Helper recebeu content com business_name e site_url renderizados
+    const sendCall = evolutionMocks.sendWhatsAppMessage.mock.calls[0]?.[0] as {
+      userId: string;
+      leadId: string;
+      content: string;
+      aiGenerated: boolean;
+    };
+    expect(sendCall.userId).toBe(USER_ID);
+    expect(sendCall.leadId).toBe(VALID_LEAD_ID);
+    expect(sendCall.aiGenerated).toBe(false);
+    expect(sendCall.content).toContain("Touring Cars Recife");
+    expect(sendCall.content).toContain(expectedSiteUrl);
+    // Sem placeholders restantes
+    expect(sendCall.content).not.toMatch(/\{business_name\}|\{site_url\}/);
+
+    // Update status='sent' + sent_at
+    const updateCall = service.updateCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(updateCall).toBeTruthy();
+    const payload = updateCall!.payload as Record<string, unknown>;
+    expect(payload.status).toBe("sent");
+    expect(payload.sent_at).toEqual(expect.any(String));
+    expect(new Date(payload.sent_at as string).toString()).not.toBe(
+      "Invalid Date",
+    );
+    expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
+
+    // Cache invalidation
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:abc-touring-cars");
+    expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
+      `/leads/${VALID_LEAD_ID}`,
+    );
+  });
+
+  it("usa fallback 'Concessionária' quando lead.name está ausente", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "fallback-slug",
+        status: "published",
+      },
+      leadName: null,
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: true,
+      messageId: "m-1",
+      whatsappMsgId: "wa-1",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(true);
+
+    const sendCall = evolutionMocks.sendWhatsAppMessage.mock.calls[0]?.[0] as {
+      content: string;
+    };
+    expect(sendCall.content).toContain("Concessionária");
+  });
+});
+
+describe("sendLeadSiteWhatsApp — Evolution failures", () => {
+  it("retorna whatsapp_error quando instance_disconnected", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc",
+        status: "published",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: false,
+      reason: "instance_disconnected",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toBe("whatsapp_error");
+      expect(r.message).toMatch(/desconectada/i);
+    }
+    // Não atualiza status quando o envio falha.
+    expect(cacheMocks.updateTag).not.toHaveBeenCalled();
+  });
+
+  it("retorna whatsapp_error quando lead_missing_phone", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc",
+        status: "published",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: false,
+      reason: "lead_missing_phone",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toBe("whatsapp_error");
+      expect(r.message).toMatch(/telefone/i);
+    }
+  });
+
+  it("retorna whatsapp_error quando evolution_error genérico", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc",
+        status: "published",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: false,
+      reason: "evolution_error",
+      error: "boom",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("whatsapp_error");
+  });
+});
+
+describe("sendLeadSiteWhatsApp — db_error", () => {
+  it("retorna db_error quando update lead_sites falha pós-envio", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc",
+        status: "published",
+      },
+      leadName: "Toyota Recife",
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: {
+        updateResult: { error: { name: "PostgresError", message: "boom" } },
+      },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: true,
+      messageId: "m-1",
+      whatsappMsgId: "wa-1",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("db_error");
+    // Cache não é invalidado quando o tracking falha.
+    expect(cacheMocks.updateTag).not.toHaveBeenCalled();
   });
 });

@@ -14,7 +14,9 @@
  *  - #168 — Botão "Editar" liga ao `<LeadSiteEditModal>`.
  *  - #169 — Botões "Regerar" / "Arquivar" / "Restaurar" agora ATIVOS.
  *           Confirmação destrutiva via `<AlertDialog>` antes de arquivar.
- *  - #171 — "Enviar via WhatsApp" continua disabled até a issue mergear.
+ *  - #171 — "Enviar via WhatsApp" agora ATIVO em status `'published'` /
+ *           `'sent'` (re-send permitido). Dispara `sendLeadSiteWhatsApp`
+ *           com `useTransition` + toast.
  */
 
 import { useState, useTransition } from "react";
@@ -38,18 +40,15 @@ import {
   archiveLeadSite,
   generateLeadSite,
   restoreLeadSite,
+  sendLeadSiteWhatsApp,
 } from "@/app/actions/lead-site";
 import type {
   GenerateLeadSiteResult,
   LeadSiteStatusActionResult,
+  SendLeadSiteWhatsAppResult,
 } from "@/app/actions/lead-site";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 import { LeadSiteEditModal } from "./LeadSiteEditModal";
@@ -114,6 +113,30 @@ function statusActionErrorMessage(
   }
 }
 
+/**
+ * Mapeia o `error` da Server Action `sendLeadSiteWhatsApp` (#171) pra
+ * mensagem PT-BR — `whatsapp_error` reaproveita a mensagem da Server Action,
+ * que já vem mapeada do `reason` do helper `sendWhatsAppMessage`.
+ */
+function sendActionErrorMessage(
+  error: SendLeadSiteWhatsAppResult & { ok: false },
+): string {
+  switch (error.error) {
+    case "auth":
+      return "Sessão expirada. Faça login novamente.";
+    case "not_found":
+      return "Site não encontrado.";
+    case "invalid_status":
+      return "O site não está em um estado que permita o envio.";
+    case "whatsapp_error":
+      return error.message ?? "Falha ao enviar via WhatsApp.";
+    case "db_error":
+      return "Mensagem enviada, mas falha ao registrar. Tente reenviar.";
+    default:
+      return "Erro desconhecido.";
+  }
+}
+
 export function LeadSiteCardActions({
   leadSite,
   leadId,
@@ -123,6 +146,7 @@ export function LeadSiteCardActions({
   const [isGenerating, startGenerateTransition] = useTransition();
   const [isArchiving, startArchiveTransition] = useTransition();
   const [isRestoring, startRestoreTransition] = useTransition();
+  const [isSending, startSendTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
@@ -193,6 +217,29 @@ export function LeadSiteCardActions({
         }
       } catch {
         toast.error("Não foi possível restaurar o site", {
+          description: "Erro inesperado. Tente novamente.",
+        });
+      }
+    });
+  }
+
+  function handleSend() {
+    if (!leadSite) return;
+    startSendTransition(async () => {
+      try {
+        const result = await sendLeadSiteWhatsApp(leadSite.id);
+        if (result.ok) {
+          toast.success("Site enviado!", {
+            description: "A mensagem foi disparada via WhatsApp.",
+          });
+          router.refresh();
+        } else {
+          toast.error("Não foi possível enviar o site", {
+            description: sendActionErrorMessage(result),
+          });
+        }
+      } catch {
+        toast.error("Não foi possível enviar o site", {
           description: "Erro inesperado. Tente novamente.",
         });
       }
@@ -361,24 +408,27 @@ export function LeadSiteCardActions({
           </Button>
         </ArchiveConfirmDialog>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled
-                aria-disabled="true"
-                data-testid="lead-site-whatsapp-button"
-              >
-                <Send className="size-4" aria-hidden="true" />
-                Enviar via WhatsApp
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Disponível em #171</TooltipContent>
-        </Tooltip>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleSend}
+          disabled={isSending}
+          aria-busy={isSending}
+          data-testid="lead-site-whatsapp-button"
+        >
+          {isSending ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Enviando…
+            </>
+          ) : (
+            <>
+              <Send className="size-4" aria-hidden="true" />
+              Enviar via WhatsApp
+            </>
+          )}
+        </Button>
       </div>
     </TooltipProvider>
   );

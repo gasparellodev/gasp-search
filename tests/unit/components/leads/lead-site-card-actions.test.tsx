@@ -24,6 +24,7 @@ const hoisted = vi.hoisted(() => ({
   generateLeadSite: vi.fn(),
   archiveLeadSite: vi.fn(),
   restoreLeadSite: vi.fn(),
+  sendLeadSiteWhatsApp: vi.fn(),
   refresh: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -34,6 +35,7 @@ vi.mock("@/app/actions/lead-site", () => ({
   generateLeadSite: hoisted.generateLeadSite,
   archiveLeadSite: hoisted.archiveLeadSite,
   restoreLeadSite: hoisted.restoreLeadSite,
+  sendLeadSiteWhatsApp: hoisted.sendLeadSiteWhatsApp,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -368,7 +370,7 @@ describe("LeadSiteCardActions — AC3 URL copy", () => {
 // ---------------------------------------------------------------------------
 
 describe("LeadSiteCardActions — #169 buttons enablement", () => {
-  it("estado `published`: editar (#168) + regerar/arquivar (#169) ativos; whatsapp (#171) disabled", () => {
+  it("estado `published`: editar (#168) + regerar/arquivar (#169) + whatsapp (#171) todos ativos", () => {
     render(
       <LeadSiteCardActions
         leadSite={makeLeadSite({ status: "published" })}
@@ -379,10 +381,19 @@ describe("LeadSiteCardActions — #169 buttons enablement", () => {
     expect(screen.getByTestId("lead-site-edit-button")).not.toBeDisabled();
     expect(screen.getByTestId("lead-site-regen-button")).not.toBeDisabled();
     expect(screen.getByTestId("lead-site-archive-button")).not.toBeDisabled();
+    // #171: WhatsApp button agora ATIVO em published/sent
+    expect(screen.getByTestId("lead-site-whatsapp-button")).not.toBeDisabled();
+  });
 
-    const wpp = screen.getByTestId("lead-site-whatsapp-button");
-    expect(wpp).toBeDisabled();
-    expect(wpp).toHaveAttribute("aria-disabled", "true");
+  it("estado `sent` (re-send permitido): whatsapp button ainda ativo", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "sent" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(screen.getByTestId("lead-site-whatsapp-button")).not.toBeDisabled();
   });
 
   it("estado `archived` mostra botão 'Restaurar' ativo", () => {
@@ -698,6 +709,128 @@ describe("LeadSiteCardActions — #169 restore flow", () => {
       />,
     );
     await user.click(screen.getByTestId("lead-site-restore-button"));
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    expect(hoisted.toastError.mock.calls[0]![1].description).toMatch(
+      /inesperado/i,
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #171 — Send WhatsApp flow
+// ---------------------------------------------------------------------------
+
+describe("LeadSiteCardActions — #171 send WhatsApp flow", () => {
+  it("click em 'Enviar via WhatsApp' chama sendLeadSiteWhatsApp + toast.success + router.refresh", async () => {
+    hoisted.sendLeadSiteWhatsApp.mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    const leadSite = makeLeadSite({ status: "published" });
+    render(
+      <LeadSiteCardActions
+        leadSite={leadSite}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-whatsapp-button"));
+    await waitFor(() => {
+      expect(hoisted.sendLeadSiteWhatsApp).toHaveBeenCalledWith(leadSite.id);
+    });
+    expect(hoisted.toastSuccess).toHaveBeenCalledWith(
+      "Site enviado!",
+      expect.objectContaining({
+        description: expect.stringMatching(/whatsapp/i),
+      }),
+    );
+    expect(hoisted.refresh).toHaveBeenCalled();
+  });
+
+  it("erro 'whatsapp_error' em send dispara toast.error com mensagem mapeada", async () => {
+    hoisted.sendLeadSiteWhatsApp.mockResolvedValue({
+      ok: false,
+      error: "whatsapp_error",
+      message: "Instância do WhatsApp desconectada. Reconecte em Configurações.",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-whatsapp-button"));
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    expect(hoisted.toastError.mock.calls[0]![1].description).toMatch(
+      /desconectada/i,
+    );
+    expect(hoisted.refresh).not.toHaveBeenCalled();
+  });
+
+  it("loading state em send mostra 'Enviando…' + aria-busy + disabled", async () => {
+    let resolve!: (value: { ok: true }) => void;
+    hoisted.sendLeadSiteWhatsApp.mockImplementationOnce(
+      () =>
+        new Promise((r) => {
+          resolve = r;
+        }),
+    );
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-whatsapp-button"));
+    await waitFor(() => {
+      const btn = screen.getByTestId("lead-site-whatsapp-button");
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveAttribute("aria-busy", "true");
+      expect(btn).toHaveTextContent(/Enviando/i);
+    });
+    resolve({ ok: true });
+  });
+
+  it("erro 'invalid_status' em send mapeia mensagem do estado", async () => {
+    hoisted.sendLeadSiteWhatsApp.mockResolvedValue({
+      ok: false,
+      error: "invalid_status",
+      message: "ignored",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-whatsapp-button"));
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    expect(hoisted.toastError.mock.calls[0]![1].description).toMatch(
+      /estado/i,
+    );
+  });
+
+  it("exception inesperada em send dispara toast.error genérico", async () => {
+    hoisted.sendLeadSiteWhatsApp.mockRejectedValue(new Error("boom"));
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-whatsapp-button"));
     await waitFor(() => {
       expect(hoisted.toastError).toHaveBeenCalled();
     });
