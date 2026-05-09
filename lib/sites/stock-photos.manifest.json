@@ -1,0 +1,117 @@
+{
+  "version": "1.0.0",
+  "cars": [
+    {
+      "id": "bmw-m2",
+      "category": "esportivo",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/m2.png",
+      "alt": "BMW M2 branco"
+    },
+    {
+      "id": "range-rover",
+      "category": "suv",
+      "condition": "0km",
+      "color": "preto",
+      "url": "/assets/stock/range-rover.png",
+      "alt": "Range Rover preto"
+    },
+    {
+      "id": "ram-1500",
+      "category": "picape",
+      "condition": "0km",
+      "color": "preto",
+      "url": "/assets/stock/ram-1500.png",
+      "alt": "RAM 1500 preta"
+    },
+    {
+      "id": "audi-rs6",
+      "category": "esportivo",
+      "condition": "0km",
+      "color": "cinza",
+      "url": "/assets/stock/rs6.png",
+      "alt": "Audi RS6 cinza"
+    },
+    {
+      "id": "toyota-sw4",
+      "category": "suv",
+      "condition": "0km",
+      "color": "preto",
+      "url": "/assets/stock/sw46.png",
+      "alt": "Toyota SW4 preta"
+    },
+    {
+      "id": "ford-mustang",
+      "category": "esportivo",
+      "condition": "0km",
+      "color": "amarelo",
+      "url": "/assets/stock/mustang.png",
+      "alt": "Ford Mustang amarelo"
+    },
+    {
+      "id": "ford-raptor",
+      "category": "picape",
+      "condition": "0km",
+      "color": "preto",
+      "url": "/assets/stock/raptor.png",
+      "alt": "Ford F-150 Raptor preto"
+    },
+    {
+      "id": "porsche-gt3",
+      "category": "esportivo",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/gt3.png",
+      "alt": "Porsche 911 GT3 branco"
+    },
+    {
+      "id": "porsche-macan-gts",
+      "category": "suv",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/macan-gts.png",
+      "alt": "Porsche Macan GTS branco"
+    },
+    {
+      "id": "bmw-i4",
+      "category": "sedan",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/i4.png",
+      "alt": "BMW i4 branco"
+    },
+    {
+      "id": "byd-seal",
+      "category": "sedan",
+      "condition": "0km",
+      "color": "preto",
+      "url": "/assets/stock/seal.png",
+      "alt": "BYD Seal preto"
+    },
+    {
+      "id": "toyota-gr-corolla",
+      "category": "esportivo",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/gr-corolla.png",
+      "alt": "Toyota GR Corolla branco"
+    },
+    {
+      "id": "honda-type-r",
+      "category": "esportivo",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/type-r.png",
+      "alt": "Honda Civic Type R branco"
+    },
+    {
+      "id": "land-rover-defender",
+      "category": "suv",
+      "condition": "0km",
+      "color": "branco",
+      "url": "/assets/stock/defender.png",
+      "alt": "Land Rover Defender branco"
+    }
+  ]
+}
