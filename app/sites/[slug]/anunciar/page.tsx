@@ -8,7 +8,9 @@
  * **`SiteVariables.safeParse`** antes do render — defesa em
  * profundidade contra JSON quebrado em `lead_sites.variables`.
  *
- * **`metadata.robots`**: noindex/nofollow.
+ * **`generateMetadata` dinâmico (#165)**: title + OG/Twitter via
+ * `buildSiteMetadata` no happy path; fallback `noindex/nofollow` puro
+ * preservado em todos os caminhos.
  */
 import "server-only";
 
@@ -18,10 +20,32 @@ import type { Metadata } from "next";
 import { AdvertiseSection } from "@/components/sites/advertise/AdvertiseSection";
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
+import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { SiteVariables } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+const NOINDEX_FALLBACK: Metadata = {
+  robots: { index: false, follow: false },
+};
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const site = await getSite(slug);
+  if (!site) return NOINDEX_FALLBACK;
+  if (site.status === "draft" || site.status === "archived") {
+    return NOINDEX_FALLBACK;
+  }
+  const parsed = SiteVariables.safeParse(site.variables);
+  if (!parsed.success) return NOINDEX_FALLBACK;
+  return buildSiteMetadata({
+    variables: parsed.data,
+    pageLabel: "Anunciar",
+  });
 }
 
 export default async function AnunciarPage({ params }: PageProps) {
@@ -59,7 +83,3 @@ export default async function AnunciarPage({ params }: PageProps) {
     </SitePage>
   );
 }
-
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};

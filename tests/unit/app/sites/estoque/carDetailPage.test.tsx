@@ -140,9 +140,84 @@ describe("/sites/[slug]/estoque/[carSlug] — routing", () => {
   });
 });
 
-describe("/sites/[slug]/estoque/[carSlug] — metadata", () => {
-  it("export `metadata.robots = { index: false, follow: false }`", async () => {
-    const mod = await import("@/app/sites/[slug]/estoque/[carSlug]/page");
-    expect(mod.metadata?.robots).toEqual({ index: false, follow: false });
+describe("/sites/[slug]/estoque/[carSlug] — generateMetadata (#165)", () => {
+  it("happy path: published + carSlug válido → title `${business_name} — ${brand} ${model} ${year}` + noindex", async () => {
+    getSiteMock.mockResolvedValue(makeRow("published"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG, carSlug: VALID_CAR_SLUG }),
+    });
+
+    // Fixture: { brand: 'Toyota', model: 'Corolla', year: 2022 }
+    expect(meta.title).toBe(
+      `${SITE_FIXTURE.business_name} — Toyota Corolla 2022`,
+    );
+    expect(meta.robots).toEqual({ index: false, follow: false });
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
+    expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+  });
+
+  it("fallback path: getSite null → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(null);
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: "x", carSlug: VALID_CAR_SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+    expect(meta.title).toBeUndefined();
+  });
+
+  it("fallback path: draft → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(makeRow("draft"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG, carSlug: VALID_CAR_SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: archived → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(makeRow("archived"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG, carSlug: VALID_CAR_SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: variables inválido → APENAS noindex", async () => {
+    const broken = {
+      ...SITE_FIXTURE,
+      primary_color: "red",
+    } as unknown as SiteVariables;
+    getSiteMock.mockResolvedValue(makeRow("published", broken));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG, carSlug: VALID_CAR_SLUG }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+  });
+
+  it("fallback path: carSlug não encontrado em cars[] → APENAS noindex", async () => {
+    getSiteMock.mockResolvedValue(makeRow("published"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG, carSlug: "carro-fantasma" }),
+    });
+    expect(meta).toEqual({ robots: { index: false, follow: false } });
+    expect(meta.title).toBeUndefined();
   });
 });

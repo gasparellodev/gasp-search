@@ -60,8 +60,31 @@ Fonte canônica do design: §8 do spec mestre em
    | `archived` | 404 (V1 — TODO 410 V2) |
    | `published` | site renderizado |
    | `sent` | site renderizado |
-6. **`metadata.robots = { index: false, follow: false }`.** Hardening
-   adicional via `X-Robots-Tag` header em V2.
+6. **`generateMetadata` dinâmico (#165) com `noindex/nofollow`
+   PRESERVADO em todos os caminhos.** Cada rota exporta
+   `async generateMetadata({ params })` que:
+   - Em **happy path** (status `published`/`sent` + `safeParse` ok)
+     delega pra `buildSiteMetadata({ variables, pageLabel })` em
+     `lib/sites/metadata.ts` — emite title `${business_name} —
+     ${pageLabel}`, description (slogan ≥40 chars ou fallback), OG
+     image (`logo_url`) e Twitter `summary_large_image`. `robots:
+     { index: false, follow: false }` segue presente.
+   - Em **fallback path** (`getSite` null, `draft`, `archived`,
+     `safeParse` falho, ou `cars.find` undefined no detalhe-do-carro)
+     retorna **apenas** `{ robots: { index: false, follow: false } }`
+     — sem expor title/OG/Twitter (evita vazar nome/logo de site não
+     publicado ou inválido).
+
+   Por que não usar `metadata` estático? V1 tinha `export const
+   metadata = { robots: noindex }`. Funcionava, mas perdia OG/Twitter
+   pra preview rico em compartilhamento via WhatsApp (caso de uso
+   primário do MVP). `generateMetadata` resolve isso sem perder
+   `noindex`.
+
+   `pageLabel` por rota: `Concessionária` (Home), `Sobre nós`,
+   `Contato`, `Anunciar`, `Estoque`, `${car.brand} ${car.model}
+   ${car.year}` (detalhe). Hardening adicional via `X-Robots-Tag`
+   header em V2.
 7. **Sem PII em logs.** Nunca logar `variables` cru, `business_name`,
    `email`, telefone, ou copy gerada — o site contém todos esses dados.
 

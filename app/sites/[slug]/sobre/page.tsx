@@ -17,8 +17,11 @@
  * **`SiteVariables.safeParse`** antes do render — defesa em
  * profundidade contra JSON quebrado em `lead_sites.variables`.
  *
- * **`metadata.robots`**: noindex/nofollow (site público de lead não
- * deve aparecer em SERP).
+ * **`generateMetadata` dinâmico (#165)**: title `${business_name} —
+ * Sobre nós`, description vinda do slogan (≥40 chars) ou fallback, OG
+ * image em `logo_url`, Twitter `summary_large_image`. Fallback paths
+ * retornam apenas `{ robots: noindex }` — `noindex/nofollow` PRESERVADO
+ * em todos os caminhos.
  */
 import "server-only";
 
@@ -28,10 +31,32 @@ import type { Metadata } from "next";
 import { AboutSection } from "@/components/sites/about/AboutSection";
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
+import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { SiteVariables } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+}
+
+const NOINDEX_FALLBACK: Metadata = {
+  robots: { index: false, follow: false },
+};
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const site = await getSite(slug);
+  if (!site) return NOINDEX_FALLBACK;
+  if (site.status === "draft" || site.status === "archived") {
+    return NOINDEX_FALLBACK;
+  }
+  const parsed = SiteVariables.safeParse(site.variables);
+  if (!parsed.success) return NOINDEX_FALLBACK;
+  return buildSiteMetadata({
+    variables: parsed.data,
+    pageLabel: "Sobre nós",
+  });
 }
 
 export default async function SobrePage({ params }: PageProps) {
@@ -63,7 +88,3 @@ export default async function SobrePage({ params }: PageProps) {
     </SitePage>
   );
 }
-
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};

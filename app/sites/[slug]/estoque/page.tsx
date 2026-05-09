@@ -16,7 +16,12 @@
  * **`SiteVariables.safeParse`** antes do render — defesa em
  * profundidade contra JSON quebrado em `lead_sites.variables`.
  *
- * **`metadata.robots`**: noindex/nofollow.
+ * **`generateMetadata` dinâmico (#165)**: title `${business_name} —
+ * Estoque`, OG/Twitter via `buildSiteMetadata` no happy path; fallback
+ * `noindex/nofollow` puro preservado em todos os caminhos. Ignoramos
+ * `searchParams.categoria` no metadata — title da listagem é estático
+ * por filtro pra evitar duplicate-content sinaler em SERP (mesmo com
+ * noindex; defesa em camadas).
  */
 import "server-only";
 
@@ -26,11 +31,35 @@ import type { Metadata } from "next";
 import { SitePage } from "@/components/sites/SitePage";
 import { StockSection } from "@/components/sites/stock/StockSection";
 import { getSite } from "@/lib/sites/get-site";
+import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { SiteVariables } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ categoria?: string | string[] }>;
+}
+
+const NOINDEX_FALLBACK: Metadata = {
+  robots: { index: false, follow: false },
+};
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const site = await getSite(slug);
+  if (!site) return NOINDEX_FALLBACK;
+  if (site.status === "draft" || site.status === "archived") {
+    return NOINDEX_FALLBACK;
+  }
+  const parsed = SiteVariables.safeParse(site.variables);
+  if (!parsed.success) return NOINDEX_FALLBACK;
+  return buildSiteMetadata({
+    variables: parsed.data,
+    pageLabel: "Estoque",
+  });
 }
 
 export default async function EstoquePage({
@@ -74,7 +103,3 @@ export default async function EstoquePage({
     </SitePage>
   );
 }
-
-export const metadata: Metadata = {
-  robots: { index: false, follow: false },
-};
