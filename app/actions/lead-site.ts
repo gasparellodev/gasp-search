@@ -985,3 +985,214 @@ export async function updateLeadSiteVariables(
 
   return { ok: true, slug: existing.slug };
 }
+
+// ---------------------------------------------------------------------------
+// archiveLeadSite (#169) — arquivar site publicado/enviado
+// ---------------------------------------------------------------------------
+
+/**
+ * Retorno discriminado de `archiveLeadSite` e `restoreLeadSite` (#169).
+ *
+ * Erros:
+ *  - `auth`           — usuário não autenticado.
+ *  - `not_found`      — leadSiteId não existe ou não pertence ao usuário (RLS).
+ *  - `invalid_status` — status do site não permite a transição (defesa em
+ *                       profundidade — UI já bloqueia).
+ *  - `db_error`       — falha de infra na escrita.
+ */
+export type LeadSiteStatusActionResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: "auth" | "not_found" | "invalid_status" | "db_error";
+      message: string;
+    };
+
+/**
+ * Server Action `archiveLeadSite(leadSiteId)` — arquiva um site (#169).
+ *
+ * Pipeline:
+ *  1. Auth (Supabase) — sem usuário → `error: 'auth'`.
+ *  2. Fetch lead_sites por id (via authenticated client, RLS isola).
+ *  3. **Status guard** — `'published'` ou `'sent'` apenas. Caso contrário
+ *     → `error: 'invalid_status'`.
+ *  4. Update via service_role: `status='archived'`, `archived_at=now`.
+ *  5. Cache invalidation: `updateTag('site:{slug}')` + `revalidatePath`.
+ *
+ * **Status mantido em DB mas a rota pública /sites/[slug] V1 ainda renderiza
+ * sites arquivados** (V2: bloquear via guard na rota pra mostrar 410 Gone).
+ * Por hora, `updateTag` força refresh em quem tem o link cacheado.
+ */
+export async function archiveLeadSite(
+  leadSiteId: string,
+): Promise<LeadSiteStatusActionResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para arquivar o site.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Status guard (defesa em profundidade — UI já bloqueia)
+  if (existing.status !== "published" && existing.status !== "sent") {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message: "Apenas sites publicados ou enviados podem ser arquivados.",
+    };
+  }
+
+  // Step 4: Update via service_role
+  const service = createServiceSupabase();
+  const nowIso = new Date().toISOString();
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({
+      status: "archived" as const,
+      archived_at: nowIso,
+      updated_at: nowIso,
+    })
+    .eq("id", leadSiteId);
+
+  if (updateError) {
+    console.error("archiveLeadSite.persist", {
+      action: "archiveLeadSite",
+      step: "persist",
+      leadSiteId,
+      userId,
+      errorName: updateError.name ?? "unknown",
+      errorMessage: updateError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao arquivar o site. Tente novamente.",
+    };
+  }
+
+  // Step 5: Cache invalidation
+  updateTag(`site:${existing.slug}`);
+  if (existing.lead_id) {
+    revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// restoreLeadSite (#169) — restaura site arquivado para publicado
+// ---------------------------------------------------------------------------
+
+/**
+ * Server Action `restoreLeadSite(leadSiteId)` — restaura um site arquivado
+ * de volta para `published` (#169).
+ *
+ * Pipeline:
+ *  1. Auth (Supabase) — sem usuário → `error: 'auth'`.
+ *  2. Fetch lead_sites por id (via authenticated client, RLS isola).
+ *  3. **Status guard** — `'archived'` apenas. Caso contrário
+ *     → `error: 'invalid_status'`.
+ *  4. Update via service_role: `status='published'`, `archived_at=null`.
+ *  5. Cache invalidation: `updateTag('site:{slug}')` + `revalidatePath`.
+ */
+export async function restoreLeadSite(
+  leadSiteId: string,
+): Promise<LeadSiteStatusActionResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para restaurar o site.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Status guard
+  if (existing.status !== "archived") {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message: "Apenas sites arquivados podem ser restaurados.",
+    };
+  }
+
+  // Step 4: Update via service_role
+  const service = createServiceSupabase();
+  const nowIso = new Date().toISOString();
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({
+      status: "published" as const,
+      archived_at: null,
+      updated_at: nowIso,
+    })
+    .eq("id", leadSiteId);
+
+  if (updateError) {
+    console.error("restoreLeadSite.persist", {
+      action: "restoreLeadSite",
+      step: "persist",
+      leadSiteId,
+      userId,
+      errorName: updateError.name ?? "unknown",
+      errorMessage: updateError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao restaurar o site. Tente novamente.",
+    };
+  }
+
+  // Step 5: Cache invalidation
+  updateTag(`site:${existing.slug}`);
+  if (existing.lead_id) {
+    revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  return { ok: true };
+}

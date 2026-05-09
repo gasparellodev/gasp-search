@@ -148,7 +148,7 @@ describe("types/database", () => {
     >();
   });
 
-  it("Tables<'lead_sites'> tem todas as 14 colunas tipadas (AC8 da issue #153)", () => {
+  it("Tables<'lead_sites'> tem todas as 15 colunas tipadas (AC8 #153 + archived_at #169)", () => {
     type LeadSiteRow = Tables<"lead_sites">;
     expectTypeOf<LeadSiteRow["id"]>().toBeString();
     expectTypeOf<LeadSiteRow["user_id"]>().toBeString();
@@ -164,6 +164,7 @@ describe("types/database", () => {
     expectTypeOf<LeadSiteRow["generated_at"]>().toEqualTypeOf<string | null>();
     expectTypeOf<LeadSiteRow["published_at"]>().toEqualTypeOf<string | null>();
     expectTypeOf<LeadSiteRow["sent_at"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<LeadSiteRow["archived_at"]>().toEqualTypeOf<string | null>();
     expectTypeOf<LeadSiteRow["view_count"]>().toBeNumber();
     expectTypeOf<LeadSiteRow["last_viewed_at"]>().toEqualTypeOf<
       string | null
@@ -171,7 +172,7 @@ describe("types/database", () => {
     expectTypeOf<LeadSiteRow["created_at"]>().toBeString();
     expectTypeOf<LeadSiteRow["updated_at"]>().toBeString();
 
-    // Sanity: todas as 14 colunas estão presentes (não mais, não menos)
+    // Sanity: todas as 15 colunas estão presentes (não mais, não menos)
     type Cols = keyof LeadSiteRow;
     expectTypeOf<Cols>().toEqualTypeOf<
       | "id"
@@ -184,6 +185,7 @@ describe("types/database", () => {
       | "generated_at"
       | "published_at"
       | "sent_at"
+      | "archived_at"
       | "view_count"
       | "last_viewed_at"
       | "created_at"

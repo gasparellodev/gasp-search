@@ -51,7 +51,7 @@ Caso contrário, prefira API route REST em `app/api/`.
 |---|---|
 | `site-form.ts` | `submitSiteForm(siteId, payload)` — Server Action chamada pelo `<SiteForm>` público (#161). MVP: stub que valida via `SiteFormSchema` e retorna `{ success: true }`. Persistência em `site_form_submissions` é follow-up. |
 | `site-announcement.ts` | `submitAnnouncement(siteId, payload)` — Server Action stub V1 chamada pelo `<AnnounceForm>` público (#163). Valida via `AnnouncementSchema` e retorna `{ ok: true } \| { ok: false; error }`. **Nota**: usa `ok` em vez de `success` (variação aprovada na issue #163 — a discriminated union shape do retorno está documentada inline). Persistência em `lead_announcements` é follow-up (tabela ainda não existe). Sem PII em logs. |
-| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. **Também exporta `updateLeadSiteVariables(leadSiteId, patch)`** (#168): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`) → `SiteVariables.partial().safeParse` → `safeUrl` em URLs → merge shallow → `SiteVariables.parse` final → update via service_role → `updateTag` + `revalidatePath`. Retorno `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'validation' \| 'db_error'; message }`. |
+| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. **Também exporta `updateLeadSiteVariables(leadSiteId, patch)`** (#168): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`) → `SiteVariables.partial().safeParse` → `safeUrl` em URLs → merge shallow → `SiteVariables.parse` final → update via service_role → `updateTag` + `revalidatePath`. Retorno `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'validation' \| 'db_error'; message }`. **Mais `archiveLeadSite(leadSiteId)` e `restoreLeadSite(leadSiteId)`** (#169): ambas com pipeline auth → fetch row (RLS) → status guard → update via service_role → `updateTag` + `revalidatePath`. `archiveLeadSite` exige status `'published' \| 'sent'` e seta `status='archived'` + `archived_at=now`. `restoreLeadSite` exige status `'archived'` e seta `status='published'` + `archived_at=null`. Retorno compartilhado `LeadSiteStatusActionResult = { ok: true } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'db_error'; message }`. |
 
 ## Dependências
 
@@ -86,6 +86,28 @@ Caso contrário, prefira API route REST em `app/api/`.
 | `SiteVariables.partial()` falha em campos do patch | `validation` | n/a |
 | `SiteVariables.parse(merged)` final falha (URL maliciosa virou null/empty, etc.) | `validation` | n/a (sem update) |
 | Update DB error | `db_error` | n/a |
+
+### `archiveLeadSite` (#169)
+
+| Caminho | error |
+|---|---|
+| Sem auth | `auth` |
+| Site inexistente / RLS bloqueia | `not_found` |
+| Status ≠ `'published'` e ≠ `'sent'` (ex: `'draft'` ou `'archived'`) | `invalid_status` |
+| Update DB error | `db_error` |
+
+Sucesso → `{ ok: true }`. Persistência: `status='archived'`, `archived_at=now`, `updated_at=now`.
+
+### `restoreLeadSite` (#169)
+
+| Caminho | error |
+|---|---|
+| Sem auth | `auth` |
+| Site inexistente / RLS bloqueia | `not_found` |
+| Status ≠ `'archived'` (ex: `'published'`, `'sent'`, `'draft'`) | `invalid_status` |
+| Update DB error | `db_error` |
+
+Sucesso → `{ ok: true }`. Persistência: `status='published'`, `archived_at=null`, `updated_at=now`.
 
 ## Quando atualizar este `CLAUDE.md`
 

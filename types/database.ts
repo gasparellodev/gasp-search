@@ -384,6 +384,7 @@ export interface Database {
           generated_at: string | null;
           published_at: string | null;
           sent_at: string | null;
+          archived_at: string | null;
           view_count: number;
           last_viewed_at: string | null;
           created_at: string;
@@ -400,6 +401,7 @@ export interface Database {
           generated_at?: string | null;
           published_at?: string | null;
           sent_at?: string | null;
+          archived_at?: string | null;
           view_count?: number;
           last_viewed_at?: string | null;
           created_at?: string;
@@ -416,6 +418,7 @@ export interface Database {
           generated_at?: string | null;
           published_at?: string | null;
           sent_at?: string | null;
+          archived_at?: string | null;
           view_count?: number;
           last_viewed_at?: string | null;
           created_at?: string;

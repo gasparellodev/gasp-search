@@ -1608,3 +1608,345 @@ describe("updateLeadSiteVariables — db_error", () => {
     if (!r.ok) expect(r.error).toBe("db_error");
   });
 });
+
+// ===========================================================================
+// archiveLeadSite (#169) — arquivamento manual
+// ===========================================================================
+
+describe("archiveLeadSite — auth + not_found", () => {
+  it("retorna { ok: false, error: 'auth' } quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+  });
+
+  it("retorna not_found quando RLS retorna null (cross-user)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+  });
+});
+
+describe("archiveLeadSite — status guard", () => {
+  it("retorna invalid_status quando status='draft'", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "draft-slug",
+            status: "draft",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+
+  it("retorna invalid_status quando status='archived' (já arquivado)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "archived-slug",
+            status: "archived",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+});
+
+describe("archiveLeadSite — happy path", () => {
+  it("status='published' → update status='archived', archived_at + cache invalidation", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc123-toyota",
+            status: "published",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+
+    expect(r.ok).toBe(true);
+
+    const updateCall = service.updateCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(updateCall).toBeTruthy();
+    const payload = updateCall!.payload as Record<string, unknown>;
+    expect(payload.status).toBe("archived");
+    expect(payload.archived_at).toEqual(expect.any(String));
+    // ISO string válida
+    expect(new Date(payload.archived_at as string).toString()).not.toBe(
+      "Invalid Date",
+    );
+    expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
+
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:abc123-toyota");
+    expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
+      `/leads/${VALID_LEAD_ID}`,
+    );
+  });
+
+  it("status='sent' (espelho de published) também é arquivável", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "sent-slug",
+            status: "sent",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(true);
+  });
+});
+
+describe("archiveLeadSite — db_error", () => {
+  it("retorna db_error quando update falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: {
+        updateResult: { error: { name: "PostgresError", message: "boom" } },
+      },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { archiveLeadSite } = await import("@/app/actions/lead-site");
+    const r = await archiveLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("db_error");
+  });
+});
+
+// ===========================================================================
+// restoreLeadSite (#169) — restauração de site arquivado
+// ===========================================================================
+
+describe("restoreLeadSite — auth + not_found", () => {
+  it("retorna { ok: false, error: 'auth' } quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { restoreLeadSite } = await import("@/app/actions/lead-site");
+    const r = await restoreLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+  });
+
+  it("retorna not_found quando RLS retorna null", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { restoreLeadSite } = await import("@/app/actions/lead-site");
+    const r = await restoreLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+  });
+});
+
+describe("restoreLeadSite — status guard", () => {
+  it("retorna invalid_status quando status='published' (não arquivado)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "published",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { restoreLeadSite } = await import("@/app/actions/lead-site");
+    const r = await restoreLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+
+  it("retorna invalid_status quando status='draft'", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "draft-slug",
+            status: "draft",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { restoreLeadSite } = await import("@/app/actions/lead-site");
+    const r = await restoreLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+});
+
+describe("restoreLeadSite — happy path", () => {
+  it("status='archived' → update status='published', archived_at=null + cache invalidation", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "archived-slug",
+            status: "archived",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { restoreLeadSite } = await import("@/app/actions/lead-site");
+    const r = await restoreLeadSite(LEAD_SITE_ID);
+
+    expect(r.ok).toBe(true);
+
+    const updateCall = service.updateCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(updateCall).toBeTruthy();
+    const payload = updateCall!.payload as Record<string, unknown>;
+    expect(payload.status).toBe("published");
+    expect(payload.archived_at).toBeNull();
+    expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
+
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:archived-slug");
+    expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
+      `/leads/${VALID_LEAD_ID}`,
+    );
+  });
+});
+
+describe("restoreLeadSite — db_error", () => {
+  it("retorna db_error quando update falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc",
+            status: "archived",
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: {
+        updateResult: { error: { name: "PostgresError", message: "boom" } },
+      },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { restoreLeadSite } = await import("@/app/actions/lead-site");
+    const r = await restoreLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("db_error");
+  });
+});
