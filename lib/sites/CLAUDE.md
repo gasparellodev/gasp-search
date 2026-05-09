@@ -10,8 +10,10 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 - Geração de copy via Anthropic (`generate-copy.ts`, #158).
 - Banco V1 de stock photos para placeholder do site (`stock-photos.ts` +
   `stock-photos.manifest.json` + `stock-photos.schema.ts`, #157).
-- Futuramente: orquestração `generateLeadSite` (#159), pipeline de brand
-  assets (#156).
+- Pipeline de brand assets (`brand-assets.ts` +
+  `brand-assets.types.ts`, #156) — cascata logo, cor primária com WCAG,
+  fotos com fallback, carros placeholder.
+- Futuramente: orquestração `generateLeadSite` (#159).
 
 ## Como adicionar
 
@@ -63,6 +65,8 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 | `stock-photos.schema.ts` | `stockManifestSchema` Zod + enums `stockCarCategoryEnum` (`sedan|suv|picape|hatch|esportivo`) e `stockCarConditionEnum` (`0km|seminovo`). Tipos derivados `StockManifest`, `StockCarEntry`. URL é estritamente `/assets/stock/<file>.png` na V1. |
 | `stock-photos.manifest.json` | Manifest V1 co-localizado: 14 carros (sea-doo NÃO incluído — jet ski não cabe em placeholder de concessionária). Importado via `import` JSON pra zero filesystem em runtime serverless. |
 | `stock-photos.ts` | **Server-only.** `pickCarStock({ business_type: 'concessionaria', count, seed? })` — banco V1 de placeholders para `extractBrandAssets` (#156). Manifest validado no boot via top-level `parse`. Determinismo via Mulberry32 PRNG (zero deps) quando `seed` informado. Exporta `STOCK_PHOTOS_TOTAL = 14` e tipo `StockCarEntry`. |
+| `brand-assets.types.ts` | `AssetSources` interface — saída do pipeline `extractBrandAssets`. Subset de `lead_sites.variables` que vem do brand pipeline (não da IA): `logo_url`, `primary_color`, `text_on_primary`, `hero_image_url`, `about_image_url`, `contact_hero_image_url`, `car_placeholder_urls` (length === 6). |
+| `brand-assets.ts` | **Server-only.** `extractBrandAssets(lead): Promise<AssetSources>` — pipeline que **NUNCA lança**. Cascata logo: Instagram avatar → Maps profile photo → website favicon → monogram SVG (Vercel Blob, com data URI fallback). Cor primária via `node-vibrant` + `wcagContrast` (threshold 4.5 pra texto). Fotos: `fetchMapsPhotos` com fallback pra `stockShowroomPhotos`. Carros: `pickCarStock` (#157). Helpers exportados: `tryInstagramAvatar`, `tryGoogleMapsProfilePhoto`, `tryWebsiteFavicon`, `buildMonogramLogo`, `pickAccent`, `wcagContrast`, `contrastRatio`, `fetchMapsPhotos`, `stockShowroomPhotos`. |
 
 ## Contrato de erro do `generateCopy`
 
@@ -95,12 +99,59 @@ Determinismo é crítico porque `car_placeholder_urls` é persistido no DB:
 sem seed estável, cada regen mexeria na ordem e quebraria a expectativa
 de "mesmo lead → mesmo preview".
 
+## Contrato de `extractBrandAssets` (#156)
+
+Chamado pelo orquestrador `generateLeadSite` (#159) — produz o subset
+de `lead_sites.variables` que vem de fontes externas (Instagram, Maps,
+website, Vercel Blob, node-vibrant) com **garantia BLOQUEANTE** de não
+lançar.
+
+### Cascata logo
+
+| Step | Fonte | Quando retorna `null` |
+|---|---|---|
+| 1 | Instagram avatar (Apify `apify~instagram-scraper`) | handle null, actor falha, sem `profilePicUrl` |
+| 2 | Google Maps profile photo (Apify `compass~crawler-google-places`) | placeId null, actor falha, sem `imageUrls` |
+| 3 | Website favicon (HTML scrape, AbortController 5s) | URL null, fetch !ok, sem `<link rel=icon>`, timeout |
+| 4 | Monogram SVG (Vercel Blob `put`) | nunca retorna null — Blob ok ou data URI inline fallback |
+
+### Cor primária
+
+`Vibrant.from(logo_url).getPalette()` → `pickAccent(palette)` →
+`wcagContrast(primary)` decide texto sobre fundo (`#FFFFFF` se contrast
+ratio com white ≥ ratio com `#0C0C0C`, senão `#0C0C0C`).
+
+Logos `data:` ou `.svg` pulam o Vibrant (usa `#000000`) — Vibrant em
+Node não suporta esses formatos.
+
+### Fotos
+
+`fetchMapsPhotos(placeId, 3)` retorna até 3 fotos do Maps. Resultado é
+completado com `stockShowroomPhotos` (3 entries em `public/assets/`)
+até totalizar 3 (`hero` / `about` / `contact`). Em fallback total,
+todas vêm do stock.
+
+### Catastrofic fallback
+
+`extractBrandAssets` envolve tudo em try/catch top-level. Se algo
+escapar dos try/catch internos, retorna:
+
+- `logo_url`: data URI base64 do SVG monogram (sem hit no Blob).
+- `primary_color`: `#000000`.
+- `text_on_primary`: `#FFFFFF`.
+- 3 fotos do `stockShowroomPhotos`.
+- 6 carros via `pickCarStock` (com fallback final pra strings vazias se
+  o manifest também falhar).
+
 ## Dependências
 
 - `nanoid@^5` — `customAlphabet` para prefix legível.
 - `@supabase/supabase-js` — tipo `SupabaseClient<Database>` (DI).
 - `@anthropic-ai/sdk` — via `@/lib/ai/anthropic` (singleton).
 - `zod-to-json-schema@^3.23` — converte `SiteCopySchema` em JSON Schema pro tool use.
+- `apify-client@^2.23` — `extractBrandAssets` cascata (Instagram + Maps actors).
+- `@vercel/blob@^0.27` — upload do SVG monogram em `lead-sites/monograms/<slug>.svg`.
+- `node-vibrant@^3.1` — extração de palette do logo (CommonJS-stable; v4 tem ESM issues no Next.js).
 - `@/lib/utils/slug` — base normalization.
 - `@/types/lead-site` — `SiteCopySchema` + `SiteCopy` type (issue #154).
-- `@/types/database` — schema dos lead_sites.
+- `@/types/database` — schema dos lead_sites + leads.
