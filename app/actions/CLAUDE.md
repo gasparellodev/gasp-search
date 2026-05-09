@@ -109,18 +109,21 @@ Sucesso → `{ ok: true }`. Persistência: `status='archived'`, `archived_at=now
 
 Sucesso → `{ ok: true }`. Persistência: `status='published'`, `archived_at=null`, `updated_at=now`.
 
-### `sendLeadSiteWhatsApp` (#171)
+### `sendLeadSiteWhatsApp` (#171, #173)
 
 | Caminho | error |
 |---|---|
 | Sem auth | `auth` |
 | Site inexistente / RLS bloqueia | `not_found` |
 | Status ≠ `'published'` e ≠ `'sent'` (ex: `'draft'`, `'archived'`) | `invalid_status` |
+| `checkDailyInstanceLimit` retorna `allowed: false` (count >= 50 outbound em 24h) | `rate_limit_daily` (#173 — anti-ban WhatsApp) |
 | `renderTemplate` lança (variável faltante) | `whatsapp_error` |
 | `sendWhatsAppMessage` retorna `instance_disconnected` / `lead_not_found` / `lead_missing_phone` / `evolution_error` | `whatsapp_error` (com `message` mapeada PT-BR) |
 | Update lead_sites pós-envio falha | `db_error` |
 
 Sucesso → `{ ok: true }`. Persistência: `lead_sites.status='sent'`, `sent_at=now`, `updated_at=now`. **Re-send permitido** (status `'sent'` aceito como input). Cada chamada insere uma nova entrada em `lead_messages` (timeline) via `sendWhatsAppMessage`.
+
+**Ordem de checks**: auth → fetch (RLS) → status guard → daily-limit guard → render → send. O guard `rate_limit_daily` roda **depois** de status guard (não desperdiça query em sites não-elegíveis) e **antes** do render+send (zero risco de tocar Evolution acima do hard limit).
 
 **Logs PII-safe**: errorName + errorMessage + reason (Evolution). Não loga conteúdo da mensagem nem telefone do destinatário.
 

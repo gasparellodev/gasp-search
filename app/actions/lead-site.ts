@@ -68,6 +68,10 @@ import { createServiceSupabase } from "@/lib/supabase/service";
 import { slugify } from "@/lib/utils/slug";
 import type { Database } from "@/types/database";
 import { SiteVariables } from "@/types/lead-site";
+import {
+  checkDailyInstanceLimit,
+  DAILY_INSTANCE_LIMIT,
+} from "@/lib/whatsapp/daily-limit";
 import { renderTemplate } from "@/lib/whatsapp/render-template";
 import { SITE_PREVIEW_TEMPLATE } from "@/lib/whatsapp/templates";
 
@@ -1209,16 +1213,18 @@ export async function restoreLeadSite(
  * Retorno discriminado de `sendLeadSiteWhatsApp` (#171).
  *
  * Erros:
- *  - `auth`            — usuário não autenticado.
- *  - `not_found`       — leadSiteId não existe ou não pertence ao usuário (RLS).
- *  - `invalid_status`  — status do site não é `'published'` ou `'sent'`
- *                        (defesa em profundidade — UI já bloqueia).
- *  - `whatsapp_error`  — falha no transporte Evolution (instância
- *                        desconectada, lead sem telefone válido, erro HTTP do
- *                        provider, etc.). A mensagem amigável vem do helper
- *                        `whatsappReasonMessage` para o usuário.
- *  - `db_error`        — falha de infra na escrita do tracking
- *                        (`status='sent'`, `sent_at=now`).
+ *  - `auth`              — usuário não autenticado.
+ *  - `not_found`         — leadSiteId não existe ou não pertence ao usuário (RLS).
+ *  - `invalid_status`    — status do site não é `'published'` ou `'sent'`
+ *                          (defesa em profundidade — UI já bloqueia).
+ *  - `rate_limit_daily`  — guard hard 50 envios/dia/instância (#173, anti-ban
+ *                          WhatsApp). Bloqueia ANTES de tocar Evolution.
+ *  - `whatsapp_error`    — falha no transporte Evolution (instância
+ *                          desconectada, lead sem telefone válido, erro HTTP
+ *                          do provider, etc.). A mensagem amigável vem do
+ *                          helper `whatsappReasonMessage` para o usuário.
+ *  - `db_error`          — falha de infra na escrita do tracking
+ *                          (`status='sent'`, `sent_at=now`).
  */
 export type SendLeadSiteWhatsAppResult =
   | { ok: true }
@@ -1228,6 +1234,7 @@ export type SendLeadSiteWhatsAppResult =
         | "auth"
         | "not_found"
         | "invalid_status"
+        | "rate_limit_daily"
         | "whatsapp_error"
         | "db_error";
       message: string;
@@ -1332,6 +1339,21 @@ export async function sendLeadSiteWhatsApp(
       ok: false,
       error: "invalid_status",
       message: "Apenas sites publicados ou enviados podem ser disparados.",
+    };
+  }
+
+  // Step 3.5: Guard hard 50 envios/dia/instância (#173, anti-ban WhatsApp).
+  // Acontece ANTES de fetch lead.name + render + Evolution — economiza
+  // trabalho e zera risco de tocar o provider acima do limite. Em massa
+  // (campanhas), o processor mapeia esse `reason` pra 'failed' (não
+  // 'skipped') — operador deve ter awareness pra retentar amanhã, não
+  // silently skip.
+  const limitCheck = await checkDailyInstanceLimit(userId, server);
+  if (!limitCheck.allowed) {
+    return {
+      ok: false,
+      error: "rate_limit_daily",
+      message: `Limite diário de ${DAILY_INSTANCE_LIMIT} envios atingido para esta instância. Tente amanhã.`,
     };
   }
 

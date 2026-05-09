@@ -11,6 +11,7 @@
  *   - send falha (whatsapp_error com mapping de reason)
  *   - update lead_sites falha (db_error)
  *   - happy path (ok=true, lead_sites updated)
+ *   - rate_limit_daily (#173 — guard hard 50/dia/instância)
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -28,6 +29,8 @@ function makeSupabase(opts: {
   leadSite?: { data: unknown; error: { message: string } | null };
   lead?: { data: unknown; error: { message: string } | null };
   updateError?: { message: string } | null;
+  /** Count outbound nas últimas 24h pra `checkDailyInstanceLimit` (#173). */
+  outboundCount?: number;
 }) {
   const updates: Array<{ table: string; payload: unknown }> = [];
   const from = vi.fn((table: string) => {
@@ -47,6 +50,19 @@ function makeSupabase(opts: {
           }),
         })),
       };
+    }
+    if (table === "lead_messages") {
+      // count={count, error} via thenable (igual `checkDailyInstanceLimit`)
+      const builder: Record<string, unknown> = {};
+      builder.select = vi.fn(() => builder);
+      builder.eq = vi.fn(() => builder);
+      builder.gte = vi.fn(() => builder);
+      builder.then = vi.fn((onResolve: (x: unknown) => unknown) =>
+        Promise.resolve(
+          onResolve({ count: opts.outboundCount ?? 0, error: null }),
+        ),
+      );
+      return builder;
     }
     if (table === "leads") {
       return {
@@ -320,5 +336,75 @@ describe("dispatchSitePreview", () => {
     const { client } = makeSupabase({});
     const _typed: MockSupabase = client;
     expect(_typed).toBeDefined();
+  });
+
+  // -------------------------------------------------------------------------
+  // #173 — guard hard de 50 envios/dia/instância (anti-ban WhatsApp)
+  // -------------------------------------------------------------------------
+
+  it("retorna 'rate_limit_daily' quando count outbound >= 50 (#173)", async () => {
+    const { client } = makeSupabase({
+      leadSite: {
+        data: { id: "site-1", slug: "x", status: "published" },
+        error: null,
+      },
+      lead: { data: { name: "Y" }, error: null },
+      outboundCount: 50,
+    });
+    const { client: serviceClient, updates: serviceUpdates } = makeSupabase(
+      {},
+    );
+
+    const result = await dispatchSitePreview({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service: serviceClient as any,
+      userId: "u1",
+      leadId: "lead-1",
+      sendImpl: sendMock,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toBe("rate_limit_daily");
+      expect(result.message).toMatch(/limite diário/i);
+    }
+    // Send NUNCA é chamado quando guard bloqueia — anti-ban.
+    expect(sendMock).not.toHaveBeenCalled();
+    // lead_sites NÃO deve ser atualizado.
+    expect(
+      serviceUpdates.some((u) => u.table === "lead_sites"),
+    ).toBe(false);
+  });
+
+  it("count=49 (boundary) → segue fluxo normal de envio (#173)", async () => {
+    const { client } = makeSupabase({
+      leadSite: {
+        data: { id: "site-1", slug: "ok-slug", status: "published" },
+        error: null,
+      },
+      lead: { data: { name: "Concessionária Z" }, error: null },
+      outboundCount: 49,
+    });
+    const { client: serviceClient } = makeSupabase({});
+    sendMock.mockResolvedValue({
+      ok: true,
+      messageId: "m1",
+      whatsappMsgId: "evo-1",
+    });
+
+    const result = await dispatchSitePreview({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      service: serviceClient as any,
+      userId: "u1",
+      leadId: "lead-1",
+      sendImpl: sendMock,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(sendMock).toHaveBeenCalledOnce();
   });
 });

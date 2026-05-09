@@ -1982,6 +1982,8 @@ function makeSendServerClient(opts: {
   } | null;
   leadName?: string | null;
   fetchError?: unknown;
+  /** Count outbound nas últimas 24h pra `checkDailyInstanceLimit` (#173). */
+  outboundCount?: number;
 }) {
   return makeSupabaseClient({
     lead_sites: {
@@ -1992,6 +1994,11 @@ function makeSendServerClient(opts: {
         data: opts.leadName != null ? { name: opts.leadName } : null,
         error: null,
       },
+    },
+    lead_messages: {
+      // `checkDailyInstanceLimit` faz `select('id', { count: 'exact', head: true })`
+      // — o builder default aceita esse pattern via `countResult`.
+      countResult: { count: opts.outboundCount ?? 0, error: null },
     },
   });
 }
@@ -2315,5 +2322,115 @@ describe("sendLeadSiteWhatsApp — db_error", () => {
     if (!r.ok) expect(r.error).toBe("db_error");
     // Cache não é invalidado quando o tracking falha.
     expect(cacheMocks.updateTag).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #173 — guard hard 50 envios/dia/instância (anti-ban WhatsApp)
+// ---------------------------------------------------------------------------
+
+describe("sendLeadSiteWhatsApp — rate_limit_daily (#173)", () => {
+  it("retorna { ok: false, error: 'rate_limit_daily' } quando count outbound = 50", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc",
+        status: "published",
+      },
+      leadName: "Toyota Recife",
+      outboundCount: 50,
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) {
+      expect(r.error).toBe("rate_limit_daily");
+      expect(r.message).toMatch(/limite diário/i);
+      expect(r.message).toMatch(/50/);
+    }
+    // Evolution NÃO é tocado — anti-ban.
+    expect(evolutionMocks.sendWhatsAppMessage).not.toHaveBeenCalled();
+    // Cache NÃO é invalidado (sem mudança de estado).
+    expect(cacheMocks.updateTag).not.toHaveBeenCalled();
+  });
+
+  it("retorna rate_limit_daily quando count > 50 (acima do limite)", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc",
+        status: "published",
+      },
+      leadName: "Toyota Recife",
+      outboundCount: 73,
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("rate_limit_daily");
+    expect(evolutionMocks.sendWhatsAppMessage).not.toHaveBeenCalled();
+  });
+
+  it("count=49 (boundary) → segue fluxo normal (Evolution chamado)", async () => {
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "abc-touring-cars",
+        status: "published",
+      },
+      leadName: "ABC Touring",
+      outboundCount: 49,
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+    evolutionMocks.sendWhatsAppMessage.mockResolvedValue({
+      ok: true,
+      messageId: "m-1",
+      whatsappMsgId: "wa-1",
+    });
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(true);
+    expect(evolutionMocks.sendWhatsAppMessage).toHaveBeenCalledOnce();
+  });
+
+  it("guard roda APÓS auth + status (cross-cut: status='draft' tem precedência sobre limit)", async () => {
+    // Garantia que a ordem de checks é: auth → fetch → status → limit.
+    // status='draft' deve ganhar de outboundCount=999 — nem precisamos
+    // contar mensagens se o site já não é elegível.
+    const server = makeSendServerClient({
+      leadSite: {
+        id: LEAD_SITE_ID,
+        lead_id: VALID_LEAD_ID,
+        slug: "drafted",
+        status: "draft",
+      },
+      leadName: "X",
+      outboundCount: 999,
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { sendLeadSiteWhatsApp } = await import("@/app/actions/lead-site");
+    const r = await sendLeadSiteWhatsApp(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
   });
 });
