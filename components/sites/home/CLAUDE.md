@@ -57,7 +57,7 @@ issues #163-#164.
 
 | Path | Propósito |
 |---|---|
-| `HomeHero.tsx` | Hero 2-cols com slogan `<h1>` + CTA pill (`primary_color`) → `/estoque`. Imagem hero `next/image fill`. |
+| `HomeHero.tsx` | **Premium dark card hero** (redesign 2026-05-09). Card `rounded-3xl bg-zinc-950` ocupa `max-w-7xl`, com slogan `<h1>` em branco + CTA pill (`primary_color` do lead) à esquerda e cutout do carro à direita sobre textura grain (`SITE_ASSETS.hero.texture` via CSS `background-image`). Cutout vem de `resolveHeroImageUrl(hero_image_url)` — usa o `hero_image_url` do lead ou cai em `SITE_ASSETS.hero.demoCarCutout` (Pulse PNG transparente). Mobile: stack vertical (texto top, cutout bottom). Chevron-down decorativo (`aria-hidden`) abaixo do card. **Pré-requisito**: o cutout deve ser PNG com fundo transparente — fundo branco renderiza como retângulo branco contra o card escuro. |
 | `HomeCategories.tsx` | Grid 3-cols (1-col mobile) com cards-imagem e `ChevronRight`. Cada card linka a `/estoque?categoria=<slugify>`. |
 | `HomeForm.tsx` | Wrapper Server sobre `<SiteForm>` (Client) que injeta o título canônico da Home + `variant='home'`. |
 | `HomeEmphasis.tsx` | "Em destaque" 2-cols: imagem left + card alabaster (rounded 25px) com title/car_name/description (`pre-line`). |
@@ -85,6 +85,11 @@ mantém estado de form). Tudo o resto é puro server-render.
   cores hex.
 - `@/lib/utils/slug.slugify` — gera o querystring de
   `?categoria=<slug>`.
+- `@/lib/sites/site-assets.SITE_ASSETS` — `hero.texture` (decorativa
+  fixa) e `hero.demoCarCutout` (fallback do Pulse). Editar paths
+  globais em `lib/sites/site-assets.ts`.
+- `@/lib/sites/site-assets.resolveHeroImageUrl` — `hero_image_url`
+  do lead ou demo cutout global.
 - `@/types/lead-site.SiteVariables` — tipos do payload (campos
   consumidos via `Pick`).
 - `../SiteForm` — wrapper client do form de captura.

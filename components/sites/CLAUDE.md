@@ -33,6 +33,32 @@ componentes:
   `sanitizeHex()` de `@/lib/sites/sanitize` — defesa em profundidade
   contra CSS injection.
 
+## Tema visual padrão (decisão 2026-05-09)
+
+Site público é **uniformemente** branco/preto/vermelho:
+
+- **Fundo**: `bg-background` (branco em light mode, default).
+- **Texto**: `text-foreground` (preto em light mode, default).
+- **Botões / badges / chips ativos**: `primary_color` do lead (vermelho
+  pra Poliguara) via `style={{ backgroundColor: sanitizeHex(...) }}` ou
+  CSS var `var(--site-primary)` (injetada pelo `<SitePage>` wrapper).
+  Texto sobre botão: `text_on_primary` (`#FFFFFF` ou `#0C0C0C`,
+  calculado pelo brand-pipeline pra contraste WCAG).
+
+**NUNCA** usar `bg-foreground text-background` (cria botão preto fixo
+em light mode, conflita com tema).
+
+### Exceções intencionais (NÃO mudar)
+
+1. **Gradient overlay nos cards de imagem** (`HomeCategories`,
+   `HomeRecentSales`): `bg-gradient-to-t from-black/60` + `text-white`
+   sobre a foto. **Não é tema dark** — é contraste pra leitura do
+   texto sobre imagem (categoria, car_name). Padrão universal premium.
+
+2. **Lightbox `<dialog>` da `CarGallery`**: `bg-black/95` + `text-white`.
+   Convenção universal de image viewer (preserva contraste das fotos do
+   carro). Não é "fundo do site" — é overlay transient.
+
 ## Regras de negócio
 
 1. **Logo é `<Image>` de `next/image` com `unoptimized`.** O CDN dos
@@ -61,7 +87,7 @@ componentes:
 | Path | Propósito |
 |---|---|
 | `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 → M2.4 — issues #160 + #162 + #163).** Wrapper público de `/sites/[slug]` e sub-rotas. Recebe `{ variables, siteId, slug, activePage?, children? }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Sem `children`: compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) + `<SiteFooter>` (default M2.3). Com `children`: rendeza-os entre Header e Footer (M2.4 — `/sobre`, `/contato`, `/anunciar`). `activePage` (default `'home'`) propaga pro `<SiteHeader>` para destacar o link ativo no nav. |
-| `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. |
+| `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. **Logo policy** (decisão 2026-05-09): renderiza `<Image>` quando `logo_url` é truthy; cai em texto estilizado (`<span>` com `business_name`) quando vazio/`null`. Permite leads sem logo real renderizando logotype textual sem tocar JSX. |
 | `MobileNav.tsx` | **Client Component.** Hambúrguer + menu dropdown com estado `open`. ESC fecha + foco volta ao botão. |
 | `SiteFooter.tsx` | Server Component. 3 colunas: marca/sociais, contato, newsletter (visual). Ícones sociais omitidos individualmente quando URL é `null`. Copyright com ano corrente. |
 | `SiteForm.tsx` | **Client Component.** Form de captura com 3 variantes (`'home'`/`'contact'`/`'car-detail'`). `react-hook-form` + `zodResolver`. `model` read-only quando `variant='car-detail'` com `prefillModel`. LGPD checkbox obrigatório. Aceita `title?: string` para override do `<h2>` default (usado por `<HomeForm>` em #162). |

@@ -19,6 +19,34 @@ if (!process.env.NEXT_PUBLIC_WHATSAPP_ENABLED) {
   process.env.NEXT_PUBLIC_WHATSAPP_ENABLED = "0";
 }
 
+// Defaults para envs server-side validadas em `lib/env.ts`. Necessário
+// porque qualquer test que importe `app/actions/lead-site.ts` (e tudo que
+// puxa `lib/ai/anthropic.ts` ou `lib/supabase/service.ts`) executa o
+// validador no boot. Tests que precisam de valores específicos (ex.
+// `tests/unit/lib/env.test.ts`) sobrescrevem em `beforeEach`. Valores
+// fake — nenhum SDK real é chamado em CI.
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "service";
+}
+if (!process.env.APIFY_TOKEN) {
+  process.env.APIFY_TOKEN = "t";
+}
+if (!process.env.APIFY_GOOGLE_MAPS_ACTOR_ID) {
+  process.env.APIFY_GOOGLE_MAPS_ACTOR_ID = "compass~crawler-google-places";
+}
+if (!process.env.APIFY_INSTAGRAM_ACTOR_ID) {
+  process.env.APIFY_INSTAGRAM_ACTOR_ID = "apify~instagram-scraper";
+}
+if (!process.env.APIFY_WEBSITE_CONTACT_ACTOR_ID) {
+  process.env.APIFY_WEBSITE_CONTACT_ACTOR_ID = "vdrmota~contact-info-scraper";
+}
+if (!process.env.ANTHROPIC_API_KEY) {
+  process.env.ANTHROPIC_API_KEY = "sk-ant-test";
+}
+if (!process.env.ANTHROPIC_MODEL) {
+  process.env.ANTHROPIC_MODEL = "claude-sonnet-4-6";
+}
+
 // Polyfills mínimos para libs que assumem APIs do browser (cmdk, radix popover).
 class ResizeObserverStub {
   observe() {}

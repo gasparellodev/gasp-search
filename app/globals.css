@@ -2,6 +2,15 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* Tailwind v4 escaneia todos os arquivos do projeto por padrão. Os HTMLs
+   em `coverage/` (relatórios LCOV do Vitest) renderizam o source visualmente
+   — incluindo comentários TS — e podem conter padrões como `bg-[var(...)]`
+   que viram CSS inválido (`background-color: var(...)` sem argumento).
+   Ignoramos a pasta inteira com `@source not`. */
+@source not "../coverage/**/*";
+@source not "../.next/**/*";
+@source not "../playwright-report/**/*";
+
 @custom-variant dark (&:is(.dark *));
 
 /* Fontes em @theme (sem `inline`) para que o Tailwind gere tanto a CSS var
@@ -53,6 +62,34 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Site público (Phase 7) — tokens semânticos da Identidade Visual.
+     Documentados em `~/.claude/plans/var-folders-...-agile-kettle.md`.
+     Nomes prefixados `site-` pra não colidir com tokens SK do (app). */
+
+  /* Surfaces */
+  --color-site-surface-page: var(--site-surface-page);
+  --color-site-surface-card: var(--site-surface-card);
+  --color-site-surface-elevated: var(--site-surface-elevated);
+  --color-site-surface-feature: var(--site-surface-feature);
+
+  /* Texto */
+  --color-site-text-primary: var(--site-text-primary);
+  --color-site-text-secondary: var(--site-text-secondary);
+  --color-site-text-muted: var(--site-text-muted);
+  --color-site-text-on-feature: var(--site-text-on-feature);
+
+  /* Borders */
+  --color-site-border-subtle: var(--site-border-subtle);
+  --color-site-border-default: var(--site-border-default);
+  --color-site-border-strong: var(--site-border-strong);
+
+  /* Geometria custom do site */
+  --radius-site-pill: 999px;
+  --radius-site-card: 16px;
+  --radius-site-input: 12px;
+  --radius-site-image: 24px;
+  --radius-site-feature: 25px;
 }
 
 /* Apple SK ("Storekit") — light é o canvas natural do sistema. */
@@ -98,6 +135,19 @@
   --sk-card-radius: 1.125rem;
   --sk-accent-orange: #b64400;
   --sk-focus-ring: rgba(0, 113, 227, 0.5);
+
+  /* Site público (Phase 7) — Light mode é default. */
+  --site-surface-page: #ffffff;
+  --site-surface-card: #ffffff;
+  --site-surface-elevated: #fafafa;
+  --site-surface-feature: #0a0a0a; /* dark card no light mode */
+  --site-text-primary: #1d1d1f;
+  --site-text-secondary: rgba(29, 29, 31, 0.7);
+  --site-text-muted: rgba(29, 29, 31, 0.4);
+  --site-text-on-feature: #ffffff; /* texto sobre dark card */
+  --site-border-subtle: rgba(29, 29, 31, 0.10);
+  --site-border-default: rgba(29, 29, 31, 0.20);
+  --site-border-strong: rgba(29, 29, 31, 0.40);
 }
 
 /* .theme-dark da Apple: fundo preto, texto warm-light, azul recalibrado. */
@@ -140,6 +190,19 @@
   --sk-link: #2997ff;
   --sk-accent-orange: #ff791b;
   --sk-focus-ring: rgba(41, 151, 255, 0.5);
+
+  /* Site público (Phase 7) — Dark mode (toggle via next-themes). */
+  --site-surface-page: #0a0a0a;
+  --site-surface-card: #171717;
+  --site-surface-elevated: #1f1f1f;
+  --site-surface-feature: #f4f4f5; /* INVERTE: light card no dark mode */
+  --site-text-primary: #f4f4f5;
+  --site-text-secondary: rgba(244, 244, 245, 0.7);
+  --site-text-muted: rgba(244, 244, 245, 0.4);
+  --site-text-on-feature: #0a0a0a; /* texto sobre light card no dark mode */
+  --site-border-subtle: rgba(244, 244, 245, 0.10);
+  --site-border-default: rgba(244, 244, 245, 0.20);
+  --site-border-strong: rgba(244, 244, 245, 0.40);
 }
 
 @layer base {

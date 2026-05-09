@@ -65,7 +65,11 @@ export function StockGrid({ cars, slug }: StockGridProps) {
               {car.featured && (
                 <span
                   data-testid="car-card-featured-badge"
-                  className="absolute left-3 top-3 inline-flex items-center rounded-full bg-foreground px-3 py-1 text-xs font-medium uppercase tracking-wider text-background"
+                  style={{
+                    backgroundColor: "var(--site-primary)",
+                    color: "var(--site-text-on-primary)",
+                  }}
+                  className="absolute left-3 top-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium uppercase tracking-wider"
                 >
                   Destaque
                 </span>

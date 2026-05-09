@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 
+import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariables } from "@/types/lead-site";
 
 import {
@@ -23,6 +24,7 @@ type FooterVariables = Pick<
   | "address_line"
   | "hours"
   | "primary_color"
+  | "text_on_primary"
 >;
 
 interface SiteFooterProps {
@@ -48,6 +50,8 @@ interface SiteFooterProps {
 export function SiteFooter({ variables }: SiteFooterProps) {
   const year = new Date().getFullYear();
   const whatsappHref = `https://wa.me/${variables.whatsapp}`;
+  const safePrimary = sanitizeHex(variables.primary_color);
+  const safeTextOnPrimary = sanitizeHex(variables.text_on_primary);
 
   return (
     <footer
@@ -164,13 +168,15 @@ export function SiteFooter({ variables }: SiteFooterProps) {
             {variables.business_name}.
           </p>
           {/*
-            Newsletter visual-only: o form não tem submit handler nem name no
-            input. Quando virar funcional, criar issue follow-up com migration
-            própria. Não confundir com `site_form_submissions` (lead capture).
+            Newsletter visual-only: input/botão `disabled`, sem handler.
+            `<form>` sem `action` + button `type="button"` + input `disabled`
+            já bloqueia submit nativo — não precisa de `onSubmit` (que exige
+            Client Component). Quando virar funcional, criar issue follow-up
+            com migration própria. Não confundir com `site_form_submissions`
+            (lead capture).
           */}
           <form
             data-testid="newsletter-form"
-            onSubmit={(e) => e.preventDefault()}
             className="flex items-center gap-2"
           >
             <label htmlFor="newsletter-email" className="sr-only">
@@ -188,7 +194,9 @@ export function SiteFooter({ variables }: SiteFooterProps) {
               type="button"
               disabled
               aria-label="Inscrever (em breve)"
-              className="inline-flex size-10 items-center justify-center rounded-md bg-foreground text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-60"
+              data-testid="site-footer-newsletter-submit"
+              style={{ backgroundColor: safePrimary, color: safeTextOnPrimary }}
+              className="inline-flex size-10 items-center justify-center rounded-md transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <ArrowRight className="size-5" aria-hidden />
             </button>

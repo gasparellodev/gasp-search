@@ -6,6 +6,7 @@ import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariables } from "@/types/lead-site";
 
 import { MobileNav } from "./MobileNav";
+import { SiteThemeToggle } from "./SiteThemeToggle";
 import { buildSiteNavLinks, type ActivePage } from "./site-nav-links";
 
 type HeaderVariables = Pick<
@@ -48,29 +49,40 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
       data-testid="site-header"
       className="sticky top-0 z-30 border-b border-foreground/10 bg-background/95 backdrop-blur"
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-8">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:h-20 md:px-8">
         <Link
           href={homeHref}
           aria-current={activePage === "home" ? "page" : undefined}
           aria-label={variables.business_name}
           className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 rounded-md"
         >
-          <Image
-            src={variables.logo_url}
-            alt={variables.business_name}
-            width={140}
-            height={40}
-            className="h-10 w-auto object-contain"
-            priority
-            unoptimized
-          />
+          {variables.logo_url ? (
+            <Image
+              src={variables.logo_url}
+              alt={variables.business_name}
+              width={200}
+              height={56}
+              style={{ width: "auto", height: "auto" }}
+              className="h-10 w-auto max-h-10 object-contain md:max-h-11"
+              priority
+              unoptimized
+            />
+          ) : (
+            <span
+              data-testid="site-header-logo-text"
+              className="text-xl font-semibold tracking-tight text-foreground md:text-2xl"
+            >
+              {variables.business_name}
+            </span>
+          )}
         </Link>
 
-        {/* Nav desktop */}
+        {/* Nav desktop + theme toggle */}
         <nav
           aria-label="Navegação principal"
           className="hidden items-center gap-2 md:flex"
         >
+          <SiteThemeToggle />
           <ul className="flex items-center gap-1">
             {links.map((link) => {
               const isActive = activePage === link.id;
@@ -103,8 +115,9 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
           </ul>
         </nav>
 
-        {/* Hambúrguer mobile */}
-        <div className="md:hidden">
+        {/* Hambúrguer mobile + theme toggle */}
+        <div className="flex items-center gap-1 md:hidden">
+          <SiteThemeToggle />
           <MobileNav
             links={links}
             activePage={activePage}

@@ -47,3 +47,9 @@ docker/evolution/.env
 # Supabase
 supabase/.branches/
 supabase/.temp/
+
+# Claude Code local config (per-machine)
+.claude/
+
+# Local dev/audit screenshots
+tmp/

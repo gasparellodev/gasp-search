@@ -45,6 +45,8 @@ import {
 import type { LeadListItem, LeadTagSummary } from "@/lib/leads/list-leads";
 import { cn } from "@/lib/utils";
 
+import { LeadSiteCardClient } from "./lead-site-card-client";
+
 interface LeadDetailDrawerProps {
   lead: LeadListItem | null;
   open: boolean;
@@ -85,7 +87,7 @@ export function LeadDetailDrawer({
       <SheetContent
         side="right"
         showCloseButton={false}
-        className="flex w-[min(100vw,42rem)] max-w-full flex-col gap-0 sm:max-w-2xl"
+        className="flex w-[min(100vw,60rem)] max-w-full flex-col gap-0 data-[side=right]:sm:max-w-2xl data-[side=right]:md:max-w-3xl data-[side=right]:lg:max-w-4xl data-[side=right]:xl:max-w-5xl"
       >
         {lead ? (
           <DrawerBody key={lead.id} initialLead={lead} tags={tags} />
@@ -145,15 +147,28 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
       </SheetHeader>
 
       <Tabs defaultValue="overview" className="min-h-0 flex-1 overflow-hidden">
-        <TabsList className="mx-4 mt-4 max-w-[calc(100%-2rem)] overflow-x-auto sm:mx-6 sm:max-w-[calc(100%-3rem)]">
-          <TabsTrigger value="overview">Visão geral</TabsTrigger>
-          <TabsTrigger value="notes">Notas</TabsTrigger>
-          <TabsTrigger value="messages">Mensagens IA</TabsTrigger>
+        <TabsList className="mx-4 mt-4 flex w-[calc(100%-2rem)] flex-wrap gap-1 sm:mx-6 sm:w-[calc(100%-3rem)] sm:flex-nowrap">
+          <TabsTrigger value="overview" className="flex-1 min-w-0">
+            Visão geral
+          </TabsTrigger>
+          <TabsTrigger value="notes" className="flex-1 min-w-0">
+            Notas
+          </TabsTrigger>
+          <TabsTrigger value="messages" className="flex-1 min-w-0">
+            Mensagens
+          </TabsTrigger>
           {publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED === "1" && (
-            <TabsTrigger value="conversation" data-testid="tab-conversation">
+            <TabsTrigger
+              value="conversation"
+              data-testid="tab-conversation"
+              className="flex-1 min-w-0"
+            >
               Conversa
             </TabsTrigger>
           )}
+          <TabsTrigger value="site" data-testid="tab-site" className="flex-1 min-w-0">
+            Site
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent
@@ -190,6 +205,14 @@ function DrawerBody({ initialLead, tags }: DrawerBodyProps) {
             <MessageComposer leadId={snapshot.id} />
           </TabsContent>
         )}
+
+        <TabsContent
+          value="site"
+          className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+          data-testid="site-tab-content"
+        >
+          <LeadSiteCardClient leadId={snapshot.id} />
+        </TabsContent>
       </Tabs>
 
       <SheetFooter className="border-t px-4 py-4 sm:px-6">

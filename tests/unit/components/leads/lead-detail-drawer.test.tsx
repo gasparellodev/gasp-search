@@ -120,12 +120,12 @@ describe("LeadDetailDrawer", () => {
     expect(screen.queryByRole("heading", { name: /barbearia x/i })).toBeNull();
   });
 
-  it("mostra três tabs (Visão Geral, Notas, Mensagens IA)", () => {
+  it("mostra três tabs (Visão Geral, Notas, Mensagens)", () => {
     render(<LeadDetailDrawer {...defaultProps} />);
     expect(screen.getByRole("tab", { name: /visão geral/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /notas/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: /mensagens ia/i }),
+      screen.getByRole("tab", { name: /^mensagens$/i }),
     ).toBeInTheDocument();
   });
 
@@ -226,9 +226,9 @@ describe("LeadDetailDrawer", () => {
     });
   });
 
-  it("Mensagens IA usa a experiência real da issue #33 no drawer", async () => {
+  it("Mensagens usa a experiência real da issue #33 no drawer", async () => {
     render(<LeadDetailDrawer {...defaultProps} />);
-    await userEvent.click(screen.getByRole("tab", { name: /mensagens ia/i }));
+    await userEvent.click(screen.getByRole("tab", { name: /^mensagens$/i }));
     expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/issue #33/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("drawer-message-generator")).toHaveTextContent(

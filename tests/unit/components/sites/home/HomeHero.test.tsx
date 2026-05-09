@@ -2,6 +2,8 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { HomeHero } from "@/components/sites/home/HomeHero";
+import { SITE_ASSETS } from "@/lib/sites/site-assets";
+// SITE_ASSETS importado pra checar fallback do demo cutout abaixo
 
 import { SITE_FIXTURE } from "../site-fixtures";
 
@@ -17,11 +19,11 @@ const baseProps = {
 };
 
 describe("<HomeHero />", () => {
-  it("renderiza o slogan dentro de um <h1>", () => {
+  it("renderiza o slogan dentro de um <h1> em texto preto/foreground (light hero)", () => {
     render(<HomeHero {...baseProps} />);
-    expect(
-      screen.getByRole("heading", { level: 1, name: /Qualidade/ }),
-    ).toBeInTheDocument();
+    const h1 = screen.getByRole("heading", { level: 1, name: /Qualidade/ });
+    expect(h1).toBeInTheDocument();
+    expect(h1).toHaveClass("text-foreground");
   });
 
   it("renderiza CTA com link `/sites/[slug]/estoque`", () => {
@@ -45,6 +47,31 @@ describe("<HomeHero />", () => {
     expect(img).toBeInTheDocument();
   });
 
+  it("usa `hero_image_url` quando fornecido", () => {
+    render(<HomeHero {...baseProps} />);
+    const img = screen.getByAltText(`Hero — ${SITE_FIXTURE.business_name}`);
+    expect(img.getAttribute("src")).toBe(SITE_FIXTURE.hero_image_url);
+  });
+
+  it("cai no demo cutout quando `hero_image_url` é null", () => {
+    render(<HomeHero {...baseProps} hero_image_url={null} />);
+    const img = screen.getByAltText(`Hero — ${SITE_FIXTURE.business_name}`);
+    expect(img.getAttribute("src")).toBe(SITE_ASSETS.hero.demoCarCutout);
+  });
+
+  it("renderiza container com fundo branco (`bg-background`) — hero light Figma-fiel", () => {
+    render(<HomeHero {...baseProps} />);
+    const container = screen.getByTestId("home-hero");
+    expect(container).toHaveClass("bg-background");
+  });
+
+  it("renderiza chevron-down decorativo abaixo do hero (aria-hidden)", () => {
+    render(<HomeHero {...baseProps} />);
+    const cue = screen.getByTestId("home-hero-scroll-cue");
+    expect(cue).toBeInTheDocument();
+    expect(cue).toHaveAttribute("aria-hidden");
+  });
+
   it("sanitiza cores adversariais no CTA (cai no fallback)", () => {
     render(
       <HomeHero
@@ -53,7 +80,6 @@ describe("<HomeHero />", () => {
       />,
     );
     const cta = screen.getByRole("link", { name: /estoque/i });
-    // sanitizeHex retorna #0C0C0C quando inválido
     expect(cta).toHaveStyle({ backgroundColor: "#0C0C0C" });
   });
 });

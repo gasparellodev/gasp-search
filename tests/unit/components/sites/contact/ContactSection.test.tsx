@@ -117,7 +117,7 @@ describe("<ContactSection />", () => {
     expect(screen.getByText(/Sob consulta/i)).toBeInTheDocument();
   });
 
-  it("renderiza ícones sociais com target=_blank/rel=noopener noreferrer", () => {
+  it("renderiza ícones sociais com target=_blank/rel=noopener noreferrer (sem WhatsApp duplicado)", () => {
     render(
       <ContactSection
         variables={baseVariables}
@@ -127,14 +127,16 @@ describe("<ContactSection />", () => {
     );
     const socials = screen.getByTestId("contact-socials");
     const links = within(socials).getAllByRole("link");
-    expect(links.length).toBeGreaterThanOrEqual(4);
+    // Instagram + Facebook + YouTube — WhatsApp está no canal principal acima,
+    // não duplica nas redes sociais (decisão UX 2026-05-09).
+    expect(links).toHaveLength(3);
     for (const link of links) {
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noopener noreferrer");
     }
   });
 
-  it("omite Instagram/Facebook/YouTube quando URL é null", () => {
+  it("oculta o bloco social inteiro quando todas as URLs são null", () => {
     const variables = {
       ...baseVariables,
       instagram_url: null,
@@ -144,14 +146,9 @@ describe("<ContactSection />", () => {
     render(
       <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
     );
-    const socials = screen.getByTestId("contact-socials");
-    expect(
-      within(socials).queryByLabelText("Instagram"),
-    ).toBeNull();
-    expect(within(socials).queryByLabelText("Facebook")).toBeNull();
-    expect(within(socials).queryByLabelText("YouTube")).toBeNull();
-    // WhatsApp permanece.
-    expect(within(socials).getByLabelText("WhatsApp")).toBeInTheDocument();
+    // <ul data-testid="contact-socials"> é renderizado só quando há ao menos
+    // uma rede social. Sem nenhuma, o bloco não aparece (evita "WhatsApp atoa").
+    expect(screen.queryByTestId("contact-socials")).toBeNull();
   });
 
   it("renderiza imagem hero com alt descritivo", () => {

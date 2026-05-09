@@ -11,6 +11,7 @@ import { HomeCategories } from "./home/HomeCategories";
 import { HomeEmphasis } from "./home/HomeEmphasis";
 import { HomeForm } from "./home/HomeForm";
 import { HomeHero } from "./home/HomeHero";
+import { RoadDivider } from "./RoadDivider";
 import { HomeRecentSales } from "./home/HomeRecentSales";
 import type { ActivePage } from "./site-nav-links";
 
@@ -86,6 +87,7 @@ export function SitePage({
               text_on_primary={variables.text_on_primary}
               slug={slug}
             />
+            <RoadDivider />
             <HomeCategories
               categories={variables.home_categories}
               slug={slug}

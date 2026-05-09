@@ -40,17 +40,20 @@ export function HomeEmphasis({ emphasis }: HomeEmphasisProps) {
           />
         </div>
 
-        <div className="flex flex-col justify-center gap-4 rounded-[25px] bg-foreground/[0.04] p-8 md:p-10">
+        <div
+          data-testid="home-emphasis-card"
+          className="flex flex-col justify-center gap-4 rounded-site-feature bg-site-surface-feature p-8 text-site-text-on-feature md:p-10"
+        >
           <h2
             id="home-emphasis-title"
-            className="text-base font-medium uppercase tracking-[0.18em] text-foreground/60"
+            className="text-base font-medium uppercase tracking-[0.18em] text-site-text-on-feature/60"
           >
             {emphasis.title}
           </h2>
-          <p className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+          <p className="text-2xl font-semibold tracking-tight text-site-text-on-feature md:text-3xl">
             {emphasis.car_name}
           </p>
-          <p className="whitespace-pre-line text-base leading-relaxed text-foreground/80">
+          <p className="whitespace-pre-line text-base leading-relaxed text-site-text-on-feature/80">
             {emphasis.description}
           </p>
         </div>
