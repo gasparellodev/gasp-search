@@ -32,6 +32,14 @@ interface SiteFormProps {
   text_on_primary: string;
   /** Slug do site, usado no link da Política de Privacidade. */
   slug: string;
+  /**
+   * Título customizado renderizado no `<h2>` do header do form. Quando
+   * omitido, mantém o copy default `"Você está procurando algum modelo
+   * em específico?"`. Permite que `<HomeForm>` (#162) reuse o componente
+   * com o título canônico da Home sem fork. Não-quebrante: callers
+   * existentes não precisam atualizar.
+   */
+  title?: string;
 }
 
 /**
@@ -51,6 +59,7 @@ export function SiteForm({
   primary_color,
   text_on_primary,
   slug,
+  title,
 }: SiteFormProps) {
   const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
@@ -114,9 +123,13 @@ export function SiteForm({
       <div className="mx-auto max-w-6xl px-4 md:px-8">
         <header className="mb-6 space-y-2">
           <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
-            Você está procurando
-            <br />
-            algum modelo em específico?
+            {title ?? (
+              <>
+                Você está procurando
+                <br />
+                algum modelo em específico?
+              </>
+            )}
           </h2>
           <p className="text-sm text-foreground/70 md:text-base">
             Deixe seu contato para que a nossa equipe entre em contato com
