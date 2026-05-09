@@ -198,3 +198,48 @@ describe("generateMessage", () => {
     ).rejects.toBeInstanceOf(AnthropicMessageError);
   });
 });
+
+describe("anthropic (shared client — issue #158)", () => {
+  it("constrói o client com a apiKey do env quando uma chamada é feita", async () => {
+    anthropicMock.create.mockResolvedValue({ content: [], stop_reason: null });
+
+    const { anthropic } = await import("@/lib/ai/anthropic");
+    // Forçar resolução do Proxy invocando uma propriedade do SDK
+    await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1,
+      messages: [],
+    });
+
+    expect(anthropicMock.constructorOptions).toEqual([
+      { apiKey: "sk-ant-test" },
+    ]);
+    expect(anthropicMock.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("compartilha a mesma instância entre getAnthropic() e o named export anthropic", async () => {
+    anthropicMock.create.mockResolvedValue({ content: [], stop_reason: null });
+
+    const { anthropic, getAnthropic } = await import("@/lib/ai/anthropic");
+
+    // Trigger lazy init via Proxy
+    await anthropic.messages.create({
+      model: "x",
+      max_tokens: 1,
+      messages: [],
+    });
+    // Subsequent direct call should reuse the same singleton
+    getAnthropic();
+    getAnthropic();
+
+    // Construtor invocado UMA única vez = compartilhamento OK
+    expect(anthropicMock.constructorOptions).toHaveLength(1);
+  });
+
+  it("anthropic é tipo Anthropic (SDK) — compatível com .messages.create", async () => {
+    anthropicMock.create.mockResolvedValue({ content: [], stop_reason: null });
+    const { anthropic } = await import("@/lib/ai/anthropic");
+
+    expect(typeof anthropic.messages?.create).toBe("function");
+  });
+});

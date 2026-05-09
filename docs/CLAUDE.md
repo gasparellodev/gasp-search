@@ -9,8 +9,15 @@ Documentação auxiliar versionada que complementa `README.md`, `HANDOFF.md` e
 
 1. Screenshots usados no README ficam em `docs/screenshots/`.
 2. Relatórios resumidos de auditoria ficam em `docs/audits/`.
-3. Manter imagens e relatórios sem dados reais de clientes.
-4. Atualizar o README quando um artefato desta pasta for criado para consumo
+3. Specs técnicas mestres (multi-fase, multi-role) ficam em
+   `docs/superpowers/specs/` e **devem ser commitadas** — testes de snapshot
+   e workflows de validação leem esses arquivos diretamente do repositório
+   (CI roda `git checkout` limpo, sem dev-only artifacts).
+4. Relatórios review-only (artefatos de auditoria multi-agent) ficam em
+   `docs/superpowers/reports/`. Tratá-los caso a caso; em geral não
+   precisam ser carregados por código de produção/teste.
+5. Manter imagens e relatórios sem dados reais de clientes.
+6. Atualizar o README quando um artefato desta pasta for criado para consumo
    direto por novos desenvolvedores.
 
 ## Arquivos
@@ -19,3 +26,5 @@ Documentação auxiliar versionada que complementa `README.md`, `HANDOFF.md` e
 |---|---|
 | `audits/2026-05-07-final-audit.md` | Resumo de coverage e Lighthouse da finalização do backlog |
 | `screenshots/app-overview.svg` | Visão estática das principais telas para onboarding do README |
+| `superpowers/specs/2026-05-08-gerador-sites-concessionarias-design.md` | Spec mestre Phase 7 — Site Generator (Concessionárias). Contém SYSTEM_PROMPT canônico para `lib/sites/generate-copy.ts` (extraído via `readFileSync` em `tests/unit/lib/sites/generate-copy.test.ts` para snapshot byte-exact — AC6 da issue #158) |
+| `superpowers/specs/PROCESS-multi-role-validation.md` | Workflow multi-role (PO → Dev → QA) referenciado nos bodies das issues do milestone Phase 7 |
