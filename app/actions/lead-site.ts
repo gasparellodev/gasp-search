@@ -1370,14 +1370,6 @@ export async function getLeadSiteCardData(
 ): Promise<LeadSiteCardDataResult> {
   const server = await createServerSupabase();
 
-  const {
-    data: { user },
-  } = await server.auth.getUser();
-  console.warn("[getLeadSiteCardData] DEBUG", {
-    leadId,
-    authUid: user?.id ?? null,
-  });
-
   const { data, error } = await server
     .from("lead_sites")
     .select(
@@ -1385,29 +1377,6 @@ export async function getLeadSiteCardData(
     )
     .eq("lead_id", leadId)
     .maybeSingle();
-
-  console.warn("[getLeadSiteCardData] DEBUG result", {
-    leadId,
-    foundRow: data !== null,
-    rowStatus: (data as { status?: string } | null)?.status ?? null,
-    rowUserId: (data as { user_id?: string } | null)?.user_id ?? null,
-    errorMessage: error?.message ?? null,
-  });
-
-  // DEBUG: query bypassing RLS pra isolar se é RLS ou outro problema
-  const service = createServiceSupabase();
-  const { data: serviceData, error: serviceError } = await service
-    .from("lead_sites")
-    .select("id, status, user_id")
-    .eq("lead_id", leadId)
-    .maybeSingle();
-  console.warn("[getLeadSiteCardData] DEBUG service-role bypass", {
-    leadId,
-    foundRow: serviceData !== null,
-    rowUserId: serviceData?.user_id ?? null,
-    rowStatus: serviceData?.status ?? null,
-    errorMessage: serviceError?.message ?? null,
-  });
 
   if (error) {
     console.error("getLeadSiteCardData.fetch", {

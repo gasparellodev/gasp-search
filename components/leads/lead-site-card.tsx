@@ -28,14 +28,6 @@ interface LeadSiteCardProps {
 export async function LeadSiteCard({ leadId }: LeadSiteCardProps) {
   const supabase = await createServerSupabase();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  console.warn("[LeadSiteCard] DEBUG", {
-    leadId,
-    authUid: user?.id ?? null,
-  });
-
   const { data, error } = await supabase
     .from("lead_sites")
     .select(
@@ -43,13 +35,6 @@ export async function LeadSiteCard({ leadId }: LeadSiteCardProps) {
     )
     .eq("lead_id", leadId)
     .maybeSingle();
-
-  console.warn("[LeadSiteCard] DEBUG result", {
-    leadId,
-    foundRow: data !== null,
-    rowStatus: (data as { status?: string } | null)?.status ?? null,
-    errorMessage: error?.message ?? null,
-  });
 
   // Em caso de erro de fetch (RLS bloqueando, etc), tratamos como
   // "sem site" — o usuário ainda pode tentar gerar. O log estruturado
