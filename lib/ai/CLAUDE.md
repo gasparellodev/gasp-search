@@ -10,6 +10,7 @@ Clientes e helpers server-only para recursos de IA. Hoje concentra o wrapper do 
 - Use `env` de `@/lib/env` para modelo e credenciais; não leia `process.env` diretamente.
 - Mocke `@anthropic-ai/sdk` nos testes. Nenhum teste deve chamar a API real.
 - Preserve prompt caching no system prompt quando alterar o template.
+- **Cliente compartilhado:** importe `anthropic` de `@/lib/ai/anthropic` em vez de instanciar `new Anthropic(...)` em outros módulos. Isso garante uma única instância por processo (compartilhada entre `generateMessage` e `generateCopy` da Phase 7).
 
 ## Regras de negócio
 
@@ -25,7 +26,7 @@ Clientes e helpers server-only para recursos de IA. Hoje concentra o wrapper do 
 
 | Path | Propósito |
 |---|---|
-| `anthropic.ts` | Singleton Anthropic + `generateMessage(lead, { channel, tone, goal })` |
+| `anthropic.ts` | Cliente Anthropic compartilhado (named export `anthropic` + legado `getAnthropic()`) + `generateMessage(lead, { channel, tone, goal })` para outreach. O `anthropic` é um Proxy lazy: `new Anthropic(...)` só roda na primeira chamada efetiva, garantindo testes baratos. |
 | `messages.ts` | Listagem paginada de `lead_messages` para histórico |
 
 ## Dependências
