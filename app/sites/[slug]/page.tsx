@@ -1,21 +1,19 @@
 /**
- * Rota pública dinâmica `/sites/[slug]` (issue #160).
+ * Rota pública dinâmica `/sites/[slug]` (issue #160 + refactor #163).
  *
  * Fonte canônica: §8 do spec mestre
  * (`docs/superpowers/specs/2026-05-08-gerador-sites-concessionarias-design.md`).
  *
  * Renderiza o site personalizado de um lead a partir do slug global único
  * (`lead_sites.slug`). Usa Next 16 Cache Components (`'use cache'` +
- * `cacheTag` + `cacheLife`) para servir a 2ª request em diante do edge
- * cache. Invalidação acontece via `updateTag(\`site:\${slug}\`)` em
- * `app/actions/lead-site.ts` (issue #159).
+ * `cacheTag` + `cacheLife`) via `getSite()` em `lib/sites/get-site.ts`
+ * para servir a 2ª request em diante do edge cache. Invalidação acontece
+ * via `updateTag(\`site:\${slug}\`)` em `app/actions/lead-site.ts` (M1.7).
  *
- * **Service-role intencional.** A leitura é pública (sem `auth.uid()`),
- * single-purpose (read-only por slug global único, indexed unique), e o
- * client com `SUPABASE_SERVICE_ROLE_KEY` fica confinado a
- * `lib/supabase/service.ts`. Nenhum bundle do client importa
- * `createServiceSupabase` — verificável via:
- *   `rg -l 'createServiceSupabase|SUPABASE_SERVICE_ROLE_KEY' --type ts --type tsx | sort`
+ * **Refactor #163**: `getSite` foi extraído pra `lib/sites/get-site.ts`
+ * — comportamento idêntico, agora reutilizável pelas sub-rotas
+ * `/sobre`, `/contato`, `/anunciar`. Esta rota mantém os mesmos testes
+ * em `tests/unit/app/sites/page.test.tsx`.
  *
  * **Routing por status** (per spec §4 + issue #160 AC1):
  *   - `null` (slug inexistente) → `notFound()` → 404.
@@ -37,36 +35,12 @@
  */
 import "server-only";
 
-import { cacheLife, cacheTag } from "next/cache";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { SitePage } from "@/components/sites/SitePage";
-import { createServiceSupabase } from "@/lib/supabase/service";
+import { getSite } from "@/lib/sites/get-site";
 import { SiteVariables } from "@/types/lead-site";
-
-interface SiteRow {
-  id: string;
-  slug: string;
-  status: "draft" | "published" | "sent" | "archived";
-  variables: unknown;
-}
-
-async function getSite(slug: string): Promise<SiteRow | null> {
-  "use cache";
-  cacheTag(`site:${slug}`);
-  cacheLife({ revalidate: 3600, expire: 86400 });
-
-  const supa = createServiceSupabase();
-  const { data, error } = await supa
-    .from("lead_sites")
-    .select("id, slug, status, variables")
-    .eq("slug", slug)
-    .maybeSingle();
-
-  if (error || !data) return null;
-  return data as SiteRow;
-}
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -101,9 +75,7 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
-  return (
-    <SitePage variables={parsed.data} siteId={site.id} slug={site.slug} />
-  );
+  return <SitePage variables={parsed.data} siteId={site.id} slug={site.slug} />;
 }
 
 export const metadata: Metadata = {
