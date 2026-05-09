@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
+import { axe, toHaveNoViolations } from "jest-axe";
 import { describe, expect, it } from "vitest";
 
 import { AdvertiseSection } from "@/components/sites/advertise/AdvertiseSection";
+
+expect.extend(toHaveNoViolations);
 
 const SITE_ID = "66666666-6666-4666-8666-666666666666";
 const SLUG = "j7k2p9-touring-cars";
@@ -48,4 +51,13 @@ describe("<AdvertiseSection />", () => {
     // sanitizeHex retorna #0C0C0C quando inválido.
     expect(submit).toHaveStyle({ backgroundColor: "#0C0C0C" });
   });
+
+  // AC7 round 3 — runtime axe-core (M2.3 #162 pattern). Cobre o form
+  // inteiro (labels, role=alert, aria-describedby) renderizado dentro do
+  // AdvertiseSection.
+  it("não tem violações axe-core (a11y runtime)", async () => {
+    const { container } = render(<AdvertiseSection {...baseProps} />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  }, 15_000);
 });

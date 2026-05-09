@@ -1,9 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
+import { axe, toHaveNoViolations } from "jest-axe";
 import { describe, expect, it } from "vitest";
 
 import { ContactSection } from "@/components/sites/contact/ContactSection";
 
 import { SITE_FIXTURE } from "../site-fixtures";
+
+expect.extend(toHaveNoViolations);
 
 const SITE_ID = "55555555-5555-4555-8555-555555555555";
 const SLUG = "j7k2p9-touring-cars";
@@ -176,4 +179,18 @@ describe("<ContactSection />", () => {
     const form = screen.getByTestId("site-form");
     expect(form).toHaveAttribute("data-variant", "contact");
   });
+
+  // AC7 round 3 — runtime axe-core (M2.3 #162 pattern). Cobre links
+  // externos, ícones sociais e form de contato em conjunto.
+  it("não tem violações axe-core (a11y runtime)", async () => {
+    const { container } = render(
+      <ContactSection
+        variables={baseVariables}
+        siteId={SITE_ID}
+        slug={SLUG}
+      />,
+    );
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  }, 15_000);
 });

@@ -1,9 +1,12 @@
 import { render, screen } from "@testing-library/react";
+import { axe, toHaveNoViolations } from "jest-axe";
 import { describe, expect, it } from "vitest";
 
 import { AboutSection } from "@/components/sites/about/AboutSection";
 
 import { SITE_FIXTURE } from "../site-fixtures";
+
+expect.extend(toHaveNoViolations);
 
 const baseVariables = {
   about_text: SITE_FIXTURE.about_text,
@@ -99,4 +102,12 @@ describe("<AboutSection />", () => {
     const img = screen.getByAltText(`Sobre — ${SITE_FIXTURE.business_name}`);
     expect(img).toBeInTheDocument();
   });
+
+  // AC7 round 3 — runtime axe-core (M2.3 #162 pattern). Roda contra o DOM
+  // serializado pelo RTL e bloqueia violations serious/critical.
+  it("não tem violações axe-core (a11y runtime)", async () => {
+    const { container } = render(<AboutSection variables={baseVariables} />);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  }, 15_000);
 });
