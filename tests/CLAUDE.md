@@ -19,6 +19,7 @@ tests/
 │   ├── _helpers/        # auth.ts (login real + skip declarativo)
 │   ├── smoke.spec.ts    # carrega `/`
 │   ├── responsive.spec.ts # regressão de menu mobile e overflow horizontal
+│   ├── sites/           # Phase 7 — render público dos sites gerados (#166)
 │   └── ...              # fluxos por área (leads, campaigns, whatsapp, integration, pipeline)
 └── fixtures/            # JSON fixtures para mappers Apify
 ```

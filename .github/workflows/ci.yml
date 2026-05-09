@@ -145,6 +145,11 @@ jobs:
           APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
+          # E2E Phase 7 sites (#166). Quando os secrets existirem +
+          # apontarem pra Supabase real, os specs em tests/e2e/sites/
+          # deixam de fazer test.skip e passam a rodar.
+          TEST_SEED_TOKEN: ${{ secrets.TEST_SEED_TOKEN }}
+          TEST_SEED_USER_ID: ${{ secrets.TEST_SEED_USER_ID }}
       - if: steps.check.outputs.ready == 'true' && always()
         # actions/upload-artifact@v4
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
