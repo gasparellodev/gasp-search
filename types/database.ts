@@ -423,6 +423,24 @@ export interface Database {
         };
         Relationships: [];
       };
+      generation_throttle: {
+        Row: {
+          id: string;
+          user_id: string;
+          attempted_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          attempted_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          attempted_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

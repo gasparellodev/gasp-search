@@ -131,7 +131,7 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 10 tabelas esperadas (incluindo lead_sites do M1.1)", () => {
+  it("Database['public']['Tables'] cobre as 11 tabelas esperadas (incluindo generation_throttle do M1.7)", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
       | "profiles"
@@ -144,6 +144,7 @@ describe("types/database", () => {
       | "campaigns"
       | "campaign_targets"
       | "lead_sites"
+      | "generation_throttle"
     >();
   });
 

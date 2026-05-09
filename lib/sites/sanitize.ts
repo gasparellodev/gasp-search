@@ -34,3 +34,47 @@ export function sanitizeHex(input: string): string {
   if (typeof input !== "string") return DEFAULT_HEX;
   return HEX_RE.test(input) ? input : DEFAULT_HEX;
 }
+
+/**
+ * Whitelist de schemes aceitos como URL pública. Qualquer outro scheme
+ * (`javascript:`, `data:`, `file:`, `vbscript:`, `gopher:`, ...) é
+ * tratado como input adversarial — `safeUrl` retorna `null`.
+ *
+ * `http:` é mantido pra suportar dev/local sem TLS. Em produção, brand
+ * assets reais sempre virão de fontes https (Vercel Blob, CDNs Apify).
+ */
+const URL_SCHEME_WHITELIST = new Set(["http:", "https:"]);
+
+/**
+ * Valida e devolve uma URL pública segura ou `null`.
+ *
+ * Razão de existir: o pipeline de brand assets (#156) retorna URLs de
+ * fontes externas (Instagram, Google Maps, scraping de favicon, Vercel
+ * Blob). Em catastrófico, alguma fonte poderia retornar uma string com
+ * scheme malicioso (`javascript:`, `data:image/svg+xml;...`, ...) que
+ * seria injetada em `<img src=...>` ou `style="background-image: url(...)"`.
+ * `safeUrl` é a defesa em profundidade no orquestrador `generateLeadSite`
+ * (#159) — qualquer URL não-http(s) vira `null`, e o caller substitui
+ * por fallback (monogram inline / stock photo).
+ *
+ * Validação:
+ *  1. Tipo `string` (defesa contra `null`/`undefined`/numeric ts-bypass).
+ *  2. Construtor `URL` aceita o input (forma sintática válida).
+ *  3. `protocol` está em `URL_SCHEME_WHITELIST`.
+ *
+ * Reaproveitamos o `URL` parser do runtime — testes contra
+ * `javascript:alert(1)` (que parseia mas tem `protocol === 'javascript:'`)
+ * passam pelo guard 1+2 mas falham no 3.
+ */
+export function safeUrl(input: string | null | undefined): string | null {
+  if (typeof input !== "string" || input.length === 0) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(input);
+  } catch {
+    return null;
+  }
+  return URL_SCHEME_WHITELIST.has(parsed.protocol.toLowerCase())
+    ? input
+    : null;
+}

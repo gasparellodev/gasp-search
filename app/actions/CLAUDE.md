@@ -50,11 +50,28 @@ Caso contrário, prefira API route REST em `app/api/`.
 | Path | Propósito |
 |---|---|
 | `site-form.ts` | `submitSiteForm(siteId, payload)` — Server Action chamada pelo `<SiteForm>` público (#161). MVP: stub que valida via `SiteFormSchema` e retorna `{ success: true }`. Persistência em `site_form_submissions` é follow-up. |
+| `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → SiteVariables.parse → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. |
 
 ## Dependências
 
 - `zod` — schemas em `lib/...schema.ts`.
 - `server-only` — implícito via `'use server'` do Next.
+- `next/cache` — `updateTag`, `revalidatePath` para invalidação de cache em
+  `lead-site.ts`. **`updateTag` (não `revalidateTag`)** em Server Actions —
+  requer 1 arg só e tem semântica read-your-own-writes específica do
+  contexto Server Action, alinhado com Next 16 cache-components.
+
+## Mapa de erros (lead-site.ts)
+
+| Caminho | error | Persistido como |
+|---|---|---|
+| Sem auth | `auth` | n/a (não toca DB) |
+| Lead inexistente / RLS | `not_found` | n/a (não toca DB) |
+| 5+ tentativas em 60s | `rate_limit` | tentativa registrada antes do bloqueio |
+| `GenerationError` (após 1 retry se retryable) | `ai_error` | `status='draft'` + `generation_error: '{ code, message, timestamp }'` |
+| `SiteVariables.parse` falha | `validation` | `status='draft'` + `generation_error` (Zod issues) |
+| `SlugCollisionError` | `db_error` | **NÃO** persiste — falha de infra |
+| Upsert error (race em slug global) | `db_error` | n/a (commit falhou) |
 
 ## Quando atualizar este `CLAUDE.md`
 

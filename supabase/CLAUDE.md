@@ -62,6 +62,7 @@ npx supabase gen types typescript --local > types/database.ts
 | `migrations/0004_campaigns.sql` | Tabelas `campaigns` + `campaign_targets` (Phase 5) |
 | `migrations/0005_lead_messages_ext.sql` | Extensão de `lead_messages` (direction/status/campaign_id/ai_generated) |
 | `migrations/0010_lead_sites.sql` | Phase 7 M1.1: tabela `lead_sites` (sites por lead), 3 índices, 4 RLS policies, função `set_updated_at` + trigger, check constraint em `status` |
+| `migrations/0011_generation_throttle.sql` | Phase 7 M1.7 (#159): tabela `generation_throttle` (tentativas de `generateLeadSite` por usuário). Index composto `(user_id, attempted_at desc)` pra perf da query de rate-limit (5/60s, persistido em DB — não em memória, pra funcionar em runtime serverless). RLS isola visibilidade; query do orquestrador usa `service_role` pra enforcement servidor-side. |
 
 ## Dependências
 
