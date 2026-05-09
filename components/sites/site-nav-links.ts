@@ -23,8 +23,8 @@ export function buildSiteNavLinks(slug: string): ReadonlyArray<SiteNavLink> {
   const base = `/sites/${slug}`;
   return [
     { id: "sobre", label: "Sobre", href: `${base}/sobre` },
-    { id: "estoque", label: "Estoque", href: `${base}/estoque` },
     { id: "contato", label: "Contato", href: `${base}/contato` },
     { id: "anunciar", label: "Anunciar", href: `${base}/anunciar` },
+    { id: "estoque", label: "Estoque", href: `${base}/estoque` },
   ];
 }
