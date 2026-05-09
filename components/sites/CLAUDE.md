@@ -60,6 +60,7 @@ componentes:
 
 | Path | Propósito |
 |---|---|
+| `SitePage.tsx` | **Server Component (stub M2.1 — issue #160).** Wrapper público de `/sites/[slug]`. Recebe `{ variables: SiteVariables, siteId: string, slug: string }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`). MVP renderiza apenas `<h1>` com `business_name` + `data-site-id` para E2E. **Composição completa** (Hero / Categories / Emphasis / RecentSales / About / Contact / Stock / CarDetail) entra em M2.3-M2.5 (issues #162-#164) — a API de props `{ variables, siteId, slug }` é estável e não muda no swap stub→full. |
 | `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. |
 | `MobileNav.tsx` | **Client Component.** Hambúrguer + menu dropdown com estado `open`. ESC fecha + foco volta ao botão. |
 | `SiteFooter.tsx` | Server Component. 3 colunas: marca/sociais, contato, newsletter (visual). Ícones sociais omitidos individualmente quando URL é `null`. Copyright com ano corrente. |

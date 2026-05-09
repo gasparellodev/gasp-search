@@ -33,6 +33,10 @@ export default defineConfig({
         "lib/**/*.{ts,tsx}",
         "app/api/**/*.{ts,tsx}",
         "app/actions/**/*.{ts,tsx}",
+        // Rotas públicas do Site Generator (Phase 7 — issue #160 em diante).
+        // Têm lógica server-side (status routing, Zod safeParse, cache
+        // helpers) que precisa de unit coverage além do E2E #166.
+        "app/sites/**/*.{ts,tsx}",
         "components/layout/**/*.{ts,tsx}",
         "components/search/**/*.{ts,tsx}",
         "components/leads/**/*.{ts,tsx}",
