@@ -102,6 +102,31 @@ export type GenerateLeadSiteResult =
       message: string;
     };
 
+/**
+ * Retorno da `updateLeadSiteVariables` (issue #168).
+ *
+ * Erros possíveis:
+ *  - `auth`            — usuário não autenticado.
+ *  - `not_found`       — leadSiteId não existe ou não pertence ao usuário (RLS).
+ *  - `invalid_status`  — status do site não é 'published' ou 'sent'
+ *                        (defesa em profundidade, UI já bloqueia).
+ *  - `validation`      — patch falha em `SiteVariables.partial()` ou
+ *                        merge final falha em `SiteVariables.parse`.
+ *  - `db_error`        — falha de infra na escrita.
+ */
+export type UpdateLeadSiteVariablesResult =
+  | { ok: true; slug: string }
+  | {
+      ok: false;
+      error:
+        | "auth"
+        | "not_found"
+        | "invalid_status"
+        | "validation"
+        | "db_error";
+      message: string;
+    };
+
 // ---------------------------------------------------------------------------
 // Constantes
 // ---------------------------------------------------------------------------
@@ -707,4 +732,256 @@ export async function generateLeadSite(
   });
 
   return { ok: true, slug };
+}
+
+// ---------------------------------------------------------------------------
+// updateLeadSiteVariables (#168) — edição manual das variáveis do site
+// ---------------------------------------------------------------------------
+
+/**
+ * Lista de campos de `SiteVariables` que aceitam URL e devem passar por
+ * `safeUrl()` antes do merge — defesa em profundidade contra schemes
+ * maliciosos (`javascript:`, `data:`, `file:`, `vbscript:`).
+ *
+ * `cars[].thumbnail_url`, `cars[].gallery_urls[]`, `home_categories[].image_url`,
+ * `emphasis.image_url` e `recent_sales[].image_url` são tratados em
+ * `sanitizePatchUrls` via passes específicos.
+ */
+const TOP_LEVEL_URL_FIELDS = [
+  "logo_url",
+  "hero_image_url",
+  "about_image_url",
+  "contact_hero_image_url",
+  "instagram_url",
+  "facebook_url",
+  "youtube_url",
+] as const;
+
+/**
+ * Aplica `safeUrl()` em todos os campos de URL do patch. URLs com scheme
+ * malicioso viram `null` (ou são removidas do patch para campos não-nullable
+ * — nesse caso o validador final reprova a tentativa).
+ *
+ * Estratégia:
+ *  - Para nullable URLs (`instagram_url`, `facebook_url`, `youtube_url`),
+ *    `null` é aceito.
+ *  - Para non-nullable URLs (`logo_url`, `hero_image_url`, ...),
+ *    `safeUrl` retornar `null` faz a SiteVariables.parse final falhar
+ *    com error 'validation' — comportamento correto (rejeitar input
+ *    sujo em vez de "limpar silenciosamente").
+ *  - Para arrays (gallery_urls), aplica em cada item; itens inválidos
+ *    viram `null` e o parse final reprova.
+ */
+function sanitizePatchUrls(
+  patch: Partial<SiteVariables>,
+): Partial<SiteVariables> {
+  const out: Record<string, unknown> = { ...patch };
+
+  for (const key of TOP_LEVEL_URL_FIELDS) {
+    if (key in patch) {
+      const value = patch[key];
+      if (value === null || value === undefined) {
+        out[key] = value;
+      } else if (typeof value === "string") {
+        out[key] = safeUrl(value);
+      }
+    }
+  }
+
+  // home_categories[].image_url
+  if (Array.isArray(patch.home_categories)) {
+    out.home_categories = patch.home_categories.map((c) => ({
+      ...c,
+      image_url:
+        typeof c.image_url === "string" ? (safeUrl(c.image_url) ?? "") : "",
+    }));
+  }
+
+  // emphasis.image_url
+  if (patch.emphasis && typeof patch.emphasis === "object") {
+    out.emphasis = {
+      ...patch.emphasis,
+      image_url:
+        typeof patch.emphasis.image_url === "string"
+          ? (safeUrl(patch.emphasis.image_url) ?? "")
+          : "",
+    };
+  }
+
+  // recent_sales[].image_url
+  if (Array.isArray(patch.recent_sales)) {
+    out.recent_sales = patch.recent_sales.map((s) => ({
+      ...s,
+      image_url:
+        typeof s.image_url === "string" ? (safeUrl(s.image_url) ?? "") : "",
+    }));
+  }
+
+  // cars[].thumbnail_url + cars[].gallery_urls[]
+  if (Array.isArray(patch.cars)) {
+    out.cars = patch.cars.map((car) => ({
+      ...car,
+      thumbnail_url:
+        typeof car.thumbnail_url === "string"
+          ? (safeUrl(car.thumbnail_url) ?? "")
+          : "",
+      gallery_urls: Array.isArray(car.gallery_urls)
+        ? car.gallery_urls.map((u) =>
+            typeof u === "string" ? (safeUrl(u) ?? "") : "",
+          )
+        : car.gallery_urls,
+    }));
+  }
+
+  return out as Partial<SiteVariables>;
+}
+
+/**
+ * Server Action `updateLeadSiteVariables(leadSiteId, patch)` — edição
+ * manual (issue #168).
+ *
+ * Pipeline:
+ *  1. Auth (Supabase) — sem usuário → `error: 'auth'`.
+ *  2. Fetch lead_sites por id (via authenticated client, RLS isola).
+ *  3. **Status guard** — `'published'` ou `'sent'` apenas. Caso
+ *     contrário → `error: 'invalid_status'`.
+ *  4. Validação parcial: `SiteVariables.partial().safeParse(patch)`.
+ *     Falha → `error: 'validation'`.
+ *  5. Sanitiza URLs do patch via `safeUrl` (defesa em profundidade).
+ *  6. Merge `{ ...current, ...sanitized }`.
+ *  7. Validação final completa: `SiteVariables.parse(merged)`. Falha
+ *     → `error: 'validation'` (com mensagem PT-BR).
+ *  8. Update via service_role (RLS bypass; usuário já passou no guard).
+ *  9. Cache invalidation: `updateTag('site:{slug}')` + `revalidatePath`.
+ *
+ * **Anti-XSS:** URLs sanitizadas antes do merge. Validação dupla (parcial
+ * + completa) garante que mesmo cores, slugs e textos sejam reaprovados
+ * pelo schema antes de tocar o banco.
+ *
+ * **Cache:** `updateTag` invalida o cache da rota pública `/sites/[slug]`
+ * para que F5 mostre o novo conteúdo.
+ */
+export async function updateLeadSiteVariables(
+  leadSiteId: string,
+  patch: Partial<SiteVariables>,
+): Promise<UpdateLeadSiteVariablesResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para editar o site.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status, variables")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Status guard (defesa em profundidade — UI já bloqueia)
+  if (existing.status !== "published" && existing.status !== "sent") {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message:
+        "Apenas sites publicados ou enviados podem ser editados.",
+    };
+  }
+
+  // Step 4: Validação parcial (rejeita campos com tipos errados antes
+  // do merge — proteção contra payload adversarial).
+  const partialParse = SiteVariables.partial().safeParse(patch);
+  if (!partialParse.success) {
+    return {
+      ok: false,
+      error: "validation",
+      message: "Dados do formulário inválidos. Confira os campos.",
+    };
+  }
+
+  // Step 5: Sanitiza URLs (defesa em profundidade)
+  const sanitized = sanitizePatchUrls(partialParse.data);
+
+  // Step 6: Merge com `variables` atual
+  const current = (existing.variables ?? {}) as Record<string, unknown>;
+  const merged: unknown = { ...current, ...sanitized };
+
+  // Step 7: Validação final completa
+  let variables: SiteVariables;
+  try {
+    variables = SiteVariables.parse(merged);
+  } catch (cause) {
+    const issuesSerialized =
+      cause instanceof ZodError
+        ? cause.issues
+            .map((i) => `${i.path.join(".")}: ${i.code}`)
+            .join("; ")
+        : "unknown";
+    console.error("updateLeadSiteVariables.validate", {
+      action: "updateLeadSiteVariables",
+      step: "validate",
+      leadSiteId,
+      userId,
+      issuesSerialized,
+    });
+    return {
+      ok: false,
+      error: "validation",
+      message:
+        "Os dados resultantes não passaram na validação. Confira os campos.",
+    };
+  }
+
+  // Step 8: Update via service_role
+  const service = createServiceSupabase();
+  const nowIso = new Date().toISOString();
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({
+      variables:
+        variables as unknown as Database["public"]["Tables"]["lead_sites"]["Update"]["variables"],
+      updated_at: nowIso,
+    })
+    .eq("id", leadSiteId);
+
+  if (updateError) {
+    console.error("updateLeadSiteVariables.persist", {
+      action: "updateLeadSiteVariables",
+      step: "persist",
+      leadSiteId,
+      userId,
+      errorName: updateError.name ?? "unknown",
+      errorMessage: updateError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao salvar o site no banco. Tente novamente.",
+    };
+  }
+
+  // Step 9: Cache invalidation
+  updateTag(`site:${existing.slug}`);
+  if (existing.lead_id) {
+    revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  return { ok: true, slug: existing.slug };
 }

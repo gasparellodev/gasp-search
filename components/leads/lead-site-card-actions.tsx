@@ -8,14 +8,15 @@
  * pra cá. **Toda lógica de cliente** (clipboard, useTransition, toast)
  * vive aqui.
  *
- * **Decisão V1 (refinamento PO 11):** Botões "Editar" (#168), "Regerar"
- * (#169), "Arquivar" / "Restaurar" (#169) e "Enviar via WhatsApp" (#171)
- * são renderizados como **disabled** com tooltip indicando a issue de
- * origem. Quando essas issues mergearem, basta remover o `disabled` +
- * fiar o handler real no lugar.
+ * **Decisão V1 (refinamento PO 11):** Botões "Regerar" (#169), "Arquivar"
+ * / "Restaurar" (#169) e "Enviar via WhatsApp" (#171) são renderizados
+ * como **disabled** com tooltip indicando a issue de origem. O botão
+ * "Editar" (#168) está ativo e abre `<LeadSiteEditModal>`. Quando as
+ * issues remanescentes mergearem, basta remover o `disabled` + fiar o
+ * handler real no lugar.
  */
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -41,6 +42,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { LeadSiteEditModal } from "./LeadSiteEditModal";
 import type { LeadSiteCardData, LeadSiteStatus } from "./lead-site-card-types";
 
 interface LeadSiteCardActionsProps {
@@ -85,6 +87,7 @@ export function LeadSiteCardActions({
 }: LeadSiteCardActionsProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [editOpen, setEditOpen] = useState(false);
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
 
   // ---------------------------------------------------------------
@@ -208,24 +211,31 @@ export function LeadSiteCardActions({
           Copiar
         </Button>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled
-                aria-disabled="true"
-                data-testid="lead-site-edit-button"
-              >
-                <Pencil className="size-4" aria-hidden="true" />
-                Editar
-              </Button>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>Disponível em #168</TooltipContent>
-        </Tooltip>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setEditOpen(true)}
+          data-testid="lead-site-edit-button"
+        >
+          <Pencil className="size-4" aria-hidden="true" />
+          Editar
+        </Button>
+
+        {leadSite ? (
+          <LeadSiteEditModal
+            leadSite={leadSite}
+            open={editOpen}
+            onOpenChange={(next) => {
+              setEditOpen(next);
+              if (!next) {
+                // Após fechar (incluindo após salvar), refresh do card
+                // pra puxar variáveis novas do Server Component pai.
+                router.refresh();
+              }
+            }}
+          />
+        ) : null}
 
         <Tooltip>
           <TooltipTrigger asChild>

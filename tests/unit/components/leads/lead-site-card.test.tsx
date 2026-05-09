@@ -94,6 +94,7 @@ function makeLeadSite(
     published_at: "2026-05-09T12:00:00.000Z",
     sent_at: null,
     view_count: 0,
+    variables: null,
     ...overrides,
   };
 }
@@ -262,7 +263,7 @@ describe("<LeadSiteCard /> — Server Component fetch", () => {
     expect(supabaseMocks.createServerSupabase).toHaveBeenCalled();
     expect(from).toHaveBeenCalledWith("lead_sites");
     expect(select).toHaveBeenCalledWith(
-      "id, slug, status, generated_at, published_at, sent_at, view_count",
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
     );
     expect(eq).toHaveBeenCalledWith("lead_id", LEAD_ID);
     expect(

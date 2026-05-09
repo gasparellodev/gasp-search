@@ -68,7 +68,7 @@ export async function LeadSiteCard({ leadId }: LeadSiteCardProps) {
   const { data, error } = await supabase
     .from("lead_sites")
     .select(
-      "id, slug, status, generated_at, published_at, sent_at, view_count",
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
     )
     .eq("lead_id", leadId)
     .maybeSingle();
@@ -85,7 +85,11 @@ export async function LeadSiteCard({ leadId }: LeadSiteCardProps) {
     });
   }
 
-  const leadSite: LeadSiteCardData | null = data ?? null;
+  // Cast: supabase devolve `variables: Json`. O Server Component só passa
+  // adiante; o consumidor (modal #168) re-valida via `SiteVariables.partial()`
+  // antes de enviar de volta pro Server Action.
+  const leadSite: LeadSiteCardData | null =
+    (data as LeadSiteCardData | null) ?? null;
 
   return (
     <LeadSiteCardView
