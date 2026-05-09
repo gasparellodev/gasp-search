@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { MessageHistory } from "@/components/ai/message-history";
 import { MessageGenerator } from "@/components/ai/message-generator";
+import { LeadSiteCard } from "@/components/leads/lead-site-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -87,6 +88,8 @@ export default async function LeadDetailPage({
           <p className="mt-1 font-medium">{lead.score}/100</p>
         </div>
       </section>
+
+      <LeadSiteCard leadId={lead.id} />
 
       <Tabs
         defaultValue={rawSearchParams.messagesPage ? "history" : "generate"}
