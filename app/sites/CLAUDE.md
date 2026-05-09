@@ -73,8 +73,8 @@ Fonte canônica do design: §8 do spec mestre em
 | `[slug]/sobre/page.tsx` | Rota `/sites/<slug>/sobre` (#163). Reutiliza `getSite` + `<SitePage activePage="sobre">` com `<AboutSection>` injetado via children. |
 | `[slug]/contato/page.tsx` | Rota `/sites/<slug>/contato` (#163). Reutiliza `getSite` + `<SitePage activePage="contato">` com `<ContactSection>` injetado via children. |
 | `[slug]/anunciar/page.tsx` | Rota `/sites/<slug>/anunciar` (#163). Reutiliza `getSite` + `<SitePage activePage="anunciar">` com `<AdvertiseSection>` (server) + `<AnnounceForm>` (client) injetados via children. |
-
-> Páginas filhas (estoque/carro) são adicionadas em M2.5 (issue #164).
+| `[slug]/estoque/page.tsx` | Rota `/sites/<slug>/estoque` (#164). Reutiliza `getSite` + `<SitePage activePage="estoque">` com `<StockSection>` injetado. Recebe `searchParams.categoria` (CSV multi-select) e propaga pro section. |
+| `[slug]/estoque/[carSlug]/page.tsx` | Rota `/sites/<slug>/estoque/<carSlug>` (#164). Reutiliza `getSite`, faz `cars.find(c => c.slug === carSlug)` (404 se não achar), renderiza `<CarDetailSection>` dentro de `<SitePage activePage="estoque">`. |
 
 ## Dependências
 
