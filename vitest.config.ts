@@ -32,11 +32,13 @@ export default defineConfig({
       include: [
         "lib/**/*.{ts,tsx}",
         "app/api/**/*.{ts,tsx}",
+        "app/actions/**/*.{ts,tsx}",
         "components/layout/**/*.{ts,tsx}",
         "components/search/**/*.{ts,tsx}",
         "components/leads/**/*.{ts,tsx}",
         "components/pipeline/**/*.{ts,tsx}",
         "components/ai/**/*.{ts,tsx}",
+        "components/sites/**/*.{ts,tsx}",
         // Schemas de domínio em `types/` que carregam lógica de validação
         // runtime (não-só type aliases) entram no coverage. Type-only files
         // como `database.ts` ficam de fora.
