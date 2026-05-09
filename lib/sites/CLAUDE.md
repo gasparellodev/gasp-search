@@ -8,8 +8,10 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 - Geração de slug único (`slug.ts`).
 - Erros tipados do domínio (`errors.ts`).
 - Geração de copy via Anthropic (`generate-copy.ts`, #158).
+- Banco V1 de stock photos para placeholder do site (`stock-photos.ts` +
+  `stock-photos.manifest.json` + `stock-photos.schema.ts`, #157).
 - Futuramente: orquestração `generateLeadSite` (#159), pipeline de brand
-  assets (#156), bank de stock photos (#157).
+  assets (#156).
 
 ## Como adicionar
 
@@ -58,6 +60,9 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 | `generate-copy.ts` | `generateCopy(input)` — 1 call Anthropic Sonnet 4.6 com tool use forçado `emit_site_copy` + system prompt cacheado. Valida output via `SiteCopySchema.parse`. Sem retry interno; orquestrador (#159) decide via `GenerationError.retryable`. Exporta `SYSTEM_PROMPT`, `GENERATION_VERSION='v1.0.0'`, `GENERATION_MODEL='claude-sonnet-4-6'`. |
 | `sanitize.ts` | `sanitizeHex(input)` + `DEFAULT_HEX='#0C0C0C'`. Defesa em profundidade contra CSS injection: as cores `primary_color`/`text_on_primary` em `lead_sites.variables` são injetadas em `style="--site-primary: ..."` no `<SitePage>` wrapper. Mesmo com Zod no schema (#154), o banco pode ser editado fora do app e React `style` inline aceita qualquer string. Regex estrita `/^#[0-9a-f]{6}$/i`; tudo que não bate retorna `DEFAULT_HEX`. |
 | `site-form.schema.ts` | `SiteFormSchema` Zod do form público de captura (`SiteForm` em #161). Compartilhado entre Client Component (`react-hook-form` + `zodResolver`) e Server Action `submitSiteForm` — fonte única de verdade. Aceita `phone` com formatação livre (10–13 dígitos numéricos pós-strip); `lgpd: z.literal(true)` (consentimento obrigatório). |
+| `stock-photos.schema.ts` | `stockManifestSchema` Zod + enums `stockCarCategoryEnum` (`sedan|suv|picape|hatch|esportivo`) e `stockCarConditionEnum` (`0km|seminovo`). Tipos derivados `StockManifest`, `StockCarEntry`. URL é estritamente `/assets/stock/<file>.png` na V1. |
+| `stock-photos.manifest.json` | Manifest V1 co-localizado: 14 carros (sea-doo NÃO incluído — jet ski não cabe em placeholder de concessionária). Importado via `import` JSON pra zero filesystem em runtime serverless. |
+| `stock-photos.ts` | **Server-only.** `pickCarStock({ business_type: 'concessionaria', count, seed? })` — banco V1 de placeholders para `extractBrandAssets` (#156). Manifest validado no boot via top-level `parse`. Determinismo via Mulberry32 PRNG (zero deps) quando `seed` informado. Exporta `STOCK_PHOTOS_TOTAL = 14` e tipo `StockCarEntry`. |
 
 ## Contrato de erro do `generateCopy`
 
@@ -70,6 +75,25 @@ Lógica server-side do gerador de mini-sites para leads de concessionárias
 | `unknown` | `false` | Fallback defensivo |
 
 `GENERATION_VERSION` é persistido em `lead_sites.variables.generation_version`. Bump SEMVER quando `SiteCopySchema` ou `SYSTEM_PROMPT` mudarem materialmente — permite migração offline de sites antigos.
+
+## Contrato de `pickCarStock`
+
+Chamado por `extractBrandAssets` (M1.4 / #156) para popular
+`lead_sites.variables.car_placeholder_urls` no preview do site.
+
+| Cenário | Comportamento |
+|---|---|
+| `count: 0` | Retorna `[]` (não erro) |
+| `count: 6` | Retorna 6 entries únicos |
+| `count: 14` | Retorna todos os 14 sem repetição |
+| `count: 15` | Lança `Error('count exceeds total available stock (15 requested, 14 available)')` |
+| `seed: 'lead-abc'` (mesma) | Ordem reprodutível em qualquer máquina/processo |
+| `seed: 'a'` vs `seed: 'b'` | Ordens diferentes (mesmo conjunto) |
+| Sem `seed` | Não-determinístico (`Math.random()`) — aceitável pra preview ad-hoc |
+
+Determinismo é crítico porque `car_placeholder_urls` é persistido no DB:
+sem seed estável, cada regen mexeria na ordem e quebraria a expectativa
+de "mesmo lead → mesmo preview".
 
 ## Dependências
 
