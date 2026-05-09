@@ -293,6 +293,10 @@ export interface Database {
           id: string;
           user_id: string;
           name: string;
+          // Coluna `type` (migration 0013) — distingue campaign clássica
+          // de mensagem (`'message'`) das campaigns que disparam prévias
+          // de site (`'site_preview'`, hook em lib/campaigns/processor.ts).
+          type: "message" | "site_preview";
           mode: Database["public"]["Enums"]["campaign_mode"];
           template_text: string | null;
           ai_channel: string | null;
@@ -311,6 +315,7 @@ export interface Database {
           id?: string;
           user_id: string;
           name: string;
+          type?: "message" | "site_preview";
           mode: Database["public"]["Enums"]["campaign_mode"];
           template_text?: string | null;
           ai_channel?: string | null;
@@ -329,6 +334,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           name?: string;
+          type?: "message" | "site_preview";
           mode?: Database["public"]["Enums"]["campaign_mode"];
           template_text?: string | null;
           ai_channel?: string | null;

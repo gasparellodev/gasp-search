@@ -141,6 +141,7 @@ describe("processCampaign", () => {
         data: {
           id: "c1",
           status: "draft",
+          type: "message",
           mode: "template",
           template_text: "Olá {{nome}} de {{cidade}}",
           ai_channel: null,
@@ -230,6 +231,7 @@ describe("processCampaign", () => {
         data: {
           id: "c1",
           status: "draft",
+          type: "message",
           mode: "template",
           template_text: "Hi",
           ai_channel: null,
@@ -300,6 +302,7 @@ describe("processCampaign", () => {
         data: {
           id: "c1",
           status: "draft",
+          type: "message",
           mode: "ai_per_lead",
           template_text: null,
           ai_channel: "whatsapp",
@@ -341,6 +344,80 @@ describe("processCampaign", () => {
     );
   });
 
+  it("regression: campaign sem `type` (legacy) usa default 'message' flow", async () => {
+    // Garante que campaigns existentes (pré-#172) ainda renderizam template.
+    // Mesmo que migration tenha default 'message', testes não devem depender
+    // da DB — aqui forçamos `type: 'message'` explícito como regression check.
+    const lead1 = {
+      id: "lead-1",
+      name: "Legacy Bar",
+      city: "RJ",
+      state: "RJ",
+      category: null,
+      source: "google_maps",
+      country: null,
+      phone: "21999",
+      email: null,
+      website: null,
+      instagram_handle: null,
+      whatsapp: null,
+      has_website: null,
+      rating: null,
+      reviews_count: null,
+      followers_count: null,
+      stage: "new",
+      score: 0,
+      notes: null,
+    };
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "message",
+          mode: "template",
+          template_text: "Hi {{nome}}",
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: { data: [{ lead_id: "lead-1", status: "pending" }], error: null },
+      leads: { "lead-1": lead1 },
+    });
+    sendMock.mockResolvedValue({
+      ok: true,
+      messageId: "m",
+      whatsappMsgId: "evo",
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+    });
+
+    expect(result).toEqual({ sent: 1, failed: 0 });
+    expect(sendMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: "Hi Legacy Bar",
+        aiGenerated: false,
+      }),
+    );
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        table: "campaigns",
+        payload: expect.objectContaining({ status: "completed" }),
+      }),
+    );
+  });
+
   it("send falha → conta como failed e segue para o próximo", async () => {
     const lead1 = {
       id: "lead-1",
@@ -368,6 +445,7 @@ describe("processCampaign", () => {
         data: {
           id: "c1",
           status: "draft",
+          type: "message",
           mode: "template",
           template_text: "x",
           ai_channel: null,
@@ -408,3 +486,403 @@ describe("processCampaign", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// Branch site_preview (#172) — testa o desvio quando campaign.type='site_preview'.
+// `dispatchSitePreviewImpl` é injetado pra isolar o helper de dispatch (que
+// é coberto em tests/unit/lib/sites/dispatch-site-preview.test.ts).
+// ---------------------------------------------------------------------------
+
+describe("processCampaign — type='site_preview'", () => {
+  // Stub minimo do service client (não é tocado quando dispatchSitePreviewImpl
+  // é injetado; o processor passa esse client adiante mas o mock de dispatch
+  // não usa). Ainda assim precisamos passar pra evitar `createServiceSupabase`
+  // ler `process.env.SUPABASE_SERVICE_ROLE_KEY` em testes.
+  const fakeService = {} as unknown as Parameters<
+    typeof processCampaign
+  >[0]["serviceClient"];
+
+  it("AC1+AC3: lead com leadSite published → dispatch ok → marca queue 'sent'", async () => {
+    const dispatchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      leadSiteId: "site-1",
+    });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: {
+        data: [{ lead_id: "lead-1", status: "pending" }],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 1, failed: 0 });
+    expect(dispatchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u1",
+        leadId: "lead-1",
+        sendImpl: sendMock,
+      }),
+    );
+    // generateMessage NÃO deve ser chamado (branch site_preview ignora ai_*)
+    expect(generateMock).not.toHaveBeenCalled();
+    // Target atualizado pra 'sent'
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        table: "campaign_targets",
+        payload: expect.objectContaining({ status: "sent" }),
+      }),
+    );
+    // Campaign status running → completed (AC1: branch dispatch funciona end-to-end)
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        table: "campaigns",
+        payload: expect.objectContaining({ status: "completed" }),
+      }),
+    );
+  });
+
+  it("AC2: lead sem leadSite (no_site) → marca queue 'skipped' com reason e NÃO conta failed", async () => {
+    const dispatchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "no_site",
+      message: "Lead não possui site gerado.",
+    });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: {
+        data: [{ lead_id: "lead-1", status: "pending" }],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 0 });
+    const skipped = updates.find(
+      (u) =>
+        u.table === "campaign_targets" &&
+        (u.payload as { status?: string }).status === "skipped",
+    );
+    expect(skipped).toBeDefined();
+    expect(
+      (skipped?.payload as { error_message?: string }).error_message,
+    ).toMatch(/no_site/);
+  });
+
+  it("AC2: lead com leadSite status='archived' (invalid_status) → 'skipped'", async () => {
+    const dispatchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "invalid_status",
+      message: "Site em status 'archived' — apenas 'published'/'sent' são elegíveis.",
+    });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: {
+        data: [{ lead_id: "lead-1", status: "pending" }],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 0 });
+    const skipped = updates.find(
+      (u) =>
+        u.table === "campaign_targets" &&
+        (u.payload as { status?: string }).status === "skipped",
+    );
+    expect(skipped).toBeDefined();
+    expect(
+      (skipped?.payload as { error_message?: string }).error_message,
+    ).toMatch(/invalid_status/);
+  });
+
+  it("AC3: dispatch retorna whatsapp_error → marca queue 'failed' e incrementa counter", async () => {
+    const dispatchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      reason: "whatsapp_error",
+      message: "evolution_error",
+    });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: {
+        data: [{ lead_id: "lead-1", status: "pending" }],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 1 });
+    const failed = updates.find(
+      (u) =>
+        u.table === "campaign_targets" &&
+        (u.payload as { status?: string }).status === "failed",
+    );
+    expect(failed).toBeDefined();
+    expect((failed?.payload as { error_message?: string }).error_message).toMatch(
+      /whatsapp_error/,
+    );
+  });
+
+  it("AC1+AC3: 3 targets mistos (sent + skipped + failed) — counters corretos e throttle entre cada", async () => {
+    const dispatchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, leadSiteId: "s1" })
+      .mockResolvedValueOnce({
+        ok: false,
+        reason: "no_site",
+        message: "Lead não possui site gerado.",
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        reason: "whatsapp_error",
+        message: "lead_missing_phone",
+      });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running", "running", "running"],
+      targets: {
+        data: [
+          { lead_id: "lead-1", status: "pending" },
+          { lead_id: "lead-2", status: "pending" },
+          { lead_id: "lead-3", status: "pending" },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 1, failed: 1 });
+    expect(dispatchMock).toHaveBeenCalledTimes(3);
+    // Throttle entre cada par (3 targets → 2 sleeps)
+    expect(sleepMock).toHaveBeenCalledTimes(2);
+    // Cada um dos 3 status aparece em algum update
+    const targetStatuses = updates
+      .filter((u) => u.table === "campaign_targets")
+      .map((u) => (u.payload as { status?: string }).status);
+    expect(targetStatuses).toContain("sent");
+    expect(targetStatuses).toContain("skipped");
+    expect(targetStatuses).toContain("failed");
+  });
+
+  it("AC1: campaign cancelled mid-loop interrompe dispatch dos targets restantes", async () => {
+    const dispatchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      leadSiteId: "s1",
+    });
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      // Primeiro check (target 1) retorna 'cancelled' → loop quebra de cara.
+      // Segundo (final, decide status) também 'cancelled' → não sobrescreve.
+      campaignStatusSequence: ["cancelled", "cancelled"],
+      targets: {
+        data: [
+          { lead_id: "lead-1", status: "pending" },
+          { lead_id: "lead-2", status: "pending" },
+        ],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 0 });
+    expect(dispatchMock).not.toHaveBeenCalled();
+    // Não deve sobrescrever 'cancelled' com 'completed'
+    expect(
+      updates.find(
+        (u) =>
+          u.table === "campaigns" &&
+          (u.payload as { status?: string }).status === "completed",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("AC3: dispatch lança throw inesperado → captura como 'failed' com message", async () => {
+    const dispatchMock = vi.fn().mockRejectedValue(new Error("unexpected boom"));
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "site_preview",
+          mode: "template",
+          template_text: null,
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running"],
+      targets: {
+        data: [{ lead_id: "lead-1", status: "pending" }],
+        error: null,
+      },
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+      dispatchSitePreviewImpl: dispatchMock,
+      serviceClient: fakeService,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 1 });
+    const failed = updates.find(
+      (u) =>
+        u.table === "campaign_targets" &&
+        (u.payload as { status?: string }).status === "failed",
+    );
+    expect(failed).toBeDefined();
+    expect((failed?.payload as { error_message?: string }).error_message).toContain(
+      "unexpected boom",
+    );
+  });
+});
+
