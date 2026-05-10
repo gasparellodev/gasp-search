@@ -2,6 +2,7 @@ import "server-only";
 
 import Link from "next/link";
 
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteCar, SiteVariables } from "@/types/lead-site";
 
 import { SiteForm } from "../SiteForm";
@@ -11,6 +12,7 @@ import { CarGallery } from "./CarGallery";
 type CarDetailVariables = Pick<
   SiteVariables,
   | "business_name"
+  | "business_slug"
   | "whatsapp"
   | "phone_display"
   | "primary_color"
@@ -42,7 +44,7 @@ const KM = new Intl.NumberFormat("pt-BR", {
  * Layout:
  *   - Hero galeria via `<CarGallery>` (lightbox + thumbs).
  *   - Info: brand+model+year, badges (km, transmission, fuel, color) + price.
- *   - WhatsApp CTA: `https://wa.me/<digits>?text=<encoded>`.
+ *   - WhatsApp CTA: gerado via `buildWhatsAppLink` (template `vehicle`).
  *   - Description em `<p className="whitespace-pre-line">` (zero
  *     `dangerouslySetInnerHTML`).
  *   - Datasheet `<dl>` com cada `[label, value]` da `car.datasheet[]`.
@@ -58,9 +60,20 @@ export function CarDetailSection({
   siteId,
   slug,
 }: CarDetailSectionProps) {
-  const digits = variables.whatsapp.replace(/\D/g, "");
-  const message = `Olá, tenho interesse no ${car.brand} ${car.model} ${car.year}`;
-  const whatsappHref = `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
+  const whatsappHref = buildWhatsAppLink({
+    template: "vehicle",
+    phone: variables.whatsapp,
+    businessName: variables.business_name,
+    siteSlug: variables.business_slug,
+    component: "car-detail",
+    vehicle: {
+      brand: car.brand,
+      model: car.model,
+      year: car.year,
+      price: car.price,
+      carSlug: car.slug,
+    },
+  });
   const galleryAlt = `${car.brand} ${car.model} ${car.year}`;
   const prefillModel = `${car.brand} ${car.model}`;
 
