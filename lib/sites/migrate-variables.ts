@@ -215,8 +215,7 @@ export function readSiteVariables(raw: unknown): SiteVariablesV2 {
   if (v2Attempt.success) return v2Attempt.data;
 
   if (isV1(raw)) {
-    const v1Snapshot = isV1(raw) ? extractV1Audit(raw) : {};
-    console.warn("[migrate-variables] v1 fallback hit", v1Snapshot);
+    console.warn("[migrate-variables] v1 fallback hit", extractV1Audit(raw));
     return migrateV1ToV2(raw);
   }
 
