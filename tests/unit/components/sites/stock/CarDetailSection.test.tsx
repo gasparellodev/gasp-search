@@ -21,6 +21,7 @@ const SITE_ID = "44444444-4444-4444-8444-444444444444";
 
 const baseVariables = {
   business_name: SITE_FIXTURE.business_name,
+  business_slug: SITE_FIXTURE.business_slug,
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
   primary_color: SITE_FIXTURE.primary_color,

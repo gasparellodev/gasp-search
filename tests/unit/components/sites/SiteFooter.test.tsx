@@ -7,6 +7,7 @@ import { SITE_FIXTURE } from "./site-fixtures";
 
 const footerVars = {
   business_name: SITE_FIXTURE.business_name,
+  business_slug: SITE_FIXTURE.business_slug,
   logo_url: SITE_FIXTURE.logo_url,
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
@@ -67,13 +68,16 @@ describe("<SiteFooter />", () => {
     expect(instagram).toHaveAttribute("rel", "noopener noreferrer");
   });
 
-  it("link WhatsApp aponta para wa.me/<numero>", () => {
+  it("link WhatsApp aponta para wa.me/<numero> com UTM (template general)", () => {
     render(<SiteFooter variables={footerVars} />);
     const wa = screen.getByLabelText("WhatsApp");
-    expect(wa).toHaveAttribute(
-      "href",
-      `https://wa.me/${footerVars.whatsapp}`,
-    );
+    const href = wa.getAttribute("href")!;
+    expect(href).toMatch(new RegExp(`^https://wa\\.me/${footerVars.whatsapp}\\?text=`));
+    expect(href).toContain("utm_source=site");
+    expect(href).toContain("utm_medium=whatsapp");
+    expect(href).toContain("utm_campaign=general");
+    expect(href).toContain("utm_content=footer");
+    expect(href).toContain(`utm_term=${footerVars.business_slug}`);
   });
 
   it("renderiza email e phone_display na coluna de contato", () => {

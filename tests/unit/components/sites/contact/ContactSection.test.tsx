@@ -22,6 +22,7 @@ const baseVariables = {
   facebook_url: SITE_FIXTURE.facebook_url,
   youtube_url: SITE_FIXTURE.youtube_url,
   business_name: SITE_FIXTURE.business_name,
+  business_slug: SITE_FIXTURE.business_slug,
   primary_color: SITE_FIXTURE.primary_color,
   text_on_primary: SITE_FIXTURE.text_on_primary,
 };
@@ -47,7 +48,7 @@ describe("<ContactSection />", () => {
     );
     const channels = screen.getByTestId("contact-channels");
     const link = within(channels).getByRole("link", { name: /WhatsApp/i });
-    expect(link).toHaveAttribute("href", "https://wa.me/5581981000000");
+    const href = link.getAttribute("href")!; expect(href).toMatch(/^https:\/\/wa\.me\/5581981000000\?text=/); expect(href).toContain("utm_campaign=general"); expect(href).toContain("utm_content=contact-section");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
   });
