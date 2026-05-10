@@ -14,8 +14,8 @@ describe("<HomeForm />", () => {
       <HomeForm
         siteId={SITE_ID}
         slug={SLUG}
-        primary_color={SITE_FIXTURE.brand_assets.primary_color}
-        text_on_primary={SITE_FIXTURE.brand_assets.text_on_primary}
+        primary_color={SITE_FIXTURE.primary_color}
+        text_on_primary={SITE_FIXTURE.text_on_primary}
       />,
     );
     expect(
@@ -31,8 +31,8 @@ describe("<HomeForm />", () => {
       <HomeForm
         siteId={SITE_ID}
         slug={SLUG}
-        primary_color={SITE_FIXTURE.brand_assets.primary_color}
-        text_on_primary={SITE_FIXTURE.brand_assets.text_on_primary}
+        primary_color={SITE_FIXTURE.primary_color}
+        text_on_primary={SITE_FIXTURE.text_on_primary}
       />,
     );
     const form = screen.getByTestId("site-form");

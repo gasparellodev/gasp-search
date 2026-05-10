@@ -156,7 +156,7 @@ describe("/sites/[slug]/estoque/[carSlug] — generateMetadata (#165)", () => {
       `${SITE_FIXTURE.business_name} — Toyota Corolla 2022`,
     );
     expect(meta.robots).toEqual({ index: false, follow: false });
-    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
   });
 

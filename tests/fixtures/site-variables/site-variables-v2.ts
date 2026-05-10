@@ -9,9 +9,9 @@
  * `address` estruturado + `testimonials` opcional.
  */
 
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
-export const fixtureSiteVariablesV2: SiteVariables = {
+export const fixtureSiteVariablesV2: SiteVariablesV2 = {
   // Identidade
   business_name: "Auto Fit Multimarcas",
   business_slug: "auto-fit-multimarcas",

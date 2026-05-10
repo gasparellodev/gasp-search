@@ -7,15 +7,17 @@ import { SITE_FIXTURE } from "./site-fixtures";
 
 const footerVars = {
   business_name: SITE_FIXTURE.business_name,
-  brand_assets: SITE_FIXTURE.brand_assets,
+  logo_url: SITE_FIXTURE.logo_url,
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
   email: SITE_FIXTURE.email,
   instagram_url: SITE_FIXTURE.instagram_url,
   facebook_url: SITE_FIXTURE.facebook_url,
   youtube_url: SITE_FIXTURE.youtube_url,
-  address: SITE_FIXTURE.address,
+  address_line: SITE_FIXTURE.address_line,
   hours: SITE_FIXTURE.hours,
+  primary_color: SITE_FIXTURE.primary_color,
+  text_on_primary: SITE_FIXTURE.text_on_primary,
 };
 
 describe("<SiteFooter />", () => {
@@ -88,10 +90,10 @@ describe("<SiteFooter />", () => {
     expect(input).not.toHaveAttribute("name");
   });
 
-  it("omite address e hours quando ambos null", () => {
+  it("omite address_line e hours quando ambos null", () => {
     render(
       <SiteFooter
-        variables={{ ...footerVars, address: null, hours: null }}
+        variables={{ ...footerVars, address_line: null, hours: null }}
       />,
     );
     expect(
@@ -100,7 +102,7 @@ describe("<SiteFooter />", () => {
     expect(screen.queryByText(/Seg–Sex/i)).not.toBeInTheDocument();
   });
 
-  it("omite email quando null mas mantém phone_display e WhatsApp", () => {
+it("omite email quando null mas mantém phone_display e WhatsApp", () => {
     render(<SiteFooter variables={{ ...footerVars, email: null }} />);
     expect(
       screen.queryByText("contato@touringcars.com.br"),

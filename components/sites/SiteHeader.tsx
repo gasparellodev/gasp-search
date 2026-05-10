@@ -9,7 +9,10 @@ import { MobileNav } from "./MobileNav";
 import { SiteThemeToggle } from "./SiteThemeToggle";
 import { buildSiteNavLinks, type ActivePage } from "./site-nav-links";
 
-type HeaderVariables = Pick<SiteVariables, "business_name" | "brand_assets">;
+type HeaderVariables = Pick<
+  SiteVariables,
+  "business_name" | "logo_url" | "primary_color" | "text_on_primary"
+>;
 
 interface SiteHeaderProps {
   variables: HeaderVariables;
@@ -38,9 +41,8 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
   const links = buildSiteNavLinks(slug);
   const homeHref = `/sites/${slug}`;
 
-  const primaryColor = sanitizeHex(variables.brand_assets.primary_color);
-  const textOnPrimary = sanitizeHex(variables.brand_assets.text_on_primary);
-  const logoUrl = variables.brand_assets.logo_url;
+  const primaryColor = sanitizeHex(variables.primary_color);
+  const textOnPrimary = sanitizeHex(variables.text_on_primary);
 
   return (
     <header
@@ -54,9 +56,9 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
           aria-label={variables.business_name}
           className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 rounded-md"
         >
-          {logoUrl ? (
+          {variables.logo_url ? (
             <Image
-              src={logoUrl}
+              src={variables.logo_url}
               alt={variables.business_name}
               width={200}
               height={56}

@@ -93,69 +93,51 @@ export function mergeSiteVariables(
       ? `https://instagram.com/${lead.instagram_handle.replace(/^@/, "")}`
       : null;
 
-  // V1 had `address_line: cityState`; V2 uses structured `address` (null when
-  // the lead doesn't carry street/number/neighborhood/zip — pipeline futuro
-  // de address-resolution hidratará).
+  const cityState = [lead.city, lead.state].filter(Boolean).join(", ");
+  const addressLine = cityState.length > 0 ? cityState : null;
 
   const carUrls = assets.car_placeholder_urls;
   const safeCarAt = (i: number): string =>
     carUrls[i] ?? carUrls[0] ?? FALLBACK_IMAGE_URL;
 
-  const fullCars = copy.cars.map((c, idx) => {
-    const galleryUrls = [
+  const fullCars = copy.cars.map((c, idx) => ({
+    slug: `car-${idx + 1}`,
+    brand: businessName.split(" ")[0] ?? "Carro",
+    model: `Modelo ${idx + 1}`,
+    year: new Date().getFullYear() - (idx % 3),
+    km: idx * 12_000,
+    price: null,
+    transmission: "Automático" as const,
+    fuel: "Flex" as const,
+    color: "Branco",
+    description: c.description,
+    thumbnail_url: safeCarAt(idx + 4 < carUrls.length ? idx + 4 : idx),
+    gallery_urls: [
       safeCarAt(idx % carUrls.length),
       safeCarAt((idx + 1) % carUrls.length),
       safeCarAt((idx + 2) % carUrls.length),
-    ];
-    return {
-      slug: `car-${idx + 1}`,
-      brand: businessName.split(" ")[0] ?? "Carro",
-      model: `Modelo ${idx + 1}`,
-      year: new Date().getFullYear() - (idx % 3),
-      km: idx * 12_000,
-      price: null,
-      transmission: "Automático" as const,
-      fuel: "Flex" as const,
-      color: "Branco",
-      description: c.description,
-      thumbnail_url: safeCarAt(idx + 4 < carUrls.length ? idx + 4 : idx),
-      gallery_urls: galleryUrls,
-      photos: galleryUrls, // V2 alias canônico (issue #197)
-      datasheet: c.datasheet,
-      featured: c.featured,
-      category: "Sedan" as const, // V2 default — copy IA não emite categoria ainda
-      plates_visible: false as const, // V2 — legal compliance
-    };
-  });
+    ],
+    datasheet: c.datasheet,
+    featured: c.featured,
+  }));
 
-  // V2 shape (issue #197): nested `brand_assets`, `address` estruturada,
-  // `schema_version: 2` discriminator. `address` é null no V1 (lead só tem
-  // city/state) — campos detalhados (street/number/neighborhood/zip) virão
-  // de pipeline futuro de address-resolution.
   return {
     business_name: businessName,
     business_slug: businessSlug,
     slogan: copy.slogan,
-    phone_display: phoneDisplay,
+    primary_color: assets.primary_color,
+    text_on_primary: assets.text_on_primary,
+    logo_url: assets.logo_url,
     whatsapp: whatsappDigits,
+    phone_display: phoneDisplay,
     email: lead.email,
-    address: null, // V2 estruturado — caller pode hidratar via address-resolution
-    hours: null,
-
     instagram_url: instagramUrl,
     facebook_url: null,
     youtube_url: null,
+    address_line: addressLine,
+    hours: null,
 
-    brand_assets: {
-      logo_url: assets.logo_url,
-      primary_color: assets.primary_color,
-      text_on_primary: assets.text_on_primary,
-      hero_image_url: assets.hero_image_url,
-      about_image_url: assets.about_image_url,
-      contact_image_url: assets.contact_hero_image_url,
-      car_placeholders: assets.car_placeholder_urls,
-    },
-
+    hero_image_url: assets.hero_image_url,
     home_categories: copy.home_categories.map((c, i) => ({
       label: c.label,
       image_url: safeCarAt(i),
@@ -173,13 +155,15 @@ export function mergeSiteVariables(
     ],
 
     about_text: copy.about_text,
+    about_image_url: assets.about_image_url,
     mission: copy.mission,
     vision: copy.vision,
     values: copy.values,
 
+    contact_hero_image_url: assets.contact_hero_image_url,
+
     cars: fullCars,
 
-    schema_version: 2 as const,
     generated_by: GENERATION_MODEL,
     generation_version: GENERATION_VERSION,
   };

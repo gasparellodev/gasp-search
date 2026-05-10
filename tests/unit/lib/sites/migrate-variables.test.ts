@@ -18,7 +18,7 @@ import {
   readSiteVariables,
   readSiteVariablesSafe,
 } from "@/lib/sites/migrate-variables";
-import { SiteVariables } from "@/types/lead-site";
+import { SiteVariablesV2 } from "@/types/lead-site";
 import { fixtureSiteVariablesV1 } from "@/tests/fixtures/site-variables/site-variables-v1";
 import { fixtureSiteVariablesV2 } from "@/tests/fixtures/site-variables/site-variables-v2";
 import {
@@ -76,9 +76,9 @@ describe("migrate-variables", () => {
       expect(result.schema_version).toBe(2);
     });
 
-    it("output passes SiteVariables.safeParse", () => {
+    it("output passes SiteVariablesV2.safeParse", () => {
       const result = migrateV1ToV2(fixtureSiteVariablesV1);
-      const parsed = SiteVariables.safeParse(result);
+      const parsed = SiteVariablesV2.safeParse(result);
       expect(parsed.success).toBe(true);
     });
 
@@ -124,7 +124,16 @@ describe("migrate-variables", () => {
 
     it("preserves cars[] essentials and adds v2 fields", () => {
       const result = migrateV1ToV2(fixtureSiteVariablesV1);
-      const carsV1 = fixtureSiteVariablesV1.cars;
+      // Cast: fixtureSiteVariablesV1 é Record<string,unknown> defensivamente
+      // (fonte v1 não-validada). Em runtime a estrutura é a esperada via
+      // SiteVariablesV1.parse dentro do migrator.
+      const carsV1 = fixtureSiteVariablesV1["cars"] as Array<{
+        brand: string;
+        model: string;
+        year: number;
+        km: number;
+        gallery_urls: string[];
+      }>;
       const carsV2 = result.cars;
 
       expect(carsV2).toHaveLength(carsV1.length);

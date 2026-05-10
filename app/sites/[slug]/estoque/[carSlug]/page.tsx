@@ -29,8 +29,7 @@ import { CarDetailSection } from "@/components/sites/stock/CarDetailSection";
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
-import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
-import type { SiteVariables } from "@/types/lead-site";
+import { SiteVariables } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string; carSlug: string }>;
@@ -49,7 +48,7 @@ export async function generateMetadata({
   if (site.status === "draft" || site.status === "archived") {
     return NOINDEX_FALLBACK;
   }
-  const parsed = readSiteVariablesSafe(site.variables);
+  const parsed = SiteVariables.safeParse(site.variables);
   if (!parsed.success) return NOINDEX_FALLBACK;
   const car = parsed.data.cars.find((c) => c.slug === carSlug);
   if (!car) return NOINDEX_FALLBACK;
@@ -68,7 +67,7 @@ export default async function CarDetailPage({ params }: PageProps) {
     notFound();
   }
 
-  const parsed = readSiteVariablesSafe(site.variables);
+  const parsed = SiteVariables.safeParse(site.variables);
   if (!parsed.success) {
     console.error("[site:render:carDetail] invalid variables", {
       slug,

@@ -7,7 +7,7 @@ import type { SiteVariables } from "@/types/lead-site";
 type AboutVariables = Pick<
   SiteVariables,
   | "about_text"
-  | "brand_assets"
+  | "about_image_url"
   | "mission"
   | "vision"
   | "values"
@@ -22,7 +22,7 @@ interface AboutSectionProps {
  * Section principal da rota `/sites/[slug]/sobre` (Phase 7 — issue #163).
  *
  * Server Component. Renderiza:
- *   - Hero com `brand_assets.about_image_url` e `<h1>` "Sobre a {business_name}".
+ *   - Hero com `about_image_url` e `<h1>` "Sobre a {business_name}".
  *   - Bloco texto longo: `about_text.split('\n\n')` em parágrafos
  *     separados (nunca `dangerouslySetInnerHTML`).
  *   - 3 cards Mission/Vision/Values em grid (1-col mobile, 3-col desktop).
@@ -31,13 +31,9 @@ interface AboutSectionProps {
  * **Anti-XSS (per spec §13)**: zero uso de `dangerouslySetInnerHTML`
  * e zero `react-markdown`. Os parágrafos vêm do split do texto IA,
  * renderizados como children React seguros.
- *
- * **v2 (issue #197)**: `about_image_url` migrou de root para
- * `brand_assets.about_image_url`. Acesso via destructuring no topo.
  */
 export function AboutSection({ variables }: AboutSectionProps) {
   const paragraphs = variables.about_text.split("\n\n").filter(Boolean);
-  const aboutImageUrl = variables.brand_assets.about_image_url;
 
   return (
     <section data-testid="about-section" className="w-full bg-background">
@@ -59,7 +55,7 @@ export function AboutSection({ variables }: AboutSectionProps) {
           </div>
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-foreground/5 md:aspect-[5/4]">
             <Image
-              src={aboutImageUrl}
+              src={variables.about_image_url}
               alt={`Sobre — ${variables.business_name}`}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"

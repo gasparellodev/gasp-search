@@ -18,8 +18,8 @@
 
 import {
   SiteCar,
-  SiteVariables,
   SiteVariablesV1,
+  SiteVariablesV2,
   type Address as AddressType,
   type BrandAssets as BrandAssetsType,
 } from "@/types/lead-site";
@@ -141,7 +141,7 @@ function augmentCars(cars: SiteVariablesV1["cars"]): SiteCar[] {
  *
  * **Throws:** `ZodError` se input não é v1 válido.
  */
-export function migrateV1ToV2(raw: unknown): SiteVariables {
+export function migrateV1ToV2(raw: unknown): SiteVariablesV2 {
   const v1 = SiteVariablesV1.parse(raw);
 
   const candidate = {
@@ -189,7 +189,7 @@ export function migrateV1ToV2(raw: unknown): SiteVariables {
     generation_version: v1.generation_version,
   };
 
-  return SiteVariables.parse(candidate);
+  return SiteVariablesV2.parse(candidate);
 }
 
 // ===========================================================================
@@ -210,8 +210,8 @@ export function migrateV1ToV2(raw: unknown): SiteVariables {
  * **Side effect:** `console.warn` quando o caminho v1 é exercido — para
  * auditoria pós-deploy. Esperado zero warns 24h após apply da migration.
  */
-export function readSiteVariables(raw: unknown): SiteVariables {
-  const v2Attempt = SiteVariables.safeParse(raw);
+export function readSiteVariables(raw: unknown): SiteVariablesV2 {
+  const v2Attempt = SiteVariablesV2.safeParse(raw);
   if (v2Attempt.success) return v2Attempt.data;
 
   if (isV1(raw)) {
@@ -234,7 +234,7 @@ export function readSiteVariables(raw: unknown): SiteVariables {
 export function readSiteVariablesSafe(
   raw: unknown,
 ):
-  | { success: true; data: SiteVariables }
+  | { success: true; data: SiteVariablesV2 }
   | { success: false; error: ZodError } {
   try {
     const data = readSiteVariables(raw);

@@ -13,7 +13,8 @@ type CarDetailVariables = Pick<
   | "business_name"
   | "whatsapp"
   | "phone_display"
-  | "brand_assets"
+  | "primary_color"
+  | "text_on_primary"
 >;
 
 interface CarDetailSectionProps {
@@ -173,8 +174,8 @@ export function CarDetailSection({
             slug={slug}
             variant="car-detail"
             prefillModel={prefillModel}
-            primary_color={variables.brand_assets.primary_color}
-            text_on_primary={variables.brand_assets.text_on_primary}
+            primary_color={variables.primary_color}
+            text_on_primary={variables.text_on_primary}
             title="Tem interesse nesse veículo?"
           />
         </div>
