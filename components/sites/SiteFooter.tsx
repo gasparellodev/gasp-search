@@ -2,6 +2,7 @@ import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteVariables } from "@/types/lead-site";
 
 import {
@@ -14,6 +15,7 @@ import {
 type FooterVariables = Pick<
   SiteVariables,
   | "business_name"
+  | "business_slug"
   | "logo_url"
   | "whatsapp"
   | "phone_display"
@@ -49,7 +51,13 @@ interface SiteFooterProps {
  */
 export function SiteFooter({ variables }: SiteFooterProps) {
   const year = new Date().getFullYear();
-  const whatsappHref = `https://wa.me/${variables.whatsapp}`;
+  const whatsappHref = buildWhatsAppLink({
+    template: "general",
+    phone: variables.whatsapp,
+    businessName: variables.business_name,
+    siteSlug: variables.business_slug,
+    component: "footer",
+  });
   const safePrimary = sanitizeHex(variables.primary_color);
   const safeTextOnPrimary = sanitizeHex(variables.text_on_primary);
 
