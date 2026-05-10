@@ -3,6 +3,7 @@ import "server-only";
 import Image from "next/image";
 import { Mail, MapPin, Clock, Phone } from "lucide-react";
 
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteVariables } from "@/types/lead-site";
 
 import { SiteForm } from "../SiteForm";
@@ -25,6 +26,7 @@ type ContactVariables = Pick<
   | "facebook_url"
   | "youtube_url"
   | "business_name"
+  | "business_slug"
   | "primary_color"
   | "text_on_primary"
 >;
@@ -40,7 +42,7 @@ interface ContactSectionProps {
  *
  * Server Component (`<SiteForm>` internamente é Client). Renderiza:
  *   - Hero com `contact_hero_image_url` + `<h1>` "Contato".
- *   - Lista de canais: WhatsApp (`wa.me/<digits>`), telefone
+ *   - Lista de canais: WhatsApp (via `buildWhatsAppLink`), telefone
  *     (`tel:+<digits>`), email (`mailto:` — skip se `null`),
  *     endereço e horário (skip se `null` / fallback "Sob consulta").
  *   - 4 ícones sociais: Instagram, Facebook, YouTube, WhatsApp
@@ -57,7 +59,13 @@ export function ContactSection({
   slug,
 }: ContactSectionProps) {
   const digits = variables.whatsapp.replace(/\D/g, "");
-  const whatsappHref = `https://wa.me/${digits}`;
+  const whatsappHref = buildWhatsAppLink({
+    template: "general",
+    phone: variables.whatsapp,
+    businessName: variables.business_name,
+    siteSlug: variables.business_slug,
+    component: "contact-section",
+  });
   // Esconde a linha "Phone" quando o phone_display equivale ao whatsapp
   // (mesmo número formatado/normalizado) — evita duplicidade visual.
   const phoneDigits = variables.phone_display.replace(/\D/g, "");
