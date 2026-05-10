@@ -2,16 +2,11 @@ import "server-only";
 
 import Image from "next/image";
 
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 type AboutVariables = Pick<
-  SiteVariables,
-  | "about_text"
-  | "about_image_url"
-  | "mission"
-  | "vision"
-  | "values"
-  | "business_name"
+  SiteVariablesV2,
+  "about_text" | "brand_assets" | "mission" | "vision" | "values" | "business_name"
 >;
 
 interface AboutSectionProps {
@@ -19,14 +14,16 @@ interface AboutSectionProps {
 }
 
 /**
- * Section principal da rota `/sites/[slug]/sobre` (Phase 7 — issue #163).
+ * Section principal da rota `/sites/[slug]/sobre` (Phase 7 — issue #163, v2 em #206).
  *
  * Server Component. Renderiza:
- *   - Hero com `about_image_url` e `<h1>` "Sobre a {business_name}".
+ *   - Hero com `brand_assets.about_image_url` e `<h1>` "Sobre a {business_name}".
  *   - Bloco texto longo: `about_text.split('\n\n')` em parágrafos
  *     separados (nunca `dangerouslySetInnerHTML`).
  *   - 3 cards Mission/Vision/Values em grid (1-col mobile, 3-col desktop).
  *   - Lista `<ul>` de `values` dentro do card "Valores".
+ *
+ * **v2 (#206):** `about_image_url` migrou para `brand_assets.about_image_url`.
  *
  * **Anti-XSS (per spec §13)**: zero uso de `dangerouslySetInnerHTML`
  * e zero `react-markdown`. Os parágrafos vêm do split do texto IA,
@@ -34,6 +31,7 @@ interface AboutSectionProps {
  */
 export function AboutSection({ variables }: AboutSectionProps) {
   const paragraphs = variables.about_text.split("\n\n").filter(Boolean);
+  const aboutImageUrl = variables.brand_assets.about_image_url;
 
   return (
     <section data-testid="about-section" className="w-full bg-background">
@@ -55,7 +53,7 @@ export function AboutSection({ variables }: AboutSectionProps) {
           </div>
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-foreground/5 md:aspect-[5/4]">
             <Image
-              src={variables.about_image_url}
+              src={aboutImageUrl}
               alt={`Sobre — ${variables.business_name}`}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"

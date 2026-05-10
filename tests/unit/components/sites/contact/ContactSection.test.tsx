@@ -12,20 +12,22 @@ const SITE_ID = "55555555-5555-4555-8555-555555555555";
 const SLUG = "j7k2p9-touring-cars";
 
 const baseVariables = {
-  contact_hero_image_url: SITE_FIXTURE.contact_hero_image_url,
+
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
   email: SITE_FIXTURE.email,
-  address_line: SITE_FIXTURE.address_line,
+  address: SITE_FIXTURE.address,
   hours: SITE_FIXTURE.hours,
   instagram_url: SITE_FIXTURE.instagram_url,
   facebook_url: SITE_FIXTURE.facebook_url,
   youtube_url: SITE_FIXTURE.youtube_url,
   business_name: SITE_FIXTURE.business_name,
+  brand_assets: SITE_FIXTURE.brand_assets,
   business_slug: SITE_FIXTURE.business_slug,
-  primary_color: SITE_FIXTURE.primary_color,
-  text_on_primary: SITE_FIXTURE.text_on_primary,
+
 };
+
+const addressLineString = "Av. Boa Viagem, 1000 — Boa Viagem, Recife - PE, 51020-000";
 
 describe("<ContactSection />", () => {
   it("renderiza <h1> 'Contato'", () => {
@@ -100,14 +102,12 @@ describe("<ContactSection />", () => {
     ).toBeNull();
   });
 
-  it("omite endereço quando address_line é null", () => {
-    const variables = { ...baseVariables, address_line: null };
+  it("omite endereço quando address é null", () => {
+    const variables = { ...baseVariables, address: null };
     render(
       <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
     );
-    expect(
-      screen.queryByText(SITE_FIXTURE.address_line!),
-    ).toBeNull();
+    expect(screen.queryByText(/Av\. Boa Viagem/i)).toBeNull();
   });
 
   it("usa fallback 'Sob consulta' quando hours é null", () => {

@@ -48,10 +48,10 @@ describe("<SitePage />", () => {
     expect(wrapper).not.toBeNull();
     expect(
       wrapper!.style.getPropertyValue("--site-primary"),
-    ).toBe(SITE_FIXTURE.primary_color);
+    ).toBe(SITE_FIXTURE.brand_assets.primary_color);
     expect(
       wrapper!.style.getPropertyValue("--site-text-on-primary"),
-    ).toBe(SITE_FIXTURE.text_on_primary);
+    ).toBe(SITE_FIXTURE.brand_assets.text_on_primary);
   });
 
   it("expõe `data-site-id` igual ao siteId recebido (contrato pra E2E)", () => {

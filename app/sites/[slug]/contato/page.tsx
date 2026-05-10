@@ -21,7 +21,7 @@ import { ContactSection } from "@/components/sites/contact/ContactSection";
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
-import { SiteVariables } from "@/types/lead-site";
+import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -40,7 +40,7 @@ export async function generateMetadata({
   if (site.status === "draft" || site.status === "archived") {
     return NOINDEX_FALLBACK;
   }
-  const parsed = SiteVariables.safeParse(site.variables);
+  const parsed = readSiteVariablesSafe(site.variables);
   if (!parsed.success) return NOINDEX_FALLBACK;
   return buildSiteMetadata({
     variables: parsed.data,
@@ -57,7 +57,7 @@ export default async function ContatoPage({ params }: PageProps) {
     notFound();
   }
 
-  const parsed = SiteVariables.safeParse(site.variables);
+  const parsed = readSiteVariablesSafe(site.variables);
   if (!parsed.success) {
     console.error("[site:render:contato] invalid variables", {
       slug,

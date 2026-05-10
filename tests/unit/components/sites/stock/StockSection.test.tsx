@@ -7,7 +7,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { StockSection } from "@/components/sites/stock/StockSection";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { SITE_FIXTURE } from "../site-fixtures";
 
@@ -128,7 +128,7 @@ describe("<StockSection /> — com filtro", () => {
 describe("<StockSection /> — empty state", () => {
   it("0 matches → mensagem PT-BR + link 'Ver todos'", () => {
     // Construir SiteVariables com cars que NUNCA classificam como esportivo
-    const variables: SiteVariables = {
+    const variables: SiteVariablesV2 = {
       ...SITE_FIXTURE,
       cars: SITE_FIXTURE.cars,
     };

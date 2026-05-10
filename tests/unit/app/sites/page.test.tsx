@@ -24,7 +24,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { Database } from "@/types/database";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { SITE_FIXTURE } from "../../components/sites/site-fixtures";
 
@@ -80,7 +80,7 @@ const SLUG = "j7k2p9-touring-cars";
 
 function makeRow(
   status: LeadSiteRow["status"],
-  variables: SiteVariables = SITE_FIXTURE,
+  variables: SiteVariablesV2 = SITE_FIXTURE,
 ): LeadSiteRow {
   return {
     id: SITE_ID,
@@ -185,8 +185,8 @@ describe("/sites/[slug] — defesa em profundidade (AC2)", () => {
   it("variables inválido (primary_color='red') → notFound() sem crash", async () => {
     const broken = {
       ...SITE_FIXTURE,
-      primary_color: "red",
-    } as unknown as SiteVariables;
+      brand_assets: { ...SITE_FIXTURE.brand_assets, primary_color: "red" as `#${string}` },
+    } as unknown as SiteVariablesV2;
     setSupabaseResponse(makeRow("published", broken));
     const { default: Page } = await import("@/app/sites/[slug]/page");
 
@@ -198,7 +198,7 @@ describe("/sites/[slug] — defesa em profundidade (AC2)", () => {
 
   it("variables = {} (vazio) → notFound()", async () => {
     setSupabaseResponse(
-      makeRow("published", {} as unknown as SiteVariables),
+      makeRow("published", {} as unknown as SiteVariablesV2),
     );
     const { default: Page } = await import("@/app/sites/[slug]/page");
 
@@ -272,7 +272,7 @@ describe("/sites/[slug] — generateMetadata (AC6 / #165)", () => {
 
     expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Concessionária`);
     expect(meta.robots).toEqual({ index: false, follow: false });
-    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
   });
 
@@ -315,8 +315,8 @@ describe("/sites/[slug] — generateMetadata (AC6 / #165)", () => {
   it("fallback path: variables inválido (safeParse falho) → APENAS noindex", async () => {
     const broken = {
       ...SITE_FIXTURE,
-      primary_color: "red",
-    } as unknown as SiteVariables;
+      brand_assets: { ...SITE_FIXTURE.brand_assets, primary_color: "red" as `#${string}` },
+    } as unknown as SiteVariablesV2;
     setSupabaseResponse(makeRow("published", broken));
     const { generateMetadata } = await import("@/app/sites/[slug]/page");
 

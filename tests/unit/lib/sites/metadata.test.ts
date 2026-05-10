@@ -17,7 +17,7 @@ import { SITE_FIXTURE } from "../../components/sites/site-fixtures";
 const baseVars = {
   business_name: SITE_FIXTURE.business_name,
   slogan: SITE_FIXTURE.slogan,
-  logo_url: SITE_FIXTURE.logo_url,
+  brand_assets: SITE_FIXTURE.brand_assets,
 };
 
 describe("buildSiteMetadata — title", () => {
@@ -98,7 +98,7 @@ describe("buildSiteMetadata — openGraph", () => {
       variables: baseVars,
       pageLabel: "Concessionária",
     });
-    expect(meta.openGraph?.images).toEqual([{ url: baseVars.logo_url }]);
+    expect(meta.openGraph?.images).toEqual([{ url: baseVars.brand_assets.logo_url }]);
   });
 
   it("openGraph.title bate com title", () => {
@@ -141,7 +141,7 @@ describe("buildSiteMetadata — twitter", () => {
       variables: baseVars,
       pageLabel: "Concessionária",
     });
-    expect(meta.twitter?.images).toEqual([baseVars.logo_url]);
+    expect(meta.twitter?.images).toEqual([baseVars.brand_assets.logo_url]);
   });
 
   it("twitter.title bate com title", () => {

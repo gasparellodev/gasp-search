@@ -3,7 +3,7 @@ import { ArrowRight } from "lucide-react";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import {
   FacebookIcon,
@@ -13,20 +13,18 @@ import {
 } from "./social-icons";
 
 type FooterVariables = Pick<
-  SiteVariables,
+  SiteVariablesV2,
   | "business_name"
   | "business_slug"
-  | "logo_url"
+  | "brand_assets"
   | "whatsapp"
   | "phone_display"
   | "email"
   | "instagram_url"
   | "facebook_url"
   | "youtube_url"
-  | "address_line"
+  | "address"
   | "hours"
-  | "primary_color"
-  | "text_on_primary"
 >;
 
 interface SiteFooterProps {
@@ -34,23 +32,32 @@ interface SiteFooterProps {
 }
 
 /**
- * Footer global do site público (Phase 7 — issue #161). Server Component.
+ * Renderiza o `Address` v2 nested como linha humana para o footer.
+ * Retorna `null` se address é null (lead sem endereço estruturado).
+ */
+function formatAddressLine(
+  address: SiteVariablesV2["address"],
+): string | null {
+  if (!address) return null;
+  return `${address.street}, ${address.number} — ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zip}`;
+}
+
+/**
+ * Footer global do site público (Phase 7 — issue #161, v2 em #206).
  *
  * Layout:
  *   - 3 colunas no desktop: marca + sociais | contato | newsletter.
  *   - Empilhado em mobile.
  *
- * Newsletter input é **visual-only** no MVP (sem `name`, sem submit
- * handler, `onSubmit` previne default). Spec §15 não exige captura de
- * newsletter; quando virar funcional, criar issue follow-up + tabela
- * própria (não confundir com `site_form_submissions`).
+ * **v2 (#206):** consome `brand_assets` nested + `address` estruturado.
  *
- * Ícones sociais são omitidos individualmente quando o URL é `null` —
- * defendendo contra footer com ícones "mortos" para concessionárias que
- * não preencheram alguma rede.
+ * Newsletter input é **visual-only** no MVP. Spec §15 não exige captura.
+ *
+ * Ícones sociais omitidos individualmente quando o URL é `null`.
  */
 export function SiteFooter({ variables }: SiteFooterProps) {
   const year = new Date().getFullYear();
+  const { brand_assets } = variables;
   const whatsappHref = buildWhatsAppLink({
     template: "general",
     phone: variables.whatsapp,
@@ -58,8 +65,9 @@ export function SiteFooter({ variables }: SiteFooterProps) {
     siteSlug: variables.business_slug,
     component: "footer",
   });
-  const safePrimary = sanitizeHex(variables.primary_color);
-  const safeTextOnPrimary = sanitizeHex(variables.text_on_primary);
+  const safePrimary = sanitizeHex(brand_assets.primary_color);
+  const safeTextOnPrimary = sanitizeHex(brand_assets.text_on_primary);
+  const addressLine = formatAddressLine(variables.address);
 
   return (
     <footer
@@ -70,7 +78,7 @@ export function SiteFooter({ variables }: SiteFooterProps) {
         {/* Marca + sociais */}
         <div className="space-y-6">
           <Image
-            src={variables.logo_url}
+            src={brand_assets.logo_url}
             alt={variables.business_name}
             width={140}
             height={40}
@@ -159,8 +167,8 @@ export function SiteFooter({ variables }: SiteFooterProps) {
               </li>
             )}
             <li>{variables.phone_display}</li>
-            {variables.address_line && (
-              <li className="text-foreground/60">{variables.address_line}</li>
+            {addressLine && (
+              <li className="text-foreground/60">{addressLine}</li>
             )}
             {variables.hours && (
               <li className="text-foreground/60">{variables.hours}</li>
@@ -175,14 +183,6 @@ export function SiteFooter({ variables }: SiteFooterProps) {
             Informe seu email para receber as últimas novidades da{" "}
             {variables.business_name}.
           </p>
-          {/*
-            Newsletter visual-only: input/botão `disabled`, sem handler.
-            `<form>` sem `action` + button `type="button"` + input `disabled`
-            já bloqueia submit nativo — não precisa de `onSubmit` (que exige
-            Client Component). Quando virar funcional, criar issue follow-up
-            com migration própria. Não confundir com `site_form_submissions`
-            (lead capture).
-          */}
           <form
             data-testid="newsletter-form"
             className="flex items-center gap-2"

@@ -3,20 +3,19 @@ import "server-only";
 import Link from "next/link";
 
 import { buildWhatsAppLink } from "@/lib/whatsapp";
-import type { SiteCar, SiteVariables } from "@/types/lead-site";
+import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
 import { SiteForm } from "../SiteForm";
 
 import { CarGallery } from "./CarGallery";
 
 type CarDetailVariables = Pick<
-  SiteVariables,
+  SiteVariablesV2,
   | "business_name"
   | "business_slug"
   | "whatsapp"
   | "phone_display"
-  | "primary_color"
-  | "text_on_primary"
+  | "brand_assets"
 >;
 
 interface CarDetailSectionProps {
@@ -187,8 +186,8 @@ export function CarDetailSection({
             slug={slug}
             variant="car-detail"
             prefillModel={prefillModel}
-            primary_color={variables.primary_color}
-            text_on_primary={variables.text_on_primary}
+            primary_color={variables.brand_assets.primary_color}
+            text_on_primary={variables.brand_assets.text_on_primary}
             title="Tem interesse nesse veículo?"
           />
         </div>

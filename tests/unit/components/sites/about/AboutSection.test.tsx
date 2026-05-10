@@ -10,11 +10,12 @@ expect.extend(toHaveNoViolations);
 
 const baseVariables = {
   about_text: SITE_FIXTURE.about_text,
-  about_image_url: SITE_FIXTURE.about_image_url,
+
   mission: SITE_FIXTURE.mission,
   vision: SITE_FIXTURE.vision,
   values: SITE_FIXTURE.values,
   business_name: SITE_FIXTURE.business_name,
+  brand_assets: SITE_FIXTURE.brand_assets,
 };
 
 describe("<AboutSection />", () => {

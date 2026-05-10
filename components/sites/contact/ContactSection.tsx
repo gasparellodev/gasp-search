@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Mail, MapPin, Clock, Phone } from "lucide-react";
 
 import { buildWhatsAppLink } from "@/lib/whatsapp";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { SiteForm } from "../SiteForm";
 import {
@@ -15,20 +15,18 @@ import {
 } from "../social-icons";
 
 type ContactVariables = Pick<
-  SiteVariables,
-  | "contact_hero_image_url"
+  SiteVariablesV2,
+  | "brand_assets"
   | "whatsapp"
   | "phone_display"
   | "email"
-  | "address_line"
+  | "address"
   | "hours"
   | "instagram_url"
   | "facebook_url"
   | "youtube_url"
   | "business_name"
   | "business_slug"
-  | "primary_color"
-  | "text_on_primary"
 >;
 
 interface ContactSectionProps {
@@ -37,27 +35,25 @@ interface ContactSectionProps {
   slug: string;
 }
 
+function formatAddressLine(
+  address: SiteVariablesV2["address"],
+): string | null {
+  if (!address) return null;
+  return `${address.street}, ${address.number} — ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zip}`;
+}
+
 /**
- * Section principal da rota `/sites/[slug]/contato` (Phase 7 — issue #163).
+ * Section principal da rota `/sites/[slug]/contato` (Phase 7 — issue #163, v2 em #206).
  *
- * Server Component (`<SiteForm>` internamente é Client). Renderiza:
- *   - Hero com `contact_hero_image_url` + `<h1>` "Contato".
- *   - Lista de canais: WhatsApp (via `buildWhatsAppLink`), telefone
- *     (`tel:+<digits>`), email (`mailto:` — skip se `null`),
- *     endereço e horário (skip se `null` / fallback "Sob consulta").
- *   - 4 ícones sociais: Instagram, Facebook, YouTube, WhatsApp
- *     (omite individualmente quando o URL é `null`).
- *   - `<SiteForm variant="contact">` no rodapé.
- *
- * Todos os links externos abrem em nova aba com
- * `rel="noopener noreferrer"` (a11y + segurança contra reverse
- * tabnabbing).
+ * **v2 (#206):** `contact_hero_image_url` → `brand_assets.contact_image_url`,
+ * `address_line` → `address` nested, primary/text_on_primary → `brand_assets.X`.
  */
 export function ContactSection({
   variables,
   siteId,
   slug,
 }: ContactSectionProps) {
+  const { brand_assets } = variables;
   const digits = variables.whatsapp.replace(/\D/g, "");
   const whatsappHref = buildWhatsAppLink({
     template: "general",
@@ -66,16 +62,18 @@ export function ContactSection({
     siteSlug: variables.business_slug,
     component: "contact-section",
   });
-  // Esconde a linha "Phone" quando o phone_display equivale ao whatsapp
-  // (mesmo número formatado/normalizado) — evita duplicidade visual.
   const phoneDigits = variables.phone_display.replace(/\D/g, "");
-  const showPhoneLine = phoneDigits.length > 0 && phoneDigits !== digits.replace(/^55/, "") && phoneDigits !== digits;
+  const showPhoneLine =
+    phoneDigits.length > 0 &&
+    phoneDigits !== digits.replace(/^55/, "") &&
+    phoneDigits !== digits;
   const telHref = `tel:+${digits}`;
+  const addressLine = formatAddressLine(variables.address);
+  const contactImageUrl = brand_assets.contact_image_url;
 
   return (
     <section data-testid="contact-section" className="w-full bg-background">
       <div className="mx-auto max-w-7xl px-4 py-12 md:px-8 md:py-20">
-        {/* Hero */}
         <div className="grid grid-cols-1 items-center gap-10 md:grid-cols-2 md:gap-12 lg:gap-16">
           <div className="flex flex-col gap-6">
             <h1
@@ -126,10 +124,10 @@ export function ContactSection({
                   </a>
                 </li>
               )}
-              {variables.address_line && (
+              {addressLine && (
                 <li className="flex items-center gap-3">
                   <MapPin className="size-5 flex-none" aria-hidden />
-                  <span>{variables.address_line}</span>
+                  <span>{addressLine}</span>
                 </li>
               )}
               <li className="flex items-center gap-3">
@@ -141,56 +139,56 @@ export function ContactSection({
             {(variables.instagram_url ||
               variables.facebook_url ||
               variables.youtube_url) && (
-            <ul
-              data-testid="contact-socials"
-              className="mt-2 flex items-center gap-4"
-            >
-              {variables.instagram_url && (
-                <li>
-                  <a
-                    href={variables.instagram_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Instagram"
-                    className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
-                  >
-                    <InstagramIcon className="size-5" />
-                  </a>
-                </li>
-              )}
-              {variables.facebook_url && (
-                <li>
-                  <a
-                    href={variables.facebook_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Facebook"
-                    className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
-                  >
-                    <FacebookIcon className="size-5" />
-                  </a>
-                </li>
-              )}
-              {variables.youtube_url && (
-                <li>
-                  <a
-                    href={variables.youtube_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="YouTube"
-                    className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
-                  >
-                    <YoutubeIcon className="size-5" />
-                  </a>
-                </li>
-              )}
-            </ul>
+              <ul
+                data-testid="contact-socials"
+                className="mt-2 flex items-center gap-4"
+              >
+                {variables.instagram_url && (
+                  <li>
+                    <a
+                      href={variables.instagram_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Instagram"
+                      className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+                    >
+                      <InstagramIcon className="size-5" />
+                    </a>
+                  </li>
+                )}
+                {variables.facebook_url && (
+                  <li>
+                    <a
+                      href={variables.facebook_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Facebook"
+                      className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+                    >
+                      <FacebookIcon className="size-5" />
+                    </a>
+                  </li>
+                )}
+                {variables.youtube_url && (
+                  <li>
+                    <a
+                      href={variables.youtube_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="YouTube"
+                      className="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+                    >
+                      <YoutubeIcon className="size-5" />
+                    </a>
+                  </li>
+                )}
+              </ul>
             )}
           </div>
 
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-3xl bg-foreground/5 md:aspect-[5/4]">
             <Image
-              src={variables.contact_hero_image_url}
+              src={contactImageUrl}
               alt={`Contato — ${variables.business_name}`}
               fill
               sizes="(max-width: 768px) 100vw, 50vw"
@@ -201,14 +199,13 @@ export function ContactSection({
           </div>
         </div>
 
-        {/* Form de captura */}
         <div className="mt-16 md:mt-20">
           <SiteForm
             siteId={siteId}
             slug={slug}
             variant="contact"
-            primary_color={variables.primary_color}
-            text_on_primary={variables.text_on_primary}
+            primary_color={brand_assets.primary_color}
+            text_on_primary={brand_assets.text_on_primary}
           />
         </div>
       </div>

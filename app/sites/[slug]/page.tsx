@@ -46,7 +46,7 @@ import type { Metadata } from "next";
 import { SitePage } from "@/components/sites/SitePage";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
-import { SiteVariables } from "@/types/lead-site";
+import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -65,7 +65,7 @@ export async function generateMetadata({
   if (site.status === "draft" || site.status === "archived") {
     return NOINDEX_FALLBACK;
   }
-  const parsed = SiteVariables.safeParse(site.variables);
+  const parsed = readSiteVariablesSafe(site.variables);
   if (!parsed.success) return NOINDEX_FALLBACK;
   return buildSiteMetadata({
     variables: parsed.data,
@@ -90,7 +90,7 @@ export default async function Page({ params }: PageProps) {
   // Defesa em profundidade — validação Zod antes do render.
   // Se a IA gravou JSON quebrado em `variables`, NÃO crashamos React;
   // tratamos como recurso ausente.
-  const parsed = SiteVariables.safeParse(site.variables);
+  const parsed = readSiteVariablesSafe(site.variables);
   if (!parsed.success) {
     // Log estruturado sem PII (apenas slug + paths das issues do Zod).
     // Importante: nunca logar `variables` cru — pode conter `business_name`,

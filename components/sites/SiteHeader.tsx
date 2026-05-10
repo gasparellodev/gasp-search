@@ -3,16 +3,13 @@ import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { sanitizeHex } from "@/lib/sites/sanitize";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { MobileNav } from "./MobileNav";
 import { SiteThemeToggle } from "./SiteThemeToggle";
 import { buildSiteNavLinks, type ActivePage } from "./site-nav-links";
 
-type HeaderVariables = Pick<
-  SiteVariables,
-  "business_name" | "logo_url" | "primary_color" | "text_on_primary"
->;
+type HeaderVariables = Pick<SiteVariablesV2, "business_name" | "brand_assets">;
 
 interface SiteHeaderProps {
   variables: HeaderVariables;
@@ -23,7 +20,7 @@ interface SiteHeaderProps {
 }
 
 /**
- * Header global do site público (Phase 7 — issue #161).
+ * Header global do site público (Phase 7 — issue #161, v2 em #206).
  *
  * Server Component. O único pedaço client é `<MobileNav>` (estado do menu
  * hambúrguer). Renderiza:
@@ -31,7 +28,8 @@ interface SiteHeaderProps {
  *   - Nav desktop (≥768px) com 4 links + variant "Selected" no link ativo.
  *   - Hambúrguer mobile (<768px) que abre menu dropdown.
  *
- * As cores ativas vêm via CSS vars (`--site-primary` /
+ * **v2 (issue #206):** consome `brand_assets` nested em vez de campos flat
+ * v1. As cores ativas vêm via CSS vars (`--site-primary` /
  * `--site-text-on-primary`) injetadas pelo wrapper `<SitePage>` (issue
  * #160). Aqui também passamos os valores sanitizados como `style` inline no
  * fallback, para garantir que o ative variant funcione mesmo se o wrapper
@@ -41,8 +39,10 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
   const links = buildSiteNavLinks(slug);
   const homeHref = `/sites/${slug}`;
 
-  const primaryColor = sanitizeHex(variables.primary_color);
-  const textOnPrimary = sanitizeHex(variables.text_on_primary);
+  const { brand_assets } = variables;
+  const primaryColor = sanitizeHex(brand_assets.primary_color);
+  const textOnPrimary = sanitizeHex(brand_assets.text_on_primary);
+  const logoUrl = brand_assets.logo_url;
 
   return (
     <header
@@ -56,9 +56,9 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
           aria-label={variables.business_name}
           className="flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 rounded-md"
         >
-          {variables.logo_url ? (
+          {logoUrl ? (
             <Image
-              src={variables.logo_url}
+              src={logoUrl}
               alt={variables.business_name}
               width={200}
               height={56}

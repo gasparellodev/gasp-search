@@ -9,9 +9,8 @@ import { SITE_FIXTURE } from "./site-fixtures";
 const slug = "abcd1234-touring-cars";
 const headerVars = {
   business_name: SITE_FIXTURE.business_name,
-  logo_url: SITE_FIXTURE.logo_url,
-  primary_color: SITE_FIXTURE.primary_color,
-  text_on_primary: SITE_FIXTURE.text_on_primary,
+  brand_assets: SITE_FIXTURE.brand_assets,
+
 };
 
 describe("<SiteHeader />", () => {
@@ -29,7 +28,7 @@ describe("<SiteHeader />", () => {
     );
     const img = screen.getByAltText(/touring cars/i);
     expect(img.tagName.toLowerCase()).toBe("img");
-    expect(img.getAttribute("src")).toBe(headerVars.logo_url);
+    expect(img.getAttribute("src")).toBe(headerVars.brand_assets.logo_url);
     expect(
       screen.queryByTestId("site-header-logo-text"),
     ).not.toBeInTheDocument();
@@ -38,7 +37,7 @@ describe("<SiteHeader />", () => {
   it("cai em texto estilizado quando `logo_url` é vazio", () => {
     render(
       <SiteHeader
-        variables={{ ...headerVars, logo_url: "" }}
+        variables={{ ...headerVars, brand_assets: { ...headerVars.brand_assets, logo_url: "" as unknown as `${string}` } }}
         slug={slug}
         activePage="home"
       />,
@@ -85,7 +84,7 @@ describe("<SiteHeader />", () => {
   it("aplica style com primary_color quando ativo (variant Selected)", () => {
     render(
       <SiteHeader
-        variables={{ ...headerVars, primary_color: "#FF5733" }}
+        variables={{ ...headerVars, brand_assets: { ...headerVars.brand_assets, primary_color: "#FF5733" as `#${string}` } }}
         slug={slug}
         activePage="contato"
       />,
@@ -98,7 +97,7 @@ describe("<SiteHeader />", () => {
   it("usa fallback de cor quando primary_color é inválido (proteção XSS)", () => {
     render(
       <SiteHeader
-        variables={{ ...headerVars, primary_color: "javascript:alert(1)" }}
+        variables={{ ...headerVars, brand_assets: { ...headerVars.brand_assets, primary_color: "javascript:alert(1)" as `#${string}` } }}
         slug={slug}
         activePage="contato"
       />,
@@ -169,7 +168,7 @@ describe("<SiteHeader />", () => {
     const user = userEvent.setup();
     render(
       <SiteHeader
-        variables={{ ...headerVars, primary_color: "#FF5733" }}
+        variables={{ ...headerVars, brand_assets: { ...headerVars.brand_assets, primary_color: "#FF5733" as `#${string}` } }}
         slug={slug}
         activePage="estoque"
       />,
