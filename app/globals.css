@@ -205,6 +205,108 @@
   --site-border-strong: rgba(244, 244, 245, 0.40);
 }
 
+/* ===========================================================================
+   Auto Showroom — Modernista Minimalista (issue #198 / #F1 Sprint 0).
+
+   Tokens premium do DESIGN.md (raiz do repo, frontmatter YAML linhas 5-237 +
+   §Colors/Typography/Layout/Shapes/Motion). Aplicados APENAS quando
+   `<html data-theme="auto-showroom">` está presente — rotas
+   `/sites/[slug]/*` em `app/sites/[slug]/layout.tsx`.
+
+   App interno gasp-search (rotas `(app)/*`, `(auth)/*`) NÃO recebe
+   `data-theme` → continua com Apple SK.
+
+   Token naming convenção: `--auto-{categoria}-{role}` para evitar colisão
+   com tokens shadcn (background/foreground/card/etc.) e tokens `--site-*` da
+   identidade Phase 7 anterior. Per-client primary color é injetada via
+   `--client-primary` / `--client-on-primary` em `<body style>` no layout
+   (PR-B do #197 — runtime fallback `#0a0a0a`).
+
+   Lint Google design.md (`npx @google/design.md lint DESIGN.md`) é o
+   guardrail dos valores aqui.
+   =========================================================================== */
+
+[data-theme="auto-showroom"] {
+  /* --- 27 cores light (DESIGN.md §Colors) ---------------------------------- */
+  --auto-background: #fafafa;
+  --auto-foreground: #0a0a0a;
+  --auto-surface: #ffffff;
+  --auto-surface-elevated: #f5f5f5;
+  --auto-border: #e5e5e5;
+  --auto-border-strong: #a3a3a3;
+  --auto-muted: #f5f5f5;
+  --auto-muted-foreground: #737373;
+  --auto-primary: var(--client-primary, #0a0a0a);
+  --auto-on-primary: var(--client-on-primary, #fafafa);
+  --auto-whatsapp: #25d366;
+  --auto-whatsapp-hover: #1fb855;
+  --auto-trust-green: #0f7b47;
+  --auto-warning: #b45309;
+  --auto-destructive: #b91c1c;
+  --auto-on-destructive: #ffffff;
+  --auto-focus-ring: var(--client-primary, #0a0a0a);
+  --auto-accent-bronze: #ae8057;
+
+  /* --- Radius scale (DESIGN.md §Shapes) ------------------------------------ */
+  --auto-radius-none: 0;
+  --auto-radius-sm: 4px;
+  --auto-radius-md: 8px;
+  --auto-radius-lg: 12px;
+  --auto-radius-xl: 16px;
+  --auto-radius-full: 9999px;
+
+  /* --- Spacing scale (DESIGN.md §Layout) ----------------------------------- */
+  --auto-space-xs: 4px;
+  --auto-space-sm: 8px;
+  --auto-space-md: 16px;
+  --auto-space-lg: 24px;
+  --auto-space-xl: 32px;
+  --auto-space-2xl: 48px;
+  --auto-space-3xl: 64px;
+  --auto-space-4xl: 96px;
+  --auto-space-5xl: 128px;
+  --auto-space-6xl: 192px;
+
+  /* --- Motion (DESIGN.md §Motion) ------------------------------------------ */
+  --auto-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --auto-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --auto-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --auto-duration-fast: 150ms;
+  --auto-duration-base: 250ms;
+  --auto-duration-slow: 400ms;
+  --auto-duration-cinematic: 600ms;
+
+  /* --- Shadows (DESIGN.md §Elevation & Depth) ------------------------------ */
+  --auto-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+  --auto-shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --auto-shadow-whatsapp-floating: 0 10px 25px -5px rgb(37 211 102 / 0.4),
+    0 8px 10px -6px rgb(37 211 102 / 0.3);
+
+  /* --- Typography families (DESIGN.md §Typography) ------------------------- */
+  --auto-font-display: var(--font-geist), -apple-system, BlinkMacSystemFont,
+    "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  --auto-font-body: var(--font-inter), -apple-system, BlinkMacSystemFont,
+    "Helvetica Neue", Arial, sans-serif;
+  --auto-font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo,
+    Monaco, Consolas, monospace;
+}
+
+/* Auto Showroom dark — paleta neutra escura (DESIGN.md §Colors). Triggera
+   tanto pela classe `.dark` no `<html>` (next-themes default) quanto por
+   `.dark` ancestor para suportar pseudo-isolated cases. */
+[data-theme="auto-showroom"].dark,
+[data-theme="auto-showroom"] .dark {
+  --auto-background: #0a0a0a;
+  --auto-foreground: #fafafa;
+  --auto-surface: #141414;
+  --auto-surface-elevated: #1a1a1a;
+  --auto-border: #262626;
+  --auto-border-strong: #525252;
+  --auto-muted: #171717;
+  --auto-muted-foreground: #a3a3a3;
+  --auto-destructive: #ef4444;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -214,6 +316,14 @@
   }
   html {
     @apply font-sans;
+  }
+  /* Auto Showroom: reset de body para usar font-body (Inter) por default
+     dentro do template. Headings precisam aplicar `.as-display`/`.as-h1`/etc.
+     explicitamente para pegar Geist + tracking negativo. */
+  [data-theme="auto-showroom"] body {
+    background-color: var(--auto-background);
+    color: var(--auto-foreground);
+    font-family: var(--auto-font-body);
   }
 }
 
@@ -261,5 +371,126 @@
     font-weight: 400;
     line-height: 1.3333;
     letter-spacing: -0.01em;
+  }
+
+  /* ============================================================
+     Auto Showroom typography utilities (DESIGN.md §Typography).
+     Letter-spacing negativo é a "fingerprint" da identidade
+     Modernista Minimalista (igual à Apple SK, mas com Geist).
+
+     Single weight stack: 400 (body), 500 (label/eyebrow/h4),
+     600 (h1-h3, display, price-display). Proibido 700+.
+
+     Mobile-first via clamp(): tipografia escala fluidamente entre
+     viewports `mobile` e `desktop` definidos no DESIGN.md table.
+     ============================================================ */
+
+  .as-display {
+    font-family: var(--auto-font-display);
+    font-size: clamp(3rem, 8vw, 4.5rem);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.04em;
+  }
+  .as-h1 {
+    font-family: var(--auto-font-display);
+    font-size: clamp(2.25rem, 6vw, 3rem);
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+  }
+  .as-h2 {
+    font-family: var(--auto-font-display);
+    font-size: clamp(1.75rem, 4.5vw, 2.25rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  .as-h3 {
+    font-family: var(--auto-font-display);
+    font-size: clamp(1.25rem, 3vw, 1.5rem);
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+  .as-h4 {
+    font-family: var(--auto-font-display);
+    font-size: clamp(1.125rem, 2.5vw, 1.25rem);
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+  .as-body-lg {
+    font-family: var(--auto-font-body);
+    font-size: clamp(1rem, 2.2vw, 1.125rem);
+    font-weight: 400;
+    line-height: 1.6;
+    letter-spacing: -0.005em;
+  }
+  .as-body {
+    font-family: var(--auto-font-body);
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.65;
+    letter-spacing: 0;
+  }
+  .as-body-sm {
+    font-family: var(--auto-font-body);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.55;
+    letter-spacing: 0;
+  }
+  .as-label {
+    font-family: var(--auto-font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .as-eyebrow {
+    font-family: var(--auto-font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .as-data {
+    font-family: var(--auto-font-mono);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+  .as-price-display {
+    font-family: var(--auto-font-display);
+    font-size: clamp(1.875rem, 5vw, 2.25rem);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.025em;
+  }
+  .as-price-installment {
+    font-family: var(--auto-font-mono);
+    font-size: clamp(0.875rem, 2vw, 1rem);
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0;
+  }
+}
+
+/* ===========================================================================
+   prefers-reduced-motion (DESIGN.md §Motion linha 1444-1451 — global, vale
+   para Auto Showroom E para Apple SK).
+   =========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
