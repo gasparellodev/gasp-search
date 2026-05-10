@@ -2,7 +2,7 @@ import "server-only";
 
 import Link from "next/link";
 
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import {
   classifyCar,
@@ -13,7 +13,7 @@ import { StockFilter } from "./StockFilter";
 import { StockGrid } from "./StockGrid";
 
 interface StockSectionProps {
-  variables: SiteVariables;
+  variables: SiteVariablesV2;
   /** Valor cru de `?categoria=` (CSV) — pode ser `null`/`undefined`. */
   categoriaFilter: string | null | undefined;
   slug: string;

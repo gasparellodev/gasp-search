@@ -3,7 +3,7 @@ import "server-only";
 import type { CSSProperties, ReactNode } from "react";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
@@ -16,7 +16,7 @@ import { HomeRecentSales } from "./home/HomeRecentSales";
 import type { ActivePage } from "./site-nav-links";
 
 interface SitePageProps {
-  variables: SiteVariables;
+  variables: SiteVariablesV2;
   siteId: string;
   slug: string;
   /**
@@ -37,7 +37,7 @@ interface SitePageProps {
 
 /**
  * Wrapper público do site renderizado em `/sites/[slug]` e sub-rotas
- * (issues #160, #162, #163).
+ * (issues #160, #162, #163, v2 em #206).
  *
  * Modos de operação:
  *  - **Home (default)**: sem `children`. Compõe as 5 seções (`HomeHero`,
@@ -50,6 +50,10 @@ interface SitePageProps {
  * sanitizado ou Tailwind v4. Defesa em profundidade via `sanitizeHex`
  * antes da injeção (input adversarial vira fallback `#0C0C0C`).
  *
+ * **v2 (#206):** brand assets vêm de `variables.brand_assets` nested.
+ * Slogan é optional em v2 — fallback para `business_name` quando
+ * passamos pra `<HomeHero>` (prop required).
+ *
  * **Pin de teste**: `data-site-id` exposto no wrapper para asserts em
  * E2E Playwright (#166).
  */
@@ -60,8 +64,11 @@ export function SitePage({
   activePage = "home",
   children,
 }: SitePageProps) {
-  const primary = sanitizeHex(variables.primary_color);
-  const textOnPrimary = sanitizeHex(variables.text_on_primary);
+  const { brand_assets, slogan } = variables;
+  const primary = sanitizeHex(brand_assets.primary_color);
+  const textOnPrimary = sanitizeHex(brand_assets.text_on_primary);
+  // Slogan é optional em v2 → fallback no business_name pra HomeHero (prop required).
+  const heroSlogan = slogan ?? variables.business_name;
 
   const cssVars = {
     "--site-primary": primary,
@@ -81,10 +88,10 @@ export function SitePage({
           <>
             <HomeHero
               business_name={variables.business_name}
-              slogan={variables.slogan}
-              hero_image_url={variables.hero_image_url}
-              primary_color={variables.primary_color}
-              text_on_primary={variables.text_on_primary}
+              slogan={heroSlogan}
+              hero_image_url={brand_assets.hero_image_url}
+              primary_color={brand_assets.primary_color}
+              text_on_primary={brand_assets.text_on_primary}
               slug={slug}
             />
             <RoadDivider />
@@ -95,8 +102,8 @@ export function SitePage({
             <HomeForm
               siteId={siteId}
               slug={slug}
-              primary_color={variables.primary_color}
-              text_on_primary={variables.text_on_primary}
+              primary_color={brand_assets.primary_color}
+              text_on_primary={brand_assets.text_on_primary}
             />
             <HomeEmphasis emphasis={variables.emphasis} />
             <HomeRecentSales recent_sales={variables.recent_sales} />

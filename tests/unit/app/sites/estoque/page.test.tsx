@@ -10,7 +10,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { SITE_FIXTURE } from "../../../components/sites/site-fixtures";
 
@@ -35,7 +35,7 @@ const SLUG = "j7k2p9-touring-cars";
 
 function makeRow(
   status: "draft" | "published" | "sent" | "archived",
-  variables: SiteVariables = SITE_FIXTURE,
+  variables: SiteVariablesV2 = SITE_FIXTURE,
 ) {
   return { id: SITE_ID, slug: SLUG, status, variables };
 }
@@ -114,8 +114,8 @@ describe("/sites/[slug]/estoque — routing", () => {
   it("variables inválido → notFound (defesa em profundidade)", async () => {
     const broken = {
       ...SITE_FIXTURE,
-      primary_color: "red",
-    } as unknown as SiteVariables;
+      brand_assets: { ...SITE_FIXTURE.brand_assets, primary_color: "red" as `#${string}` },
+    } as unknown as SiteVariablesV2;
     getSiteMock.mockResolvedValue(makeRow("published", broken));
     const { default: Page } = await import(
       "@/app/sites/[slug]/estoque/page"
@@ -183,7 +183,7 @@ describe("/sites/[slug]/estoque — generateMetadata (#165)", () => {
 
     expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Estoque`);
     expect(meta.robots).toEqual({ index: false, follow: false });
-    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
   });
 
@@ -224,8 +224,8 @@ describe("/sites/[slug]/estoque — generateMetadata (#165)", () => {
   it("fallback path: variables inválido → APENAS noindex", async () => {
     const broken = {
       ...SITE_FIXTURE,
-      primary_color: "red",
-    } as unknown as SiteVariables;
+      brand_assets: { ...SITE_FIXTURE.brand_assets, primary_color: "red" as `#${string}` },
+    } as unknown as SiteVariablesV2;
     getSiteMock.mockResolvedValue(makeRow("published", broken));
     const { generateMetadata } = await import(
       "@/app/sites/[slug]/estoque/page"

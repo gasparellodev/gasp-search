@@ -11,10 +11,10 @@ const SLUG = "j7k2p9-touring-cars";
 
 const baseProps = {
   business_name: SITE_FIXTURE.business_name,
-  slogan: SITE_FIXTURE.slogan,
-  hero_image_url: SITE_FIXTURE.hero_image_url,
-  primary_color: SITE_FIXTURE.primary_color,
-  text_on_primary: SITE_FIXTURE.text_on_primary,
+  slogan: SITE_FIXTURE.slogan ?? SITE_FIXTURE.business_name,
+  hero_image_url: SITE_FIXTURE.brand_assets.hero_image_url,
+  primary_color: SITE_FIXTURE.brand_assets.primary_color,
+  text_on_primary: SITE_FIXTURE.brand_assets.text_on_primary,
   slug: SLUG,
 };
 
@@ -36,8 +36,8 @@ describe("<HomeHero />", () => {
     render(<HomeHero {...baseProps} />);
     const cta = screen.getByRole("link", { name: /estoque/i });
     expect(cta).toHaveStyle({
-      backgroundColor: SITE_FIXTURE.primary_color,
-      color: SITE_FIXTURE.text_on_primary,
+      backgroundColor: SITE_FIXTURE.brand_assets.primary_color,
+      color: SITE_FIXTURE.brand_assets.text_on_primary,
     });
   });
 
@@ -50,7 +50,7 @@ describe("<HomeHero />", () => {
   it("usa `hero_image_url` quando fornecido", () => {
     render(<HomeHero {...baseProps} />);
     const img = screen.getByAltText(`Hero — ${SITE_FIXTURE.business_name}`);
-    expect(img.getAttribute("src")).toBe(SITE_FIXTURE.hero_image_url);
+    expect(img.getAttribute("src")).toBe(SITE_FIXTURE.brand_assets.hero_image_url);
   });
 
   it("cai no demo cutout quando `hero_image_url` é null", () => {

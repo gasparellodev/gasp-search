@@ -24,8 +24,7 @@ const baseVariables = {
   business_slug: SITE_FIXTURE.business_slug,
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
-  primary_color: SITE_FIXTURE.primary_color,
-  text_on_primary: SITE_FIXTURE.text_on_primary,
+  brand_assets: SITE_FIXTURE.brand_assets,
 };
 
 beforeEach(() => {
