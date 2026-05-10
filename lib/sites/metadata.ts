@@ -84,14 +84,14 @@ export function buildSiteMetadata(params: {
     openGraph: {
       title,
       description,
-      images: [{ url: variables.logo_url }],
+      images: [{ url: variables.brand_assets.logo_url }],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: [variables.logo_url],
+      images: [variables.brand_assets.logo_url],
     },
   };
 }

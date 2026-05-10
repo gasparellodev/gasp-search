@@ -14,21 +14,28 @@ import {
 type FooterVariables = Pick<
   SiteVariables,
   | "business_name"
-  | "logo_url"
+  | "brand_assets"
   | "whatsapp"
   | "phone_display"
   | "email"
   | "instagram_url"
   | "facebook_url"
   | "youtube_url"
-  | "address_line"
+  | "address"
   | "hours"
-  | "primary_color"
-  | "text_on_primary"
 >;
 
 interface SiteFooterProps {
   variables: FooterVariables;
+}
+
+/**
+ * Renderiza endereço estruturado (v2 `Address` nested) como linha humana
+ * para o footer. Retorna `null` se address é null (lead sem endereço).
+ */
+function formatAddressLine(address: SiteVariables["address"]): string | null {
+  if (!address) return null;
+  return `${address.street}, ${address.number} — ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zip}`;
 }
 
 /**
@@ -50,8 +57,9 @@ interface SiteFooterProps {
 export function SiteFooter({ variables }: SiteFooterProps) {
   const year = new Date().getFullYear();
   const whatsappHref = `https://wa.me/${variables.whatsapp}`;
-  const safePrimary = sanitizeHex(variables.primary_color);
-  const safeTextOnPrimary = sanitizeHex(variables.text_on_primary);
+  const safePrimary = sanitizeHex(variables.brand_assets.primary_color);
+  const safeTextOnPrimary = sanitizeHex(variables.brand_assets.text_on_primary);
+  const addressLine = formatAddressLine(variables.address);
 
   return (
     <footer
@@ -62,7 +70,7 @@ export function SiteFooter({ variables }: SiteFooterProps) {
         {/* Marca + sociais */}
         <div className="space-y-6">
           <Image
-            src={variables.logo_url}
+            src={variables.brand_assets.logo_url}
             alt={variables.business_name}
             width={140}
             height={40}
@@ -151,8 +159,8 @@ export function SiteFooter({ variables }: SiteFooterProps) {
               </li>
             )}
             <li>{variables.phone_display}</li>
-            {variables.address_line && (
-              <li className="text-foreground/60">{variables.address_line}</li>
+            {addressLine && (
+              <li className="text-foreground/60">{addressLine}</li>
             )}
             {variables.hours && (
               <li className="text-foreground/60">{variables.hours}</li>
