@@ -77,8 +77,8 @@ export default async function AnunciarPage({ params }: PageProps) {
       <AdvertiseSection
         siteId={site.id}
         slug={site.slug}
-        primary_color={parsed.data.primary_color}
-        text_on_primary={parsed.data.text_on_primary}
+        primary_color={parsed.data.brand_assets.primary_color}
+        text_on_primary={parsed.data.brand_assets.text_on_primary}
         business_name={parsed.data.business_name}
       />
     </SitePage>

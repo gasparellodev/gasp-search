@@ -50,10 +50,13 @@ import type { SiteVariables } from "@/types/lead-site";
  * Subset de `SiteVariables` consumido pelo helper. Tipado como `Pick`
  * para facilitar testes (não precisamos passar fixture completa) sem
  * abrir mão do tipo runtime de `SiteVariables`.
+ *
+ * **v2 (issue #197)**: `logo_url` migrou para `brand_assets.logo_url`
+ * nested. `slogan` agora é optional em v2.
  */
 export type SiteMetadataInput = Pick<
   SiteVariables,
-  "business_name" | "slogan" | "logo_url"
+  "business_name" | "slogan" | "brand_assets"
 >;
 
 /**
@@ -72,9 +75,11 @@ export function buildSiteMetadata(params: {
 }): Metadata {
   const { variables, pageLabel } = params;
   const title = `${variables.business_name} — ${pageLabel}`;
+  // v2: slogan é optional. Sem slogan ou abaixo do threshold → fallback.
+  const slogan = variables.slogan ?? "";
   const description =
-    variables.slogan.length >= DESCRIPTION_MIN_LENGTH
-      ? variables.slogan
+    slogan.length >= DESCRIPTION_MIN_LENGTH
+      ? slogan
       : `Encontre seu próximo veículo na ${variables.business_name}.`;
 
   return {

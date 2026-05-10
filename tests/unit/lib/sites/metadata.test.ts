@@ -17,7 +17,7 @@ import { SITE_FIXTURE } from "../../components/sites/site-fixtures";
 const baseVars = {
   business_name: SITE_FIXTURE.business_name,
   slogan: SITE_FIXTURE.slogan,
-  logo_url: SITE_FIXTURE.logo_url,
+  logo_url: SITE_FIXTURE.brand_assets.logo_url,
 };
 
 describe("buildSiteMetadata — title", () => {

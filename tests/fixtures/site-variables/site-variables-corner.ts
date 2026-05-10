@@ -30,27 +30,39 @@ export const fixtureCornerAddressMalformed: unknown = {
 /**
  * Corner C: car com `gallery_urls` no limite máximo (8 items). Migrate
  * preserva todos em `photos`.
+ *
+ * Construído como `Record<string, unknown>` porque `fixtureSiteVariablesV1`
+ * é tipado defensivamente (V1 input não-validado).
  */
-export const fixtureCornerGallery8: unknown = {
-  ...fixtureSiteVariablesV1,
-  cars: fixtureSiteVariablesV1.cars.map((car, idx) =>
-    idx === 0
-      ? {
-          ...car,
-          gallery_urls: [
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-            "/assets/stock/m2.png",
-          ],
-        }
-      : car,
-  ),
+type CarV1Like = {
+  slug: string;
+  gallery_urls: string[];
+  [key: string]: unknown;
 };
+
+export const fixtureCornerGallery8: unknown = (() => {
+  const cars = (fixtureSiteVariablesV1["cars"] ?? []) as CarV1Like[];
+  return {
+    ...fixtureSiteVariablesV1,
+    cars: cars.map((car, idx) =>
+      idx === 0
+        ? {
+            ...car,
+            gallery_urls: [
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+              "/assets/stock/m2.png",
+            ],
+          }
+        : car,
+    ),
+  };
+})();
 
 /**
  * Corner D: `testimonials` ausente em v1 (esperado — v1 não tem o campo).

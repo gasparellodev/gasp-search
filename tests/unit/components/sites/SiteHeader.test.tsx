@@ -9,9 +9,9 @@ import { SITE_FIXTURE } from "./site-fixtures";
 const slug = "abcd1234-touring-cars";
 const headerVars = {
   business_name: SITE_FIXTURE.business_name,
-  logo_url: SITE_FIXTURE.logo_url,
-  primary_color: SITE_FIXTURE.primary_color,
-  text_on_primary: SITE_FIXTURE.text_on_primary,
+  logo_url: SITE_FIXTURE.brand_assets.logo_url,
+  primary_color: SITE_FIXTURE.brand_assets.primary_color,
+  text_on_primary: SITE_FIXTURE.brand_assets.text_on_primary,
 };
 
 describe("<SiteHeader />", () => {

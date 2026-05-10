@@ -183,7 +183,7 @@ describe("/sites/[slug]/estoque — generateMetadata (#165)", () => {
 
     expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Estoque`);
     expect(meta.robots).toEqual({ index: false, follow: false });
-    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.logo_url }]);
+    expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
   });
 
