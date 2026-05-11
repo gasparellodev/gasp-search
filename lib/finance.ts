@@ -27,6 +27,23 @@
 /** Taxa mensal default — 1.99% a.m. (~26.6% a.a.) em CDC BR seminovos 2026. */
 export const DEFAULT_MONTHLY_INTEREST = 0.0199;
 
+/**
+ * Texto legal padrão para qualquer UI que exibe simulação de financiamento
+ * (Sprint 4 / H2 — issue #222, Sprint 6 / D2 — issue #227).
+ *
+ * **Compliance CDC + Bacen:** simulações exibidas ao consumidor BR precisam
+ * deixar claro que o resultado é estimativa sujeita à análise — alinhado com
+ * art. 52 do CDC e Resolução 4.880/2020 do BCB. Texto curto, PT-BR, neutro
+ * sobre taxa exata (não mencionar 1.99% no disclaimer — taxa é internal-only).
+ *
+ * **Por que constante e não literal inline:** todos os surfaces que mostram
+ * cálculo (HomeFinancingWidget, CarCard installment, CarDetail price-block)
+ * exibem a mesma string — variação de wording entre páginas é red flag
+ * jurídico. Single source of truth.
+ */
+export const DISCLAIMER_TEXT =
+  "Sujeito a aprovação de crédito. Taxas variam conforme análise de crédito.";
+
 /** Default de parcelas em cards de listagem. */
 export const DEFAULT_CARD_INSTALLMENT_MONTHS = 48;
 

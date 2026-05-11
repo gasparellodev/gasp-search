@@ -22,14 +22,16 @@ describe("<SitePage />", () => {
     );
   });
 
-  it("compõe as 6 seções da Home (Hero, TrustStrip, CategoriesCars, Form, Emphasis, RecentSales)", () => {
+  it("compõe a Home V2 (Sprint 4 H1+H2 — issues #221 e #222): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, TradeinWidget, Form, Emphasis", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
     expect(screen.getByTestId("home-hero")).toBeInTheDocument();
     expect(screen.getByTestId("home-trust-strip")).toBeInTheDocument();
     expect(screen.getByTestId("home-categories-cars")).toBeInTheDocument();
+    expect(screen.getByTestId("home-recent-arrivals")).toBeInTheDocument();
+    expect(screen.getByTestId("home-financing-widget")).toBeInTheDocument();
+    expect(screen.getByTestId("home-tradein-widget")).toBeInTheDocument();
     expect(screen.getByTestId("home-form")).toBeInTheDocument();
     expect(screen.getByTestId("home-emphasis")).toBeInTheDocument();
-    expect(screen.getByTestId("home-recent-sales")).toBeInTheDocument();
   });
 
   it("renderiza <SiteHeader> e <SiteFooter>", () => {

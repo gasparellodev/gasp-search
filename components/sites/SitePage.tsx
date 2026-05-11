@@ -11,11 +11,13 @@ import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
 import { HomeEmphasis } from "./home/HomeEmphasis";
+import { HomeFinancingWidget } from "./home/HomeFinancingWidget";
 import { HomeForm } from "./home/HomeForm";
 import { HomeHero } from "./home/HomeHero";
+import { HomeRecentArrivals } from "./home/HomeRecentArrivals";
+import { HomeTradeinWidget } from "./home/HomeTradeinWidget";
 import { HomeTrustStrip } from "./home/HomeTrustStrip";
 import { RoadDivider } from "./RoadDivider";
-import { HomeRecentSales } from "./home/HomeRecentSales";
 import type { ActivePage } from "./site-nav-links";
 
 interface SitePageProps {
@@ -69,8 +71,10 @@ interface SitePageProps {
  * (issues #160, #162, #163, v2 em #206).
  *
  * Modos de operação:
- *  - **Home (default)**: sem `children`. Compõe as 5 seções (`HomeHero`,
- *    `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`).
+ *  - **Home (default)**: sem `children`. Compõe a Home V2 (Sprint 4 H1+H2 —
+ *    issues #221 e #222): `HomeHero` → `HomeTrustStrip` → `HomeCategoriesCars`
+ *    → `HomeRecentArrivals` → `HomeFinancingWidget` → `HomeTradeinWidget` →
+ *    `HomeForm` → `HomeEmphasis`.
  *  - **Sub-rota**: com `children`. Renderiza o conteúdo da rota entre
  *    Header e Footer. Caller passa `activePage="sobre"|"contato"|...`.
  *
@@ -145,6 +149,24 @@ export function SitePage({
               slug={slug}
               manifestCategoriesUrls={manifest?.categories_urls ?? null}
             />
+            <HomeRecentArrivals
+              cars={variables.cars}
+              siteSlug={slug}
+              whatsappPhone={variables.whatsapp}
+              businessName={variables.business_name}
+            />
+            <HomeFinancingWidget
+              whatsappPhone={variables.whatsapp}
+              businessName={variables.business_name}
+              siteSlug={slug}
+            />
+            <HomeTradeinWidget
+              manifestAboutUrl={manifest?.about_url ?? null}
+              aboutImageUrl={brand_assets.about_image_url}
+              siteSlug={slug}
+              whatsappPhone={variables.whatsapp}
+              businessName={variables.business_name}
+            />
             <HomeForm
               siteId={siteId}
               slug={slug}
@@ -152,7 +174,6 @@ export function SitePage({
               text_on_primary={brand_assets.text_on_primary}
             />
             <HomeEmphasis emphasis={variables.emphasis} />
-            <HomeRecentSales recent_sales={variables.recent_sales} />
           </>
         )}
       </main>
