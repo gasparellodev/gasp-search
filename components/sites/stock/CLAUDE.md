@@ -85,7 +85,7 @@ existente (variant `'car-detail'`).
 | `StockSection.tsx` | Server. Orquestra parsing + filter + sort + render. Empty state PT-BR + link "Ver todos". **#214 (GEO):** injeta `<AICitableHero page="estoque" variables={...}>` após o `<h1>` Estoque, sempre visível mobile. |
 | `StockFilter.tsx` | **Client.** Checkbox multi-select. `router.push` em toggle. `useTransition` pra UI feedback. `role=group` + `<legend>`. |
 | `StockGrid.tsx` | Server. Grid 1/2/3 cols, cards com `data-testid="car-card-<slug>"`. BRL + KM via `Intl`. Badge "Destaque" condicional. |
-| `CarDetailSection.tsx` | Server. Hero (galeria + info + CTA WhatsApp + descrição) + datasheet `<dl>` + `<SiteForm variant="car-detail">`. **#214 (GEO):** injeta `<AICitableHero page="detalhe" currentCar={...}>` após o `<h1>` model/year; `Pick<SiteVariablesV2, ...>` extendido com `address`+`cars` pra alimentar a frase factual. |
+| `CarDetailSection.tsx` | Server. Hero (galeria + info + CTA WhatsApp + descrição) + datasheet `<dl>` + `<SiteForm variant="car-detail">`. **#214 (GEO):** injeta `<AICitableHero page="detalhe" currentCar={...}>` após o `<h1>` model/year; `Pick<SiteVariablesV2, ...>` extendido com `address`+`cars` pra alimentar a frase factual. **#220:** a barra mobile fixed vive fora deste section, no caller da rota, para receber `car` já resolvido sem transformar o section em client. |
 | `CarGallery.tsx` | **Client.** Imagem principal + thumbs + `<dialog>` lightbox. `dialogRef` + ESC + restauração de foco. |
 | `car-categories.ts` | Pure helpers — `classifyCar(car)`, `parseCategoriaParam(raw)`, type `CarCategorySlug`. |
 

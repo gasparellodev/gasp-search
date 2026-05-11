@@ -3,6 +3,7 @@ import "server-only";
 import type { ReactNode } from "react";
 
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
+import { WhatsAppFloatingCTA } from "@/components/sites/WhatsAppFloatingCTA";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSitewideGraph } from "@/lib/sites/schema";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
@@ -56,20 +57,20 @@ export default async function AutoShowroomLayout({
   // Computar sitewide graph apenas quando há site válido e variables
   // parseáveis. Fallback path (null / draft / archived / parse fail) →
   // sem JSON-LD. A page já vai chamar `notFound()` por conta própria.
-  const sitewideGraph =
+  const parsedVariables =
     site &&
     site.status !== "draft" &&
     site.status !== "archived"
-      ? (() => {
-          const parsed = readSiteVariablesSafe(site.variables);
-          return parsed.success ? buildSitewideGraph(parsed.data) : null;
-        })()
+      ? readSiteVariablesSafe(site.variables)
       : null;
+  const variables = parsedVariables?.success ? parsedVariables.data : null;
+  const sitewideGraph = variables ? buildSitewideGraph(variables) : null;
 
   return (
     <div data-theme="auto-showroom" className="min-h-dvh">
       {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
+      {variables && <WhatsAppFloatingCTA variables={variables} slug={slug} />}
     </div>
   );
 }

@@ -129,6 +129,16 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
 - `makeLeadSite(overrides?)` → `Tables<'lead_sites'>` com `variables`
   default do `validSiteVariablesFixture`.
 
+### Site Generator floating CTAs (#220)
+
+- `tests/unit/components/sites/WhatsAppFloatingCTA.test.tsx` cobre render,
+  link `general`, safe area, `body[data-modal-open]` e axe.
+- `tests/unit/components/sites/FloatingInstallmentBar.test.tsx` cobre render
+  mobile, desmontagem real em desktop via `matchMedia`, contexto do carro,
+  preço null e axe.
+- `tests/unit/lib/hooks/use-car-context.test.tsx` cobre labels/parcela/link
+  e mismatch defensivo de `carSlug`.
+
 ### Quando usar mock factory vs inline `vi.mock`
 
 - **Use factory** quando o test só precisa do shape padrão + 1-2 overrides.
