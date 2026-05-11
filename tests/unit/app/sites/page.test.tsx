@@ -255,7 +255,7 @@ describe("/sites/[slug] — cache (AC4)", () => {
 
     expect(handles.from).toHaveBeenCalledWith("lead_sites");
     expect(handles.select).toHaveBeenCalledWith(
-      "id, slug, status, variables, signed_at, visual_identity",
+      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count )",
     );
     expect(handles.eq).toHaveBeenCalledWith("slug", SLUG);
   });

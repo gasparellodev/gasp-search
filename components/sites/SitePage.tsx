@@ -9,10 +9,11 @@ import { cn } from "@/lib/utils";
 
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
-import { HomeCategories } from "./home/HomeCategories";
+import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
 import { HomeEmphasis } from "./home/HomeEmphasis";
 import { HomeForm } from "./home/HomeForm";
 import { HomeHero } from "./home/HomeHero";
+import { HomeTrustStrip } from "./home/HomeTrustStrip";
 import { RoadDivider } from "./RoadDivider";
 import { HomeRecentSales } from "./home/HomeRecentSales";
 import type { ActivePage } from "./site-nav-links";
@@ -52,6 +53,15 @@ interface SitePageProps {
    * espaço sem afetar o wrapper global.
    */
   mainClassName?: string;
+  /**
+   * Rating Google do lead — propagado pra `<HomeTrustStrip>` (Sprint 4 #H1
+   * / #221). Caller (`app/sites/[slug]/page.tsx`) lê de `site.lead_rating`
+   * que vem do join `lead_sites → leads` em `getSite()`. Null cai em fallback
+   * "4.8★ 87 reviews" — props explícitas, NÃO via `SiteVariables` (evita migration).
+   */
+  rating?: number | null;
+  /** Contagem de reviews Google — pareada com `rating`. */
+  reviewsCount?: number | null;
 }
 
 /**
@@ -84,13 +94,15 @@ export function SitePage({
   children,
   manifest = null,
   mainClassName,
+  rating = null,
+  reviewsCount = null,
 }: SitePageProps) {
-  const { brand_assets, slogan } = variables;
+  const { brand_assets } = variables;
   const primary = sanitizeHex(brand_assets.primary_color);
   const textOnPrimary = sanitizeHex(brand_assets.text_on_primary);
-  // Slogan é optional em v2 → fallback no business_name pra HomeHero (prop required).
-  const heroSlogan = slogan ?? variables.business_name;
   // #217 — Manifest tem precedência; fallback graceful pro brand_assets v2.
+  // #221 — Slogan removido da Home V2 (H1 agora é "<biz> — Carros seminovos em <city>"
+  // construído em `<HomeHero>` a partir de `business_name` + `address`).
   const heroImageUrl = manifest?.hero_url ?? brand_assets.hero_image_url;
 
   const cssVars = {
@@ -116,7 +128,6 @@ export function SitePage({
           <>
             <HomeHero
               business_name={variables.business_name}
-              slogan={heroSlogan}
               hero_image_url={heroImageUrl}
               primary_color={brand_assets.primary_color}
               text_on_primary={brand_assets.text_on_primary}
@@ -124,10 +135,15 @@ export function SitePage({
               address={variables.address}
               cars={variables.cars}
             />
+            <HomeTrustStrip
+              yearsInMarket={variables.years_in_market}
+              rating={rating}
+              reviewsCount={reviewsCount}
+            />
             <RoadDivider />
-            <HomeCategories
-              categories={variables.home_categories}
+            <HomeCategoriesCars
               slug={slug}
+              manifestCategoriesUrls={manifest?.categories_urls ?? null}
             />
             <HomeForm
               siteId={siteId}

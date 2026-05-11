@@ -86,6 +86,7 @@ describe("getSite (lib/sites/get-site.ts)", () => {
         variables: { foo: "bar" },
         signed_at: null,
         visual_identity: null,
+        leads: null,
       });
       const { getSite } = await import("@/lib/sites/get-site");
 
@@ -97,6 +98,8 @@ describe("getSite (lib/sites/get-site.ts)", () => {
         variables: { foo: "bar" },
         signed_at: null,
         visual_identity: null,
+        lead_rating: null,
+        lead_reviews_count: null,
       });
     },
   );
@@ -147,9 +150,82 @@ describe("getSite (lib/sites/get-site.ts)", () => {
       throw new Error("expected lead_sites builder to be tracked");
     }
     expect(leadSites.select).toHaveBeenCalledWith(
-      "id, slug, status, variables, signed_at, visual_identity",
+      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count )",
     );
     expect(leadSites.eq).toHaveBeenCalledWith("slug", SLUG);
+  });
+
+  // ===========================================================================
+  // #221 — lead.rating / lead.reviews_count relay (PO refinement)
+  // ===========================================================================
+  describe("lead rating + reviews_count relay (#221)", () => {
+    it("propaga `lead_rating`/`lead_reviews_count` quando join retorna objeto", async () => {
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: "2026-05-10T00:00:00Z",
+        visual_identity: null,
+        leads: { rating: 4.8, reviews_count: 87 },
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.lead_rating).toBe(4.8);
+      expect(result?.lead_reviews_count).toBe(87);
+    });
+
+    it("propaga corretamente quando join retorna array (Supabase 1:1)", async () => {
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: null,
+        visual_identity: null,
+        leads: [{ rating: 4.5, reviews_count: 50 }],
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.lead_rating).toBe(4.5);
+      expect(result?.lead_reviews_count).toBe(50);
+    });
+
+    it("cai em `null/null` quando lead row é null (lead deletado mas site persistido)", async () => {
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: null,
+        visual_identity: null,
+        leads: null,
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.lead_rating).toBeNull();
+      expect(result?.lead_reviews_count).toBeNull();
+    });
+
+    it("ignora valores não-numéricos (defesa contra DB drift)", async () => {
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: null,
+        visual_identity: null,
+        leads: { rating: "4.8", reviews_count: null },
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.lead_rating).toBeNull();
+      expect(result?.lead_reviews_count).toBeNull();
+    });
   });
 
   // ===========================================================================

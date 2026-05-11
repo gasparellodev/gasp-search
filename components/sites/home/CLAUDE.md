@@ -37,11 +37,19 @@ issues #163-#164.
 
 ## Regras de negócio
 
-1. **HomeHero CTA** → `/sites/<slug>/estoque` (sem querystring).
-2. **HomeCategories card** → `/sites/<slug>/estoque?categoria=<slugify(label)>`.
-   - O filtro `?categoria=` é responsabilidade da página `/estoque`
-     (#164). Se ainda não existir quando #162 mergear, links abrem a
-     listagem completa — fallback safe.
+1. **HomeHero embute `<HomeQuickSearchBar>` (Sprint 4 / #H1 — #221).** O
+   CTA legacy do Hero (botão "Acessar estoque completo") foi substituído
+   por uma quick search bar (marca + modelo + preço máx). Submit
+   redireciona pra `/sites/<slug>/estoque?m=...&model=...&p=...` via
+   `serializeQuickSearch` em `lib/sites/stock-search-params.ts` — fonte
+   única compartilhada com `/estoque` (#224 / E1).
+2. **HomeCategories card** (legacy V1, ainda mantido) →
+   `/sites/<slug>/estoque?categoria=<slugify(label)>`. Substituído por
+   `<HomeCategoriesCars>` em `SitePage` na Sprint 4 (#221) — 6 cards
+   visuais por categoria, link → `/estoque?bodyType=<slug>` per
+   `BODY_TYPE_QUERY` canônico (suv/sedan/hatch/pickup/sport/convertible).
+   O arquivo `HomeCategories.tsx` permanece como código legado pra
+   facilitar rollback se necessário; remoção fica pra cleanup futuro.
 3. **HomeForm título PT-BR fixo**: `"Você está procurando algum
    modelo em específico?"` (per spec §15). Não estende
    `SiteVariables` no V1.
@@ -52,13 +60,35 @@ issues #163-#164.
 6. **A11y**: cada seção tem `<h2>` (exceto Hero, que tem `<h1>` único
    da página). Imagens têm `alt` não-vazio. Links têm
    `focus-visible:ring`.
+7. **HomeHero H1 canônico (Sprint 4 / #221)**: `${business_name} —
+   Carros seminovos em ${city}`. Fallback gracioso `${business_name} —
+   Carros seminovos` quando `address === null`. Slogan **removido** do
+   Hero V2 — `<SiteHeader>` + brand voice já assumiram esse papel.
+8. **HomeHero empty state (Sprint 4 / #221)**: quando `hero_image_url`
+   é null/vazio, renderiza `linear-gradient(135deg, primary, #0C0C0C)`
+   + monogram (1ª letra do `business_name`) centralizado em branco/85%
+   opacity. **Nunca branco vazio** — graceful degradation.
+9. **HomeCategoriesCars fotos (Sprint 4 / #221)**: consome
+   `manifest.categories_urls[CATEGORY_INDEX[slug]]` — array indexado
+   por posição (suv=0, sedan=1, hatch=2, pickup=3, esportivo=4,
+   conversivel=5). Ordem casa com `lib/sites/visual-identity.ts:CAR_CATEGORIES`.
+   Posições ausentes caem em placeholder SVG inline (data URI).
+10. **HomeTrustStrip props explícitas (Sprint 4 / #221)**: `rating`,
+    `reviewsCount`, `yearsInMarket` recebidos via props (NÃO via
+    `SiteVariables` — evita migration). Caller `SitePage` lê
+    `lead.rating`/`lead.reviews_count` de `types/database.ts` via join
+    em `getSite()`. `years_in_market` lido de
+    `SiteVariablesV2.years_in_market` (já existente, optional).
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
-| `HomeHero.tsx` | **Light hero Figma-fiel** (redesign 2026-05-09). Layout 2-cols `md:grid-cols-[1fr_1.5fr]` (60% pra imagem) com `bg-background` (branco), slogan `<h1>` em `text-foreground` (preto) com `clamp(2.5rem, 7vw, 5rem)` à esquerda, CTA pill com `primary_color` do lead via `style={{ backgroundColor: sanitizeHex(...) }}`, cutout do carro via `resolveHeroImageUrl(hero_image_url)` — usa o URL resolvido upstream pelo `<SitePage>` (precedência `manifest?.hero_url ?? brand_assets.hero_image_url` — #217) ou cai em `SITE_ASSETS.hero.demoCarCutout` (Porsche cinza). `<Image>` com `object-contain object-center`, altura `md:h-[520px] lg:h-[600px]`. Mobile: stack vertical. Chevron-down decorativo (`aria-hidden`) abaixo do hero. **Pré-requisito**: cutout deve ser PNG com fundo transparente — fundo branco se confunde com a página. **#214 (Sprint 1 #S4 — GEO):** injeta `<AICitableHero page="home" variables={{business_name,address,cars}}>` imediatamente após o `<h1>` slogan (DOM next sibling, antes do CTA Link). Props `address`/`cars` adicionadas ao componente pra propagar ao AICitableHero (caller `<SitePage>` passa `variables.address` + `variables.cars`). Estilo `text-muted-foreground text-sm` discreto sem `sr-only` — AI crawlers mobile-first exigem visibilidade. **#217 (Sprint 2 #A3):** componente fica thin (não conhece manifest) — recebe `hero_image_url` já resolvido upstream em `<SitePage manifest>`. |
-| `HomeCategories.tsx` | Grid 3-cols (1-col mobile) com cards-imagem e `ChevronRight`. Cada card linka a `/estoque?categoria=<slugify>`. |
+| `HomeHero.tsx` | **Hero V2 (Sprint 4 / #H1 — issue #221).** Layout split 6/6 desktop (`md:grid-cols-2`) com `min-h-[90dvh]` mobile (NÃO `vh` — lição sections-catalog). `<h1>` PT-BR canônico `${business_name} — Carros seminovos em ${city}` com `clamp(2.25rem, 6vw, 4.5rem)`; fallback gracioso `Carros seminovos` quando `address === null`. Imagem com `<Image priority fetchPriority="high" sizes="100vw" unoptimized>` — LCP target; `unoptimized` suprime srcset (imagens vêm de CDN externo arbitrário), por isso `sizes` é dead-letter no DOM final mas mantido no source pra clareza. **Empty state** quando `hero_image_url === null`: `linear-gradient(135deg, primary, #0C0C0C)` + monogram (1ª letra do `business_name`) em branco/85% opacity centralizado — NÃO branco vazio (decisão PO #221). Embute `<HomeQuickSearchBar>` (client) abaixo do `<AICitableHero>`. **#214 (Sprint 1 #S4 — GEO):** injeta `<AICitableHero page="home">` imediatamente após o `<h1>`. **#217 (Sprint 2 #A3):** thin — recebe `hero_image_url` já resolvido upstream em `<SitePage manifest>`. |
+| `HomeQuickSearchBar.tsx` | **Client (Sprint 4 / #H1 — issue #221).** Form com 3 inputs (marca, modelo, preço máx) + botão "Buscar". Submit redireciona via `useRouter().push()` pra `/sites/<slug>/estoque?m=...&model=...&p=...` (short keys acordadas com #224 E1). Usa `serializeQuickSearch` de `lib/sites/stock-search-params.ts` — fonte única. Botão pinta-se com `primary_color` do lead via `style={{ backgroundColor: sanitizeHex(...) }}`. Labels `<label htmlFor>` visíveis + contraste WCAG AA testado via jest-axe. |
+| `HomeTrustStrip.tsx` | **Server-only (Sprint 4 / #H1 — issue #221).** Strip full-bleed (`relative left-1/2 -translate-x-1/2 w-screen`) altura `h-20` (80px) com 4 colunas: Garantia + Vistoria 100 pontos (estáticos), `years_in_market` (dinâmico via prop), `rating + reviewsCount` (dinâmico via props). `role="region" aria-label="Diferenciais"`. **Fallback rules (PO refinement #221):** `years_in_market` undef/null/0 → "Mais de 10 anos"; 1 → "1 ano no mercado"; ≥ 2 → "${N} anos no mercado". `rating`/`reviewsCount` ausentes/`reviewsCount<=0` → fallback "4.8★ 87 reviews". `rating` formatado com `toFixed(1)`. Props explícitas (NÃO `SiteVariables`) — caller `SitePage` lê de `lead.rating`/`lead.reviews_count` via join em `getSite()`. |
+| `HomeCategoriesCars.tsx` | **Server-only (Sprint 4 / #H1 — issue #221).** 6 cards 4:3 com foto (`manifest.categories_urls[idx]`) + label overlay para SUV/Sedan/Hatch/Pickup/Esportivo/Conversível. Mobile: scroll horizontal `snap-x snap-mandatory`. Desktop: `grid-cols-6`. Card inteiro é `<Link aria-label="Ver ${plural} no estoque">` → `/estoque?bodyType=<slug>` per `BODY_TYPE_QUERY` canônico (PO refinement #221: suv/sedan/hatch/pickup/sport/convertible — slugs en-US curtos, compartilhados com #224 E1). Fotos via array `manifestCategoriesUrls[idx]` indexado por posição (espelha #216 `ALL_ASSET_SPECS.categoryIndex`); posições ausentes caem em placeholder SVG inline (data URI). |
+| `HomeCategories.tsx` | **LEGACY V1.** Grid 3-cols (1-col mobile) com cards-imagem do `variables.home_categories[]` linkando a `/estoque?categoria=<slugify>`. Substituído por `<HomeCategoriesCars>` em `SitePage` na Sprint 4 (#221). Arquivo mantido pra rollback rápido; remover em cleanup futuro. |
 | `HomeForm.tsx` | Wrapper Server sobre `<SiteForm>` (Client) que injeta o título canônico da Home + `variant='home'`. |
 | `HomeEmphasis.tsx` | "Em destaque" 2-cols: imagem left + card alabaster (rounded 25px) com title/car_name/description (`pre-line`). |
 | `HomeRecentSales.tsx` | 3 cards horizontais: grid desktop / scroll-snap mobile. Cada card: imagem + car_name + `CheckCircle`. |
@@ -66,33 +96,39 @@ issues #163-#164.
 ## Boundary client/server
 
 ```
-HomeHero (server) ─── pure server
-HomeCategories (server) ─── pure server
+HomeHero (server) ───┐
+                     └─ embute <HomeQuickSearchBar> (client) ── useRouter
+HomeTrustStrip (server) ─── pure server
+HomeCategoriesCars (server) ─── pure server
+HomeCategories (server, legacy) ─── pure server
 HomeForm (server) ───┐
                      └─ delega ao <SiteForm> (client) ── react-hook-form
 HomeEmphasis (server) ─── pure server
 HomeRecentSales (server) ─── pure server
 ```
 
-Apenas `HomeForm` toca a borda client (delegação ao `<SiteForm>` que
-mantém estado de form). Tudo o resto é puro server-render.
+`HomeHero` é server mas embute o `<HomeQuickSearchBar>` (Client) por
+composição direta — o caller (`SitePage`) não precisa saber dessa
+boundary; o teste é via `getByTestId("home-quick-search-bar")`.
 
 ## Dependências
 
-- `next/image` + `next/link`.
-- `lucide-react@^1.14` (`ChevronRight`, `CheckCircle`).
+- `next/image` + `next/link` + `next/navigation.useRouter` (Quick Search).
+- `lucide-react@^1.14` (`ChevronRight`, `CheckCircle`, `ShieldCheck`,
+  `BadgeCheck`, `Building2`, `Star`).
 - `@/lib/sites/sanitize.sanitizeHex` — defesa em profundidade pra
   cores hex.
+- `@/lib/sites/stock-search-params` — `serializeQuickSearch`/
+  `parseQuickSearch` shared com #224 (E1).
 - `@/lib/utils/slug.slugify` — gera o querystring de
-  `?categoria=<slug>`.
+  `?categoria=<slug>` (legacy `HomeCategories`).
 - `@/lib/sites/site-assets.SITE_ASSETS` — `hero.texture` (decorativa
-  fixa) e `hero.demoCarCutout` (fallback do Pulse). Editar paths
-  globais em `lib/sites/site-assets.ts`.
-- `@/lib/sites/site-assets.resolveHeroImageUrl` — `hero_image_url`
-  do lead ou demo cutout global.
-- `@/types/lead-site.SiteVariables` — tipos do payload (campos
+  fixa) e `hero.demoCarCutout` (fallback legacy). HomeHero V2 (#221)
+  não usa mais o demoCarCutout — empty state é gradient + monogram.
+- `@/types/lead-site.SiteVariables(V2)` — tipos do payload (campos
   consumidos via `Pick`).
 - `../SiteForm` — wrapper client do form de captura.
+- `../AICitableHero` — passage-citable AI block (#214).
 
 ## Quando atualizar este `CLAUDE.md`
 

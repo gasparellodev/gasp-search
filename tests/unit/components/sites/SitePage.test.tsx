@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SitePage } from "@/components/sites/SitePage";
 
@@ -8,21 +8,25 @@ import { SITE_FIXTURE } from "./site-fixtures";
 const SITE_ID = "33333333-3333-4333-8333-333333333333";
 const SLUG = "j7k2p9-touring-cars";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => `/sites/${SLUG}`,
+}));
+
 describe("<SitePage />", () => {
-  it("renderiza slogan num <h1> (HomeHero)", () => {
+  it("renderiza H1 canônico `<biz> — Carros seminovos em <city>` (Sprint 4 #221)", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: SITE_FIXTURE.slogan,
-      }),
-    ).toBeInTheDocument();
+    const h1 = screen.getByRole("heading", { level: 1 });
+    expect(h1.textContent).toBe(
+      `${SITE_FIXTURE.business_name} — Carros seminovos em ${SITE_FIXTURE.address!.city}`,
+    );
   });
 
-  it("compõe as 5 seções da Home (Hero, Categories, Form, Emphasis, RecentSales)", () => {
+  it("compõe as 6 seções da Home (Hero, TrustStrip, CategoriesCars, Form, Emphasis, RecentSales)", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
     expect(screen.getByTestId("home-hero")).toBeInTheDocument();
-    expect(screen.getByTestId("home-categories")).toBeInTheDocument();
+    expect(screen.getByTestId("home-trust-strip")).toBeInTheDocument();
+    expect(screen.getByTestId("home-categories-cars")).toBeInTheDocument();
     expect(screen.getByTestId("home-form")).toBeInTheDocument();
     expect(screen.getByTestId("home-emphasis")).toBeInTheDocument();
     expect(screen.getByTestId("home-recent-sales")).toBeInTheDocument();
@@ -34,10 +38,11 @@ describe("<SitePage />", () => {
     expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 
-  it("CTA do Hero linka para `/sites/[slug]/estoque`", () => {
+  it("Quick search bar renderiza no Hero", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
-    const cta = screen.getByTestId("home-hero-cta");
-    expect(cta).toHaveAttribute("href", `/sites/${SLUG}/estoque`);
+    expect(
+      screen.getByRole("button", { name: /buscar/i }),
+    ).toBeInTheDocument();
   });
 
   it("aplica CSS vars --site-primary e --site-text-on-primary no wrapper", () => {
@@ -65,7 +70,10 @@ describe("<SitePage />", () => {
   it("sanitiza cores via sanitizeHex — input adversarial vira fallback", () => {
     const adversarial = {
       ...SITE_FIXTURE,
-      primary_color: "red; background: url(x);" as unknown as `#${string}`,
+      brand_assets: {
+        ...SITE_FIXTURE.brand_assets,
+        primary_color: "red; background: url(x);" as unknown as `#${string}`,
+      },
     };
     const { container } = render(
       <SitePage variables={adversarial} siteId={SITE_ID} slug={SLUG} />,
@@ -113,5 +121,54 @@ describe("<SitePage />", () => {
     );
     const img = screen.getByAltText(`Hero — ${SITE_FIXTURE.business_name}`);
     expect(img.getAttribute("src")).toBe(manifest.hero_url);
+  });
+
+  // #221 — manifest.categories_urls precedência em HomeCategoriesCars
+  it("manifest.categories_urls é propagado para HomeCategoriesCars (Sprint 4 #221)", () => {
+    const manifest = {
+      hero_url: "https://cdn.example.com/ai-hero.png",
+      categories_urls: [
+        "https://cdn.example.com/cat-suv.png",
+        "https://cdn.example.com/cat-sedan.png",
+        "https://cdn.example.com/cat-hatch.png",
+        "https://cdn.example.com/cat-pickup.png",
+        "https://cdn.example.com/cat-sport.png",
+        "https://cdn.example.com/cat-conv.png",
+      ],
+      about_url: "https://cdn.example.com/ai-about.png",
+      contact_url: "https://cdn.example.com/ai-contact.png",
+      generated_at: "2026-05-11T07:00:00.000Z",
+      model: "gpt-image-2-2026-04-21" as const,
+      cost_estimate_brl: 2.45,
+    };
+    render(
+      <SitePage
+        variables={SITE_FIXTURE}
+        siteId={SITE_ID}
+        slug={SLUG}
+        manifest={manifest}
+      />,
+    );
+    const suvImg = screen.getByAltText(/Categoria SUV/i);
+    expect(suvImg.getAttribute("src")).toBe(manifest.categories_urls[0]);
+  });
+
+  // #221 — rating/reviewsCount props relay
+  it("propaga `rating`/`reviewsCount` para HomeTrustStrip (Sprint 4 #221)", () => {
+    render(
+      <SitePage
+        variables={SITE_FIXTURE}
+        siteId={SITE_ID}
+        slug={SLUG}
+        rating={4.9}
+        reviewsCount={142}
+      />,
+    );
+    expect(screen.getByText(/4\.9★ 142 reviews/)).toBeInTheDocument();
+  });
+
+  it("sem rating/reviewsCount: HomeTrustStrip cai no fallback '4.8★ 87 reviews'", () => {
+    render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
+    expect(screen.getByText(/4\.8★ 87 reviews/)).toBeInTheDocument();
   });
 });
