@@ -31,6 +31,26 @@ const serverEnvSchema = z
       .min(1, "APIFY_WEBSITE_CONTACT_ACTOR_ID ausente"),
     ANTHROPIC_API_KEY: z.string().min(1, "ANTHROPIC_API_KEY ausente"),
     ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-4-6"),
+    // OpenAI (Phase 7 #216 — visual identity generation)
+    // Snapshot pinado em `OPENAI_IMAGE_MODEL` per spike: gpt-image-2-2026-04-21.
+    // Concurrency default 2 (Tier-1-safe, 5 IPM limit).
+    // BRL_RATE conversão USD→BRL hardcoded V1 (taxa 5.0 — não realtime).
+    //
+    // **`OPENAI_API_KEY` é opcional no schema** — Vercel preview e CI builds
+    // sem o secret precisam bootar normalmente. Validação real fica lazy
+    // em `lib/openai/image-client.ts:getOpenAIClient()`: throws eloquente
+    // só quando algum code path tenta gerar imagem. Code paths que não
+    // tocam OpenAI (login, dashboard, leads, etc.) seguem funcionando.
+    OPENAI_API_KEY: z.string().min(1).optional(),
+    OPENAI_IMAGE_MODEL: z.string().min(1).default("gpt-image-2-2026-04-21"),
+    OPENAI_IMAGE_FALLBACK_MODEL: z.string().min(1).default("gpt-image-1-mini"),
+    OPENAI_IMAGE_CONCURRENCY: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .default(2),
+    BRL_RATE: z.coerce.number().positive().default(5.0),
     EVOLUTION_API_URL: z
       .url("EVOLUTION_API_URL deve ser uma URL válida")
       .refine((u) => /^https?:\/\//.test(u), {

@@ -70,6 +70,26 @@ import {
 } from "@/lib/whatsapp/daily-limit";
 import { renderTemplate } from "@/lib/whatsapp/render-template";
 import { SITE_PREVIEW_TEMPLATE } from "@/lib/whatsapp/templates";
+import pLimit from "p-limit";
+import {
+  generateImage,
+  ImageGenerationError,
+  type ImageModel,
+} from "@/lib/openai/image-client";
+import {
+  buildAssetSpecsForCars,
+  buildIdentityContext,
+  buildPrompt,
+  deleteExistingAssets,
+  estimateTotalCost,
+  uploadAssetToStorage,
+  type AssetSpec,
+} from "@/lib/sites/visual-identity";
+import {
+  VisualIdentityManifestSchema,
+  type VisualIdentityManifest,
+  type VisualIdentityModel,
+} from "@/types/visual-identity";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
 
@@ -1445,4 +1465,327 @@ export async function getLeadSiteCardData(
     leadSite: (data as LeadSiteCardDataResult["leadSite"]) ?? null,
     appUrl: env.NEXT_PUBLIC_APP_URL,
   };
+}
+
+// ===========================================================================
+// regenerateVisualIdentity (#216) — geração de identidade visual AI
+// ===========================================================================
+
+/**
+ * Retorno discriminado de `regenerateVisualIdentity` (#216).
+ *
+ * Sucesso retorna o manifest persistido. Erros incluem:
+ *   - `auth`: sem sessão de usuário.
+ *   - `not_found`: site inexistente ou RLS bloqueia.
+ *   - `cost_guardrail`: estimativa de custo > $2 USD (V1 hard cap).
+ *   - `validation`: Zod parse do manifest falhou (URLs/timestamps).
+ *   - `generation_error`: falha em ≥1 imagem (OpenAI rate-limit persistente,
+ *     moderation, etc.). Manifest antigo é PRESERVADO.
+ *   - `storage_error`: upload/delete no Supabase Storage falhou.
+ *   - `db_error`: UPDATE em `lead_sites.visual_identity` falhou.
+ */
+export type RegenerateVisualIdentityResult =
+  | { ok: true; manifest: VisualIdentityManifest; regenerated: boolean }
+  | {
+      ok: false;
+      error:
+        | "auth"
+        | "not_found"
+        | "cost_guardrail"
+        | "validation"
+        | "generation_error"
+        | "storage_error"
+        | "db_error";
+      message: string;
+    };
+
+/**
+ * Cost guardrail V1 — hard cap de $2 USD por execução. Defesa contra
+ * runaway (admin clicando 10× no botão, etc.). Custo target real é
+ * ~$0.49/cliente, então $2 é folgado mas previne abuso.
+ */
+const COST_GUARDRAIL_USD = 2.0;
+
+/**
+ * Server Action `regenerateVisualIdentity(leadSiteId, options?)` — gera
+ * identidade visual AI (#216, Phase 7 Sprint 2 #A2).
+ *
+ * Pipeline:
+ *  1. Auth (Supabase) — sem usuário → `error: 'auth'`.
+ *  2. Fetch lead_sites por id (RLS isola).
+ *  3. **Idempotência**: se `!options.force && existing.visual_identity != null`
+ *     → retorna existing manifest sem regenerar (`regenerated: false`).
+ *  4. Parse `variables` (v1 ou v2) → `buildIdentityContext` extrai contexto.
+ *  5. Derive `AssetSpec[]` via `buildAssetSpecsForCars` (filtra categorias
+ *     presentes). Cost guardrail: `estimateTotalCost > $2 USD` → falha.
+ *  6. Se `force=true`: `deleteExistingAssets(slug)` antes de gerar.
+ *  7. Loop via `p-limit(env.OPENAI_IMAGE_CONCURRENCY)`: N specs ×
+ *     `generateImage` + `uploadAssetToStorage`. Falha em ≥1 → abort.
+ *  8. Build manifest → `VisualIdentityManifestSchema.parse()`.
+ *  9. UPDATE `lead_sites.visual_identity` via service_role.
+ * 10. `updateTag('site:{slug}')` — invalida cache pra refresh imediato.
+ *
+ * **Não emite revalidatePath** — só `updateTag` (consistente com #247).
+ *
+ * **Telemetria PII-safe**: log final tem `{slug, asset_count, total_cost_usd,
+ *   duration_ms, model_used}`. Sem email/phone/conteúdo.
+ */
+export async function regenerateVisualIdentity(
+  leadSiteId: string,
+  options: { force?: boolean } = {},
+): Promise<RegenerateVisualIdentityResult> {
+  const startedAt = Date.now();
+  const force = options.force === true;
+
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para gerar a identidade visual.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status, variables, visual_identity")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Idempotência
+  if (!force && existing.visual_identity != null) {
+    const parsed = VisualIdentityManifestSchema.safeParse(
+      existing.visual_identity,
+    );
+    if (parsed.success) {
+      console.info("regenerateVisualIdentity.idempotent", {
+        action: "regenerateVisualIdentity",
+        leadSiteId,
+        slug: existing.slug,
+        userId,
+      });
+      return { ok: true, manifest: parsed.data, regenerated: false };
+    }
+    // Manifest stale/inválido → segue regenerando (não preservar dado corrupto).
+  }
+
+  // Step 4: Identity context (do `variables` v1 ou v2)
+  let context: ReturnType<typeof buildIdentityContext>;
+  try {
+    context = buildIdentityContext(existing.variables);
+  } catch (err) {
+    return {
+      ok: false,
+      error: "validation",
+      message:
+        err instanceof Error
+          ? err.message
+          : "Falha ao extrair contexto do site.",
+    };
+  }
+
+  // Step 5: Derive specs + cost guardrail
+  const carsRaw = (existing.variables as { cars?: unknown[] } | null)?.cars ??
+    [];
+  const cars = (Array.isArray(carsRaw) ? carsRaw : []) as Array<{
+    category?: string;
+  }>;
+  const specs = buildAssetSpecsForCars(cars);
+  const costEstimate = estimateTotalCost(specs);
+
+  if (costEstimate.usd > COST_GUARDRAIL_USD) {
+    return {
+      ok: false,
+      error: "cost_guardrail",
+      message: `Custo estimado (US$ ${costEstimate.usd.toFixed(2)}) excede o limite V1 de US$ ${COST_GUARDRAIL_USD.toFixed(2)}.`,
+    };
+  }
+
+  // Step 6: Service supabase + delete pré-rerun se force
+  const service = createServiceSupabase();
+  if (force) {
+    try {
+      await deleteExistingAssets(existing.slug, service);
+    } catch (err) {
+      console.error("regenerateVisualIdentity.delete", {
+        action: "regenerateVisualIdentity",
+        leadSiteId,
+        slug: existing.slug,
+        userId,
+        errorName: err instanceof Error ? err.name : "unknown",
+        errorMessage: err instanceof Error ? err.message : String(err),
+      });
+      return {
+        ok: false,
+        error: "storage_error",
+        message: "Falha ao limpar imagens antigas. Tente novamente.",
+      };
+    }
+  }
+
+  // Step 7: Generate + upload com p-limit (Tier-1: 2)
+  const limit = pLimit(env.OPENAI_IMAGE_CONCURRENCY);
+  const generations: Array<{
+    spec: AssetSpec;
+    url: string;
+    model: ImageModel;
+  }> = [];
+
+  try {
+    await Promise.all(
+      specs.map((spec) =>
+        limit(async () => {
+          const prompt = buildPrompt(spec, context);
+          const result = await generateImage({
+            prompt,
+            size: spec.size,
+            quality: spec.quality,
+          });
+          const url = await uploadAssetToStorage({
+            b64: result.b64,
+            slug: existing.slug,
+            key: spec.key,
+            supabase: service,
+          });
+          generations.push({ spec, url, model: result.model });
+        }),
+      ),
+    );
+  } catch (err) {
+    const isImgErr = err instanceof ImageGenerationError;
+    console.error("regenerateVisualIdentity.generate", {
+      action: "regenerateVisualIdentity",
+      leadSiteId,
+      slug: existing.slug,
+      userId,
+      errorName: err instanceof Error ? err.name : "unknown",
+      errorCode: isImgErr ? err.code : null,
+      retryable: isImgErr ? err.retryable : false,
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
+    // Distinção storage vs generation: ImageGenerationError → generation_error.
+    if (isImgErr) {
+      return {
+        ok: false,
+        error: "generation_error",
+        message: `Falha na geração de imagem (${err.code}). Manifest antigo preservado.`,
+      };
+    }
+    return {
+      ok: false,
+      error: "storage_error",
+      message: "Falha ao subir as imagens geradas. Tente novamente.",
+    };
+  }
+
+  // Step 8: Build manifest + validate
+  const heroGen = generations.find((g) => g.spec.key === "hero");
+  const aboutGen = generations.find((g) => g.spec.key === "about");
+  const contactGen = generations.find((g) => g.spec.key === "contact");
+  const catGens = generations
+    .filter((g) => g.spec.manifestField === "categories_urls")
+    .sort((a, b) => (a.spec.categoryIndex ?? 0) - (b.spec.categoryIndex ?? 0));
+
+  if (!heroGen || !aboutGen || !contactGen || catGens.length === 0) {
+    return {
+      ok: false,
+      error: "validation",
+      message:
+        "Manifest incompleto após geração — assets essenciais faltando.",
+    };
+  }
+
+  // Modelo predominante (todos geralmente iguais; usar primeiro como base).
+  const firstModel = generations[0]?.model ?? "gpt-image-2-2026-04-21";
+  const manifestModel: VisualIdentityModel =
+    firstModel === "gpt-image-1-mini"
+      ? "gpt-image-1-mini"
+      : "gpt-image-2-2026-04-21";
+
+  const manifestCandidate = {
+    hero_url: heroGen.url,
+    about_url: aboutGen.url,
+    contact_url: contactGen.url,
+    categories_urls: catGens.map((g) => g.url),
+    generated_at: new Date().toISOString(),
+    model: manifestModel,
+    cost_estimate_brl: costEstimate.brl,
+  };
+
+  const parsed = VisualIdentityManifestSchema.safeParse(manifestCandidate);
+  if (!parsed.success) {
+    console.error("regenerateVisualIdentity.validation", {
+      action: "regenerateVisualIdentity",
+      leadSiteId,
+      slug: existing.slug,
+      userId,
+      zodIssues: parsed.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+      })),
+    });
+    return {
+      ok: false,
+      error: "validation",
+      message: "Manifest inválido após geração (Zod parse falhou).",
+    };
+  }
+
+  // Step 9: Persist
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({
+      visual_identity: parsed.data,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", leadSiteId);
+
+  if (updateError) {
+    console.error("regenerateVisualIdentity.persist", {
+      action: "regenerateVisualIdentity",
+      leadSiteId,
+      slug: existing.slug,
+      userId,
+      errorName: updateError.name ?? "unknown",
+      errorMessage: updateError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao persistir manifest. Tente novamente.",
+    };
+  }
+
+  // Step 10: Cache invalidation
+  updateTag(`site:${existing.slug}`);
+
+  // Telemetria PII-safe
+  console.info("regenerateVisualIdentity.ok", {
+    action: "regenerateVisualIdentity",
+    leadSiteId,
+    slug: existing.slug,
+    userId,
+    asset_count: generations.length,
+    total_cost_usd: costEstimate.usd,
+    duration_ms: Date.now() - startedAt,
+    model_used: manifestModel,
+    forced: force,
+  });
+
+  return { ok: true, manifest: parsed.data, regenerated: true };
 }

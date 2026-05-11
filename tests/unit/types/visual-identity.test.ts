@@ -24,17 +24,25 @@ const validManifest: VisualIdentityManifest = {
   about_url: "https://cdn.example.com/sites/abc/about.webp",
   contact_url: "/assets/contact-fallback.webp",
   generated_at: "2026-05-11T08:42:00.000Z",
-  model: "gpt-image-2",
+  model: "gpt-image-2-2026-04-21",
   cost_estimate_brl: 0.85,
 };
 
 describe("VisualIdentityModelSchema", () => {
-  it("aceita 'gpt-image-2' (default model V1)", () => {
-    expect(VisualIdentityModelSchema.parse("gpt-image-2")).toBe("gpt-image-2");
+  it("aceita 'gpt-image-2-2026-04-21' (snapshot pinado V1)", () => {
+    expect(VisualIdentityModelSchema.parse("gpt-image-2-2026-04-21")).toBe(
+      "gpt-image-2-2026-04-21",
+    );
   });
 
-  it("aceita 'dall-e-3' (fallback legacy)", () => {
-    expect(VisualIdentityModelSchema.parse("dall-e-3")).toBe("dall-e-3");
+  it("aceita 'gpt-image-1-mini' (fallback automático)", () => {
+    expect(VisualIdentityModelSchema.parse("gpt-image-1-mini")).toBe(
+      "gpt-image-1-mini",
+    );
+  });
+
+  it("rejeita 'dall-e-3' (deprecado 2026-05-12 — não suportado)", () => {
+    expect(() => VisualIdentityModelSchema.parse("dall-e-3")).toThrow();
   });
 
   it("rejeita modelo desconhecido (anti supply-chain drift)", () => {
@@ -51,7 +59,7 @@ describe("VisualIdentityManifestSchema — happy path", () => {
     const parsed = VisualIdentityManifestSchema.parse(validManifest);
     expect(parsed.hero_url).toBe(validManifest.hero_url);
     expect(parsed.categories_urls).toHaveLength(3);
-    expect(parsed.model).toBe("gpt-image-2");
+    expect(parsed.model).toBe("gpt-image-2-2026-04-21");
     expect(parsed.cost_estimate_brl).toBe(0.85);
   });
 
