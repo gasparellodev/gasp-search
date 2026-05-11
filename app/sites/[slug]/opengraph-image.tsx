@@ -49,6 +49,7 @@ import "server-only";
 
 import { ImageResponse } from "next/og";
 
+import { loadGeist } from "@/lib/og/load-geist";
 import { getSite } from "@/lib/sites/get-site";
 import { isIndexable } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
@@ -150,8 +151,11 @@ export default async function Image({ params }: OgImageParams): Promise<Response
     manifestHeroUrl ?? variables.brand_assets.hero_image_url,
   );
 
-  // Font: tentamos Geist via Vercel CDN; se fail, system font fallback.
-  const fonts = await loadGeistFont();
+  // Font: tentamos Geist local bundle; se fail, system font fallback.
+  const geistFont = await loadGeist();
+  const fonts = geistFont
+    ? [{ name: "Geist", data: geistFont, style: "normal" as const, weight: 600 as const }]
+    : null;
 
   return new ImageResponse(
     (
@@ -259,56 +263,4 @@ async function resolveHeroUrl(input: string | null | undefined): Promise<string 
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
   if (!base) return null;
   return `${base}${value}`;
-}
-
-// Module-scope memoization. Edge re-cria isolate por request, mas dentro
-// do mesmo isolate vale evitar refetch.
-let geistFontPromise: Promise<ArrayBuffer | null> | null = null;
-
-/**
- * Tenta fetchar Geist 600 (semibold) via Vercel CDN para usar como
- * fallback de font no `ImageResponse`. Em fail (network, 404, timeout
- * 5s), retorna `null` — o handler cai pra system font default.
- *
- * **NÃO logar URL completa nem PII em fail** — só `console.warn` com
- * status code.
- */
-async function loadGeistFont(): Promise<
-  | [
-      {
-        name: string;
-        data: ArrayBuffer;
-        style: "normal";
-        weight: 600;
-      },
-    ]
-  | null
-> {
-  if (!geistFontPromise) {
-    geistFontPromise = fetchGeistBuffer();
-  }
-  const buf = await geistFontPromise;
-  if (!buf) return null;
-  return [{ name: "Geist", data: buf, style: "normal", weight: 600 }];
-}
-
-async function fetchGeistBuffer(): Promise<ArrayBuffer | null> {
-  const url =
-    "https://github.com/vercel/geist-font/raw/main/packages/next/dist/fonts/geist-sans/Geist-SemiBold.woff2";
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(timeout);
-    if (!res.ok) {
-      console.warn("og:font:fail", { status: res.status });
-      return null;
-    }
-    return await res.arrayBuffer();
-  } catch (err) {
-    // Fail safe — não logar a URL inteira nem stack (Edge isolate é
-    // efêmero e qualquer log com PII se acumula em logs centralizados).
-    console.warn("og:font:fail", { reason: (err as Error).name });
-    return null;
-  }
 }

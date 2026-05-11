@@ -138,6 +138,9 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
   preço null e axe.
 - `tests/unit/lib/hooks/use-car-context.test.tsx` cobre labels/parcela/link
   e mismatch defensivo de `carSlug`.
+- `tests/unit/lib/og/load-geist.test.ts` cobre leitura da fonte Geist local
+  (`/fonts/geist-600.woff2` no deployment), precedência de `VERCEL_URL` em
+  preview, memoização, fallback em falha e timeout de 1s para OG images.
 
 ### Quando usar mock factory vs inline `vi.mock`
 

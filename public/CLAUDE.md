@@ -31,4 +31,5 @@ Assets estáticos servidos diretamente pelo Next: favicon, ícones, logos, image
 | `assets/banks/` | SVGs monocromáticos 40×40 usados pelo `BanksStrip` dos sites públicos. |
 | `assets/payment/` | SVGs monocromáticos 40×40 usados pelo `PaymentStrip` dos sites públicos. |
 | `assets/{about,contact,emphasis,hero,logos,sale,stock,sw4-details}/` | Assets estáticos do site demo/concessionária usados pelas rotas públicas. |
+| `fonts/geist-600.woff2` | Geist SemiBold 600 local usado pelo OG image dinâmico dos sites públicos; evita dependência de GitHub raw/CDN em social preview. |
 | `*.svg` raiz | Defaults do create-next-app mantidos enquanto ainda referenciados pelo app/template. |
