@@ -28,18 +28,24 @@ Tipos TypeScript globais do projeto:
 
 ## Como regenerar `database.ts`
 
-Após aplicar a migration `0001_init.sql` no Supabase:
+Issue #203 (Sprint 0 #F6) adicionou scripts npm para padronizar o fluxo:
 
 ```bash
-npx supabase login
-npx supabase gen types typescript --project-id <PROJECT_REF> > types/database.ts
+# Local (após `supabase start` rodando):
+npm run gen:types
+
+# Remoto (requer `SUPABASE_PROJECT_REF` no env):
+SUPABASE_PROJECT_REF=<ref> npm run gen:types:remote
 ```
 
-Ou para projeto local:
+Equivalem a `supabase gen types typescript --local` e
+`supabase gen types typescript --project-id $SUPABASE_PROJECT_REF`
+respectivamente.
 
-```bash
-npx supabase start
-npx supabase gen types typescript --local > types/database.ts
-```
+**Convenção:** ao adicionar uma migration nova em `supabase/migrations/`,
+rodar `gen:types` localmente e commitar `types/database.ts` no mesmo PR.
+**NÃO** é um step do CI (requer secret ou Supabase local rodando); a
+defesa é o test type-level em `tests/unit/types/database.test.ts` que
+quebra se shape divergir do esperado.
 
 > O conteúdo atual foi escrito à mão para refletir a migration, **antes** da aplicação real. Após `gen types`, pode haver pequenas diferenças de formatação ou helpers extras (`Database['public']['CompositeTypes']`, etc.).

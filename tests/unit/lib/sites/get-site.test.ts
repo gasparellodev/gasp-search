@@ -7,12 +7,20 @@
  * helper em si também atende ao contrato (5 status + erro do Supabase),
  * já que agora é chamado por 4+ rotas (`/sites/[slug]`, `/sobre`,
  * `/contato`, `/anunciar`).
+ *
+ * Smoke migration #203 — usa `createMockSupabaseClient` em vez do
+ * chainable inline ad-hoc anterior.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import {
+  createMockSupabaseClient,
+  type MockSupabaseClient,
+  type TableOverride,
+} from "@/tests/__mocks__/supabase";
+
 const supabaseMocks = vi.hoisted(() => ({
   serviceClient: vi.fn(),
-  maybeSingle: vi.fn(),
 }));
 
 const cacheMocks = vi.hoisted(() => ({
@@ -35,13 +43,16 @@ vi.mock("next/cache", () => ({
 const SLUG = "j7k2p9-touring-cars";
 const SITE_ID = "44444444-4444-4444-8444-444444444444";
 
-function setSupabaseResponse(data: unknown, error: unknown = null) {
-  supabaseMocks.maybeSingle.mockResolvedValue({ data, error });
-  const eq = vi.fn(() => ({ maybeSingle: supabaseMocks.maybeSingle }));
-  const select = vi.fn(() => ({ eq }));
-  const from = vi.fn(() => ({ select }));
-  supabaseMocks.serviceClient.mockReturnValue({ from });
-  return { from, select, eq };
+function setSupabaseResponse(
+  data: unknown,
+  error: unknown = null,
+): MockSupabaseClient {
+  const override: TableOverride = { maybeSingle: { data, error } };
+  const client = createMockSupabaseClient({
+    tables: { lead_sites: override },
+  });
+  supabaseMocks.serviceClient.mockReturnValue(client);
+  return client;
 }
 
 beforeEach(() => {
@@ -116,7 +127,7 @@ describe("getSite (lib/sites/get-site.ts)", () => {
   });
 
   it("filtra Supabase via `eq('slug', <slug>)`", async () => {
-    const handles = setSupabaseResponse({
+    const client = setSupabaseResponse({
       id: SITE_ID,
       slug: SLUG,
       status: "published",
@@ -125,10 +136,15 @@ describe("getSite (lib/sites/get-site.ts)", () => {
     const { getSite } = await import("@/lib/sites/get-site");
 
     await getSite(SLUG);
-    expect(handles.from).toHaveBeenCalledWith("lead_sites");
-    expect(handles.select).toHaveBeenCalledWith(
+
+    expect(client.from).toHaveBeenCalledWith("lead_sites");
+    const leadSites = client.builders.lead_sites;
+    if (!leadSites) {
+      throw new Error("expected lead_sites builder to be tracked");
+    }
+    expect(leadSites.select).toHaveBeenCalledWith(
       "id, slug, status, variables, signed_at",
     );
-    expect(handles.eq).toHaveBeenCalledWith("slug", SLUG);
+    expect(leadSites.eq).toHaveBeenCalledWith("slug", SLUG);
   });
 });

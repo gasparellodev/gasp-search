@@ -143,6 +143,35 @@ const validCopyCar = (suffix: string, featured: boolean): SiteCopyCar => ({
   featured,
 });
 
+/**
+ * Factory tipada que retorna um `SiteVariables` válido com overrides
+ * opcionais (shallow merge). Use em testes que precisam de uma instância
+ * "fresca" mutável OU customizada por campo:
+ *
+ * ```ts
+ * const sv = makeSiteVariables({ business_name: 'Outro Nome' });
+ * ```
+ *
+ * Override é shallow — para mudar campos aninhados (e.g., emphasis,
+ * recent_sales) passe o objeto inteiro:
+ *
+ * ```ts
+ * makeSiteVariables({
+ *   emphasis: { ...validSiteVariablesFixture.emphasis, title: 'Novo' },
+ * });
+ * ```
+ *
+ * Issue #203 / Sprint 0 #F6 — convenção `make<Entity>(overrides?)`.
+ */
+export function makeSiteVariables(
+  overrides: Partial<SiteVariables> = {},
+): SiteVariables {
+  return {
+    ...validSiteVariablesFixture,
+    ...overrides,
+  };
+}
+
 export const validSiteCopyFixture: SiteCopy = {
   slogan: "Carros selecionados com confiança e procedência.",
   home_categories: [
