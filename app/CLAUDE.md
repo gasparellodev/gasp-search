@@ -34,6 +34,8 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 | `api/apify/google-maps/route.ts` | API protegida que dispara busca Google Maps no Apify |
 | `api/ai/generate-message/route.ts` | API protegida que gera mensagem IA para um lead e persiste em `lead_messages` |
 | `api/dashboard/route.ts` | API protegida que retorna métricas e últimas buscas para `/dashboard` |
+| `robots.ts` | **SEO infra (#212).** Next Metadata file que gera `/robots.txt`. Universal `*` com `disallow` das rotas internas autenticadas (`/api/`, `/login`, `/dashboard/`, `/leads/`, `/messages/`, `/campaigns/`, `/pipeline/`, `/search/`); allow explícito para 11 AI bots (`GPTBot`, `ClaudeBot`, `PerplexityBot`, `ChatGPT-User`, `GoogleOther`, `Google-Extended`, `Bytespider`, `CCBot`, `anthropic-ai`, `cohere-ai`, `FacebookBot`) + `Bingbot`; `sitemap` URL absoluto + `host` hint canônico. Estático (NEXT_PUBLIC_APP_URL é build-time). **Baseline AI crawler allowlist 2026-05; revisar trimestralmente** conforme novos LLMs entrarem no mercado. |
+| `sitemap.ts` | **SEO infra (#212).** Next Metadata file dinâmico que gera `/sitemap.xml`. Chama `listIndexableSites()` (sem `'use cache'` directive) e expande para 5 URLs estáticas por site (`/sites/[slug]` + `/estoque` + `/sobre` + `/contato` + `/anunciar`). `export const revalidate = 3600` (ISR 1h). V1 NÃO inclui `/estoque/[carSlug]` — pagina via `generateSitemaps()` em V2 quando catalog crescer. Graceful: em erro retorna `[]` (sitemap vazio = válido per protocol). |
 
 > Conforme features chegam: `(auth)/login`, `(auth)/callback`, `(app)/layout`, `(app)/dashboard`, `(app)/search`, `(app)/leads`, `(app)/pipeline`, `api/leads`, `api/dashboard`, `api/apify/*`, `api/ai/*`.
 
