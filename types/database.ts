@@ -252,6 +252,54 @@ export interface Database {
         };
         Relationships: [];
       };
+      lead_form_submissions: {
+        Row: {
+          id: string;
+          user_id: string;
+          lead_site_id: string;
+          name: string;
+          phone: string;
+          email: string;
+          message: string | null;
+          model: string | null;
+          consent_text: string;
+          consent_ip: string | null;
+          consent_user_agent: string | null;
+          consent_timestamp: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          lead_site_id: string;
+          name: string;
+          phone: string;
+          email: string;
+          message?: string | null;
+          model?: string | null;
+          consent_text: string;
+          consent_ip?: string | null;
+          consent_user_agent?: string | null;
+          consent_timestamp?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          lead_site_id?: string;
+          name?: string;
+          phone?: string;
+          email?: string;
+          message?: string | null;
+          model?: string | null;
+          consent_text?: string;
+          consent_ip?: string | null;
+          consent_user_agent?: string | null;
+          consent_timestamp?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       whatsapp_instances: {
         Row: {
           id: string;

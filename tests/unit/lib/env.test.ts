@@ -172,6 +172,7 @@ describe("lib/env-public (client-safe)", () => {
       NEXT_PUBLIC_SUPABASE_URL: "https://abc.supabase.co",
       NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key-123",
       NEXT_PUBLIC_WHATSAPP_ENABLED: "0",
+      NEXT_PUBLIC_SITE_FORMS_ENABLED: "0",
     });
     expect(Object.keys(publicEnv)).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
     expect(Object.keys(publicEnv)).not.toContain("APIFY_TOKEN");

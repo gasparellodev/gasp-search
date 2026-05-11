@@ -94,6 +94,7 @@ Ver `.env.local.example` para a lista canônica. Todas validadas via Zod em `lib
 | `EVOLUTION_API_KEY` | server-only (obrigatório se WhatsApp habilitado) |
 | `EVOLUTION_WEBHOOK_SECRET` | server-only (mín 16 chars; obrigatório se WhatsApp habilitado) |
 | `NEXT_PUBLIC_WHATSAPP_ENABLED` | client + server (`'0'` \| `'1'`, default `'0'`) |
+| `NEXT_PUBLIC_SITE_FORMS_ENABLED` | client + server (`'0'` \| `'1'`, default `'0'`) — Phase 7 #H3 contact form persistence gate |
 
 ## Onde está o quê
 
