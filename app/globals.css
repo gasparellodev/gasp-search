@@ -284,6 +284,8 @@
 
   /* --- Layers -------------------------------------------------------------- */
   --z-header: 50;
+  --z-floating-cta: 50;
+  --z-installment-bar: 45;
 
   /* --- Typography families (DESIGN.md §Typography) ------------------------- */
   --auto-font-display: var(--font-geist), -apple-system, BlinkMacSystemFont,

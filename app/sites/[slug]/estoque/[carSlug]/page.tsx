@@ -26,6 +26,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CarDetailSection } from "@/components/sites/stock/CarDetailSection";
+import { FloatingInstallmentBar } from "@/components/sites/FloatingInstallmentBar";
 import { SitePage } from "@/components/sites/SitePage";
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { getSite } from "@/lib/sites/get-site";
@@ -115,6 +116,7 @@ export default async function CarDetailPage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="estoque"
+      mainClassName="pb-24 lg:pb-0"
     >
       <SiteSchema schemas={[vehicleSchema, breadcrumbSchema]} />
       <CarDetailSection
@@ -122,6 +124,15 @@ export default async function CarDetailPage({ params }: PageProps) {
         car={car}
         siteId={site.id}
         slug={site.slug}
+      />
+      <FloatingInstallmentBar
+        slug={site.slug}
+        carSlug={car.slug}
+        initialContext={{
+          businessName: parsed.data.business_name,
+          whatsapp: parsed.data.whatsapp,
+          car,
+        }}
       />
     </SitePage>
   );

@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 import type { VisualIdentityManifest } from "@/types/visual-identity";
+import { cn } from "@/lib/utils";
 
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
@@ -45,6 +46,12 @@ interface SitePageProps {
    * manifestContactUrl>` separadamente.
    */
   manifest?: VisualIdentityManifest | null;
+  /**
+   * Classes opcionais aplicadas ao `<main>`. Usado por rotas com UI fixed
+   * mobile (ex.: barra de financiamento no detalhe do carro) para reservar
+   * espaço sem afetar o wrapper global.
+   */
+  mainClassName?: string;
 }
 
 /**
@@ -76,6 +83,7 @@ export function SitePage({
   activePage = "home",
   children,
   manifest = null,
+  mainClassName,
 }: SitePageProps) {
   const { brand_assets, slogan } = variables;
   const primary = sanitizeHex(brand_assets.primary_color);
@@ -98,7 +106,7 @@ export function SitePage({
       style={cssVars}
     >
       <SiteHeader variables={variables} slug={slug} activePage={activePage} />
-      <main>
+      <main className={cn(mainClassName)}>
         <div
           data-site-header-sentinel
           aria-hidden="true"
