@@ -55,6 +55,18 @@ export async function generateMetadata({
   return buildSiteMetadata({
     variables: parsed.data,
     pageLabel: `${car.brand} ${car.model} ${car.year}`,
+    site,
+    pathname: `/estoque/${carSlug}`,
+    route: {
+      kind: "detalhe",
+      car: {
+        brand: car.brand,
+        model: car.model,
+        year: car.year,
+        km: car.km,
+        price: car.price,
+      },
+    },
   });
 }
 

@@ -23,7 +23,7 @@ Tipos TypeScript globais do projeto:
 
 | Path | Propósito |
 |---|---|
-| `database.ts` | Schema Supabase: 10 tables (Row/Insert/Update) — incluindo `lead_sites` (Phase 7 M1.1) — enums (`search_source`, `search_status`, `lead_stage`, `whatsapp_status`, `campaign_*`, `lead_message_*`, `lead_site_status`), helpers `Tables<T>`/`TablesInsert<T>`/`TablesUpdate<T>`/`Enums<T>` |
+| `database.ts` | Schema Supabase: 10 tables (Row/Insert/Update) — incluindo `lead_sites` (Phase 7 M1.1, com coluna `signed_at` adicionada à mão em #199 espelhando migration 0018) — enums (`search_source`, `search_status`, `lead_stage`, `whatsapp_status`, `campaign_*`, `lead_message_*`, `lead_site_status`), helpers `Tables<T>`/`TablesInsert<T>`/`TablesUpdate<T>`/`Enums<T>`. **Convenção:** arquivo é hand-written enquanto não há projeto Supabase remoto pra `gen types`; novas colunas em migrations precisam de edit manual aqui no mesmo PR (test type-level em `tests/unit/types/database.test.ts:keyof LeadSiteRow` garante que divergência vira regression). |
 | `lead-site.ts` | Schemas Zod canônicos para `lead_sites.variables` (Phase 7 M1.2). Exporta `SiteVariables` (payload completo persistido), `SiteCar` (estoque), `SiteCopySchema` (subset textual emitido pela IA per §6 do spec) e `SiteCopyCar`. Tipos TS via `z.infer<>`: `SiteVariables`, `SiteCar`, `SiteCopy`, `SiteCopyCar`. Fonte canônica: §4 do spec mestre em `docs/superpowers/specs/2026-05-08-gerador-sites-concessionarias-design.md` (linhas 106–180). **Reproduzido verbatim** — qualquer mudança vira PR de spec primeiro, depois schema. Carrega lógica runtime (validação) — entra no coverage do Vitest. |
 
 ## Como regenerar `database.ts`

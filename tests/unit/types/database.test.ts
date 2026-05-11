@@ -172,7 +172,9 @@ describe("types/database", () => {
     expectTypeOf<LeadSiteRow["created_at"]>().toBeString();
     expectTypeOf<LeadSiteRow["updated_at"]>().toBeString();
 
-    // Sanity: todas as 15 colunas estão presentes (não mais, não menos)
+    // Sanity: todas as 16 colunas estão presentes (não mais, não menos).
+    // `signed_at` adicionado em #199 (migration 0018) — habilita o gate
+    // `isIndexable(site)` em `lib/sites/metadata.ts` (SEO foundation).
     type Cols = keyof LeadSiteRow;
     expectTypeOf<Cols>().toEqualTypeOf<
       | "id"
@@ -185,6 +187,7 @@ describe("types/database", () => {
       | "generated_at"
       | "published_at"
       | "sent_at"
+      | "signed_at"
       | "archived_at"
       | "view_count"
       | "last_viewed_at"

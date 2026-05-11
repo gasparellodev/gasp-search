@@ -70,6 +70,9 @@ export async function generateMetadata({
   return buildSiteMetadata({
     variables: parsed.data,
     pageLabel: "Concessionária",
+    site,
+    pathname: "/",
+    route: { kind: "home" },
   });
 }
 

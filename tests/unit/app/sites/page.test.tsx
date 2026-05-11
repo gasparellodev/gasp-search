@@ -30,7 +30,7 @@ import { SITE_FIXTURE } from "../../components/sites/site-fixtures";
 
 type LeadSiteRow = Pick<
   Database["public"]["Tables"]["lead_sites"]["Row"],
-  "id" | "slug" | "status" | "variables"
+  "id" | "slug" | "status" | "variables" | "signed_at"
 >;
 
 // ---------------------------------------------------------------------------
@@ -81,12 +81,14 @@ const SLUG = "j7k2p9-touring-cars";
 function makeRow(
   status: LeadSiteRow["status"],
   variables: SiteVariablesV2 = SITE_FIXTURE,
+  signed_at: string | null = null,
 ): LeadSiteRow {
   return {
     id: SITE_ID,
     slug: SLUG,
     status,
     variables,
+    signed_at,
   };
 }
 
@@ -251,7 +253,7 @@ describe("/sites/[slug] — cache (AC4)", () => {
 
     expect(handles.from).toHaveBeenCalledWith("lead_sites");
     expect(handles.select).toHaveBeenCalledWith(
-      "id, slug, status, variables",
+      "id, slug, status, variables, signed_at",
     );
     expect(handles.eq).toHaveBeenCalledWith("slug", SLUG);
   });
@@ -262,7 +264,7 @@ describe("/sites/[slug] — cache (AC4)", () => {
 // ---------------------------------------------------------------------------
 
 describe("/sites/[slug] — generateMetadata (AC6 / #165)", () => {
-  it("happy path: published → title `${business_name} — Concessionária` + noindex preservado", async () => {
+  it("happy path: published → city-aware title + noindex preservado (signed_at null)", async () => {
     setSupabaseResponse(makeRow("published"));
     const { generateMetadata } = await import("@/app/sites/[slug]/page");
 
@@ -270,10 +272,41 @@ describe("/sites/[slug] — generateMetadata (AC6 / #165)", () => {
       params: Promise.resolve({ slug: SLUG }),
     });
 
-    expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Concessionária`);
+    // #199: city-aware title via route discriminator
+    expect(meta.title).toBe(
+      `${SITE_FIXTURE.business_name} — Loja de Seminovos em ${SITE_FIXTURE.address!.city}, ${SITE_FIXTURE.address!.state}`,
+    );
+    // #199: signed_at=null → isIndexable false → noindex preservado.
     expect(meta.robots).toEqual({ index: false, follow: false });
     expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+  });
+
+  it("#199 — published + signed_at set → robots index:true (isIndexable gate)", async () => {
+    setSupabaseResponse(makeRow("published", SITE_FIXTURE, "2026-05-10T00:00:00Z"));
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta.robots).toEqual({ index: true, follow: true });
+  });
+
+  it("#199 — canonical absoluto + hreflang pt-BR + x-default", async () => {
+    setSupabaseResponse(makeRow("published"));
+    const { generateMetadata } = await import("@/app/sites/[slug]/page");
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    const canonical = `http://localhost:3000/sites/${SITE_FIXTURE.business_slug}`;
+    expect(meta.alternates?.canonical).toBe(canonical);
+    expect(meta.alternates?.languages).toEqual({
+      "pt-BR": canonical,
+      "x-default": canonical,
+    });
   });
 
   it("fallback path: getSite null → APENAS noindex (sem title/OG/Twitter)", async () => {

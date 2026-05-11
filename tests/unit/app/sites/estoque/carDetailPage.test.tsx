@@ -41,8 +41,9 @@ const VALID_CAR_SLUG = "toyota-corolla-2022";
 function makeRow(
   status: "draft" | "published" | "sent" | "archived",
   variables: SiteVariablesV2 = SITE_FIXTURE,
+  signed_at: string | null = null,
 ) {
-  return { id: SITE_ID, slug: SLUG, status, variables };
+  return { id: SITE_ID, slug: SLUG, status, variables, signed_at };
 }
 
 beforeEach(() => {
@@ -141,7 +142,7 @@ describe("/sites/[slug]/estoque/[carSlug] — routing", () => {
 });
 
 describe("/sites/[slug]/estoque/[carSlug] — generateMetadata (#165)", () => {
-  it("happy path: published + carSlug válido → title `${business_name} — ${brand} ${model} ${year}` + noindex", async () => {
+  it("happy path: published + carSlug válido → city-aware title + noindex (signed_at null)", async () => {
     getSiteMock.mockResolvedValue(makeRow("published"));
     const { generateMetadata } = await import(
       "@/app/sites/[slug]/estoque/[carSlug]/page"
@@ -151,13 +152,17 @@ describe("/sites/[slug]/estoque/[carSlug] — generateMetadata (#165)", () => {
       params: Promise.resolve({ slug: SLUG, carSlug: VALID_CAR_SLUG }),
     });
 
+    // #199 city-aware: "<brand> <model> <year> em <city> — <name>"
     // Fixture: { brand: 'Toyota', model: 'Corolla', year: 2022 }
     expect(meta.title).toBe(
-      `${SITE_FIXTURE.business_name} — Toyota Corolla 2022`,
+      `Toyota Corolla 2022 em ${SITE_FIXTURE.address!.city} — ${SITE_FIXTURE.business_name}`,
     );
     expect(meta.robots).toEqual({ index: false, follow: false });
     expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+    expect(meta.alternates?.canonical).toBe(
+      `http://localhost:3000/sites/${SITE_FIXTURE.business_slug}/estoque/${VALID_CAR_SLUG}`,
+    );
   });
 
   it("fallback path: getSite null → APENAS noindex", async () => {
