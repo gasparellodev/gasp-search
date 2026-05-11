@@ -4,6 +4,8 @@ import Link from "next/link";
 
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
+import { AICitableHero } from "../AICitableHero";
+
 import {
   classifyCar,
   parseCategoriaParam,
@@ -70,6 +72,18 @@ export function StockSection({
           >
             Estoque
           </h1>
+          {/*
+            AI passage-citable (#214). Imediatamente após <h1>, sempre
+            visível mobile.
+          */}
+          <AICitableHero
+            variables={{
+              business_name: variables.business_name,
+              address: variables.address,
+              cars: variables.cars,
+            }}
+            page="estoque"
+          />
           <p className="text-base text-foreground/70 md:text-lg">
             Encontre o carro ideal — selecione uma categoria pra filtrar.
           </p>

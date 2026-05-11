@@ -6,9 +6,12 @@ import Link from "next/link";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import { resolveHeroImageUrl } from "@/lib/sites/site-assets";
+import type { SiteVariablesV2 } from "@/types/lead-site";
+
+import { AICitableHero } from "../AICitableHero";
 
 interface HomeHeroProps {
-  /** Nome do negócio (usado no alt da imagem hero). */
+  /** Nome do negócio (usado no alt da imagem hero + AI passage). */
   business_name: string;
   /** Slogan canônico — vira o `<h1>` da Home. */
   slogan: string;
@@ -20,6 +23,18 @@ interface HomeHeroProps {
   text_on_primary: string;
   /** Slug do site, usado pra construir o href do CTA. */
   slug: string;
+  /**
+   * Endereço estruturado da loja — usado pelo `<AICitableHero>` para
+   * frase factual GEO ("em {city}/{state}"). Null cai em fallback "no Brasil".
+   * Adicionado em #214 (Sprint 1 / #S4).
+   */
+  address: SiteVariablesV2["address"];
+  /**
+   * Lista de carros do estoque — usada pelo `<AICitableHero>` para
+   * cláusula "com N carros em estoque a partir de R$ X". Vazia → cláusula omitida.
+   * Adicionado em #214 (Sprint 1 / #S4).
+   */
+  cars: SiteVariablesV2["cars"];
 }
 
 /**
@@ -42,6 +57,8 @@ export function HomeHero({
   primary_color,
   text_on_primary,
   slug,
+  address,
+  cars,
 }: HomeHeroProps) {
   const safePrimary = sanitizeHex(primary_color);
   const safeTextOnPrimary = sanitizeHex(text_on_primary);
@@ -60,6 +77,15 @@ export function HomeHero({
           >
             {slogan}
           </h1>
+          {/*
+            AI passage-citable (#214). Imediatamente após <h1>, sempre
+            visível mobile (AI crawlers mobile-first). Estilo discreto
+            via text-muted-foreground.
+          */}
+          <AICitableHero
+            variables={{ business_name, address, cars }}
+            page="home"
+          />
           <Link
             href={`/sites/${slug}/estoque`}
             data-testid="home-hero-cta"

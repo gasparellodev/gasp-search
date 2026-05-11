@@ -25,6 +25,9 @@ const baseVariables = {
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
   brand_assets: SITE_FIXTURE.brand_assets,
+  // #214: AICitableHero consumes address + cars
+  address: SITE_FIXTURE.address,
+  cars: SITE_FIXTURE.cars,
 };
 
 beforeEach(() => {
