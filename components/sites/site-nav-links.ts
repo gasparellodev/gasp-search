@@ -22,9 +22,10 @@ export interface SiteNavLink {
 export function buildSiteNavLinks(slug: string): ReadonlyArray<SiteNavLink> {
   const base = `/sites/${slug}`;
   return [
+    { id: "home", label: "Home", href: base },
+    { id: "estoque", label: "Estoque", href: `${base}/estoque` },
     { id: "sobre", label: "Sobre", href: `${base}/sobre` },
     { id: "contato", label: "Contato", href: `${base}/contato` },
     { id: "anunciar", label: "Anunciar", href: `${base}/anunciar` },
-    { id: "estoque", label: "Estoque", href: `${base}/estoque` },
   ];
 }

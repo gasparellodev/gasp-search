@@ -16,6 +16,7 @@ tests/e2e/sites/
 ├── generation.spec.ts    # AC2 — pipeline + DB persistence
 ├── rendering.spec.ts     # AC3 — 6 rotas (h1 + meta noindex)
 ├── navigation.spec.ts    # AC4 — clicks no SiteHeader
+├── header-glass.spec.ts   # #218 — glass-sticky + MobileNav fullscreen
 └── status-routing.spec.ts# AC5 — draft/archived → 404
 ```
 

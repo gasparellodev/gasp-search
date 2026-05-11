@@ -30,7 +30,7 @@ App Router do Next.js. Contém todas as rotas (públicas, autenticadas), layouts
 |---|---|
 | `layout.tsx` | Root layout: Inter (variável `--font-inter`, fallback do stack SF Pro), lang `pt-BR`, **light default**, metadata padrão |
 | `page.tsx` | Redirect da raiz: sem sessão → `/login`; logado → `/dashboard` |
-| `globals.css` | Imports Tailwind 4, design tokens Apple SK (hex), `@custom-variant dark`, layer base, e `@layer utilities` com escala tipográfica `.sk-h1`..`.sk-body-sm` |
+| `globals.css` | Imports Tailwind 4, design tokens Apple SK (hex), tokens premium Auto Showroom escopados em `[data-theme="auto-showroom"]` (`--auto-*` + `--z-header`), fallback CSS do header glass para browsers sem `backdrop-filter`, `@custom-variant dark`, layer base, e `@layer utilities` com escala tipográfica `.sk-h1`..`.sk-body-sm` |
 | `api/apify/google-maps/route.ts` | API protegida que dispara busca Google Maps no Apify |
 | `api/ai/generate-message/route.ts` | API protegida que gera mensagem IA para um lead e persiste em `lead_messages` |
 | `api/dashboard/route.ts` | API protegida que retorna métricas e últimas buscas para `/dashboard` |
