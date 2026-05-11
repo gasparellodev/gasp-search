@@ -29,13 +29,25 @@ Fonte canônica do design: §8 do spec mestre em
 
 ## Regras de negócio
 
-1. **`'use cache'` directive** em todas as queries Supabase desta área.
-   Sem isso, cada request bate o banco — caro e lento. Sempre acompanhar
-   de `cacheTag(\`site:\${slug}\`)` para invalidação targeted.
+1. **`'use cache'` directive** em todas as queries Supabase desta área
+   (Server Components, `page.tsx`, helpers de `lib/sites/`). Sem isso,
+   cada request bate o banco — caro e lento. Sempre acompanhar de
+   `cacheTag(\`site:\${slug}\`)` para invalidação targeted. **Exceção:
+   Route Handlers (`route.ts`) e Next Metadata files (`opengraph-image.tsx`,
+   `llms.txt/route.ts`) que retornam `Response` NÃO podem usar
+   `"use cache"`** — o `Response` é built-in com prototype não-plain e
+   crasha o cache boundary do Next 16 (PR #246). E `cacheTag` precisa
+   estar DENTRO de `"use cache"` (Next 16 valida em runtime). Padrão
+   alternativo: `export const revalidate = 3600` no topo do arquivo
+   e DEPENDER da invalidação transitiva via `getSite()` que carrega
+   o `cacheTag('site:<slug>')` internamente.
 2. **`cacheLife({ revalidate: 3600, expire: 86400 })`** é o profile
-   padrão pra sites: stale-while-revalidate por 1h, expire em 24h.
-   Sites editados pela ficha do lead invalidam manualmente via
-   `updateTag('site:<slug>')` em `app/actions/lead-site.ts`.
+   padrão pra sites em Server Components com `"use cache"`:
+   stale-while-revalidate por 1h, expire em 24h. Em Route Handlers
+   (sem `"use cache"`), usar `export const revalidate = 3600` que
+   replica o `revalidate` do profile. Sites editados pela ficha do
+   lead invalidam manualmente via `updateTag('site:<slug>')` em
+   `app/actions/lead-site.ts`.
 3. **Service-role só aqui (e em `app/actions/lead-site.ts` + handler do
    webhook do WhatsApp).** Allowlist enforced via grep:
    `rg -l 'createServiceSupabase|SUPABASE_SERVICE_ROLE_KEY' --type ts --type tsx | sort`
@@ -99,7 +111,7 @@ Fonte canônica do design: §8 do spec mestre em
 | `[slug]/estoque/page.tsx` | Rota `/sites/<slug>/estoque` (#164). Reutiliza `getSite` + `<SitePage activePage="estoque">` com `<StockSection>` injetado. Recebe `searchParams.categoria` (CSV multi-select) e propaga pro section. |
 | `[slug]/estoque/[carSlug]/page.tsx` | Rota `/sites/<slug>/estoque/<carSlug>` (#164). Reutiliza `getSite`, faz `cars.find(c => c.slug === carSlug)` (404 se não achar), renderiza `<CarDetailSection>` dentro de `<SitePage activePage="estoque">`. |
 | `[slug]/opengraph-image.tsx` | **OG image dinâmica (#213 / Sprint 1 / #S3).** Next Metadata file convention `opengraph-image.tsx`. Gera PNG 1200×630 via `next/og` `ImageResponse` consumido por scrapers de social (Facebook/Twitter/WhatsApp). `runtime='edge'` (trade-off explícito PO: workload curto, sem deps Node-only, cold-start Edge < Node pra ImageResponse). `revalidate=3600` (ISR 1h) + `cacheTag('og:<slug>')` (invalidado em todos os 5 caminhos cache em `app/actions/lead-site.ts` — publish/update/archive/restore/sendWhatsApp). **Gate `isIndexable(site)` → 404** quando null/draft/archived/sem signed_at (diferente do JSON-LD em #211 que sempre injeta — OG ≠ Schema.org: vaza pra social scrapers, não AI crawlers). **Fallback graceful**: hero ausente → gradient escuro; Geist font fetch fail → system font. `business_name` empty → "Loja de Carros" (não crasha). Alt text textual sem PII. |
-| `[slug]/llms.txt/route.ts` | **`llms.txt` para AI crawlers (#214 / Sprint 1 / #S4 — fecha ciclo GEO).** Route handler `GET` retorna Markdown plain text consumido por GPTBot, ClaudeBot, PerplexityBot, Gemini para AI Overviews e respostas AI search. **`Content-Type: text/plain; charset=utf-8`** em 200 E 404 (não usar `notFound()` default que emite HTML — AI crawlers parseariam errado). **Gate `isIndexable(site)` → 404** em null/draft/archived/sem signed_at — IGUAL ao OG image (#213), DIFERENTE do JSON-LD (#211): llms.txt expõe contato direto (telefone, WhatsApp, endereço), privacy by obscurity. **Cache via `cacheTag('site:<slug>')`** — REUSO. Os 5 callsites de `updateTag('site:<slug>')` em `app/actions/lead-site.ts` (update/publish/archive/restore/sign) já invalidam tudo cacheado por esse tag (getSite + llms.txt + futuros). Sem `llms:<slug>` separado. `cacheLife({ revalidate: 3600, expire: 86400 })` alinhado com `getSite`. `Cache-Control` header redundante mas explícito pra CDN externo (CloudFlare). Body via `renderLlmsTxt(variables, slug)` em `lib/sites/llms.ts` — pure, testável isoladamente. Zero PII em logs (slug ok; business_name, phone NÃO). |
+| `[slug]/llms.txt/route.ts` | **`llms.txt` para AI crawlers (#214 / Sprint 1 / #S4 — fecha ciclo GEO).** Route handler `GET` retorna Markdown plain text consumido por GPTBot, ClaudeBot, PerplexityBot, Gemini para AI Overviews e respostas AI search. **`Content-Type: text/plain; charset=utf-8`** em 200 E 404 (não usar `notFound()` default que emite HTML — AI crawlers parseariam errado). **Gate `isIndexable(site)` → 404** em null/draft/archived/sem signed_at — IGUAL ao OG image (#213), DIFERENTE do JSON-LD (#211): llms.txt expõe contato direto (telefone, WhatsApp, endereço), privacy by obscurity. **Cache: `export const revalidate = 3600` (ISR 1h) + invalidação transitiva via `getSite()`**. NÃO usar `"use cache"` directive em Route Handlers que retornam `Response` — built-in com prototype não-plain crasha o cache boundary do Next 16 (PR #246 QA blocker). Também NÃO chamar `cacheTag` no handler (Next 16 exige dentro de `"use cache"`). `getSite()` internamente carrega `"use cache"` + `cacheTag('site:<slug>')`; os 5 callsites de `updateTag('site:<slug>')` em `app/actions/lead-site.ts` (update/publish/archive/restore/sign) expiram esse cache, e o `revalidate = 3600` regenera a Response. `Cache-Control` header redundante mas explícito pra CDN externo (CloudFlare). Body via `renderLlmsTxt(variables, slug)` em `lib/sites/llms.ts` — pure, testável isoladamente. Zero PII em logs (slug ok; business_name, phone NÃO). |
 
 ## Dependências
 

@@ -22,12 +22,21 @@
  *    paths de erro. `notFound()` default emite HTML — AI crawlers
  *    parseariam errado. Usamos `Response` manual com header explícito.
  *
- * 3. **Cache via `cacheTag('site:<slug>')`** — REUSO. Os 5 callsites
- *    de `updateTag('site:<slug>')` em `app/actions/lead-site.ts` (após
- *    `updateLeadSite`, `publishLeadSite`, `archiveLeadSite`,
- *    `restoreLeadSite`, `signLeadSite`) já invalidam tudo que é
- *    cacheado por `site:<slug>` — getSite, llms.txt, e qualquer
- *    consumer futuro. Sem necessidade de criar `llms:<slug>` separado.
+ * 3. **Cache via `export const revalidate = 3600` + invalidação
+ *    transitiva por `getSite()`**. NÃO usamos `"use cache"` directive:
+ *    Route Handlers que retornam `Response` (built-in com prototype
+ *    não-plain) crasham quando atravessam o cache boundary
+ *    serializável do Next 16 ("Only plain objects ... can be passed
+ *    to Client Components"). Também NÃO chamamos `cacheTag` no
+ *    handler — Next 16 exige `cacheTag` DENTRO de `"use cache"`,
+ *    senão `Error: 'cacheTag()' can only be called inside a "use cache"
+ *    function`. A invalidação flui via `getSite()` que internamente
+ *    tem `"use cache"` + `cacheTag('site:<slug>')`. Os 5 callsites
+ *    de `updateTag('site:<slug>')` em `app/actions/lead-site.ts`
+ *    (após `updateLeadSite`, `publishLeadSite`, `archiveLeadSite`,
+ *    `restoreLeadSite`, `signLeadSite`) expiram o cache de `getSite`,
+ *    e o `revalidate = 3600` do handler regenera a Response na
+ *    próxima request. Padrão alinhado com `opengraph-image.tsx` (#213).
  *
  * 4. **`safeParse` falha → 404 text/plain** (defesa em profundidade).
  *    `lead_sites.variables` é `unknown` no banco; quando o payload
@@ -47,8 +56,6 @@
  */
 import "server-only";
 
-import { cacheLife, cacheTag } from "next/cache";
-
 import { getSite } from "@/lib/sites/get-site";
 import { renderLlmsTxt } from "@/lib/sites/llms";
 import { isIndexable } from "@/lib/sites/metadata";
@@ -57,6 +64,17 @@ import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 interface RouteContext {
   params: Promise<{ slug: string }>;
 }
+
+/**
+ * ISR 1h via Next Metadata file convention (mesmo padrão do
+ * `opengraph-image.tsx` #213). `"use cache"` directive em Route
+ * Handlers retornando `Response` quebra serialização no Next 16 —
+ * o objeto `Response` (built-in com prototype não-plain) não pode
+ * atravessar o cache boundary do React. Usamos `export const
+ * revalidate = 3600` + `cacheTag` standalone dentro do handler
+ * para invalidação via `updateTag('site:<slug>')`.
+ */
+export const revalidate = 3600;
 
 /**
  * Cabeçalhos compartilhados para todas as respostas — 200 e 404 ambas
@@ -87,16 +105,21 @@ export async function GET(
   _req: Request,
   { params }: RouteContext,
 ): Promise<Response> {
-  "use cache";
-
   const { slug } = await params;
 
-  // Cache tag REUSADO de `site:<slug>`. Quando admin publish/update/sign,
-  // `updateTag('site:<slug>')` em `app/actions/lead-site.ts` invalida
-  // tanto o cache do `getSite` quanto o cache desse handler.
-  cacheTag(`site:${slug}`);
-  cacheLife({ revalidate: 3600, expire: 86400 });
-
+  // Cache strategy: invalidation flui via `getSite()` que internamente
+  // usa `"use cache"` + `cacheTag('site:<slug>')` (ver `lib/sites/get-site.ts`).
+  // Os 5 callsites de `updateTag('site:<slug>')` em
+  // `app/actions/lead-site.ts` (update/publish/archive/restore/sign)
+  // expiram o cache de `getSite`, e o `revalidate = 3600` do route
+  // handler regenera a Response na próxima request.
+  //
+  // NÃO chamamos `cacheTag(\`site:\${slug}\`)` no escopo do handler:
+  // Next 16 exige que `cacheTag` esteja DENTRO de `"use cache"` (que
+  // não podemos usar aqui — Route Handlers retornando `Response`
+  // crasham o cache boundary, "Only plain objects ... can be passed
+  // to Client Components"). Manter `cacheTag` fora dispara
+  // `Error: 'cacheTag()' can only be called inside a "use cache" function`.
   const site = await getSite(slug);
 
   // Gate 1: site inexistente → 404 text/plain.

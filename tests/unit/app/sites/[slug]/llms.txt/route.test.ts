@@ -3,16 +3,19 @@
  * (issue #214 / Sprint 1 / #S4).
  *
  * Foco: gate de visibilidade (`isIndexable`) com 404 `text/plain` em
- * TODOS os paths de erro (não usar `notFound()` default que emite HTML),
- * cacheTag reuso de `site:<slug>` e happy path 200 + Content-Type
- * `text/plain; charset=utf-8`.
+ * TODOS os paths de erro (não usar `notFound()` default que emite HTML)
+ * e happy path 200 + Content-Type `text/plain; charset=utf-8`.
  *
  * Diferente de `opengraph-image` (#213) — llms.txt expõe contato
  * comercial direto (privacy by obscurity). Cada gate falho retorna 404
  * com header text/plain explícito para AI crawlers parsearem corretamente.
  *
- * Cache: `cacheTag('site:<slug>')` reusado dos 5 callsites em
- * `app/actions/lead-site.ts` — nenhum tag novo criado.
+ * Cache: ISR via `export const revalidate = 3600`. NÃO chamamos
+ * `cacheTag` no handler (Next 16 exige dentro de `"use cache"`, e
+ * `"use cache"` quebra com `Response`). Invalidação flui via
+ * `getSite()` que tem `"use cache"` + `cacheTag('site:<slug>')`
+ * internamente — os 5 callsites de `updateTag('site:<slug>')` em
+ * `app/actions/lead-site.ts` cobrem o cenário.
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -167,9 +170,17 @@ describe("llms.txt route — happy path", () => {
     expect(cacheControl).toContain("stale-while-revalidate=86400");
   });
 
-  it("seta cacheTag('site:<slug>') — reuso, sem novo tag separado", async () => {
+  it("NÃO chama cacheTag no handler — invalidação flui via getSite() (PR #246 fix)", async () => {
+    // Next 16 exige `cacheTag` dentro de `"use cache"`, que não podemos
+    // usar em Route Handlers retornando `Response`. Em vez de chamar
+    // `cacheTag` no handler (que crasharia com `Error: 'cacheTag()' can
+    // only be called inside a "use cache" function`), confiamos no
+    // `cacheTag('site:<slug>')` interno do `getSite()`. Os 5 callsites
+    // de `updateTag('site:<slug>')` em `app/actions/lead-site.ts`
+    // invalidam transitivamente.
     getSiteMock.mockResolvedValue(makeRow({ status: "published" }));
     await callRoute(SLUG);
-    expect(cacheMocks.cacheTag).toHaveBeenCalledWith(`site:${SLUG}`);
+    expect(cacheMocks.cacheTag).not.toHaveBeenCalled();
+    expect(cacheMocks.cacheLife).not.toHaveBeenCalled();
   });
 });
