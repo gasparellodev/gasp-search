@@ -30,7 +30,7 @@ import { SITE_FIXTURE } from "../../components/sites/site-fixtures";
 
 type LeadSiteRow = Pick<
   Database["public"]["Tables"]["lead_sites"]["Row"],
-  "id" | "slug" | "status" | "variables" | "signed_at"
+  "id" | "slug" | "status" | "variables" | "signed_at" | "visual_identity"
 >;
 
 // ---------------------------------------------------------------------------
@@ -82,6 +82,7 @@ function makeRow(
   status: LeadSiteRow["status"],
   variables: SiteVariablesV2 = SITE_FIXTURE,
   signed_at: string | null = null,
+  visual_identity: LeadSiteRow["visual_identity"] = null,
 ): LeadSiteRow {
   return {
     id: SITE_ID,
@@ -89,6 +90,7 @@ function makeRow(
     status,
     variables,
     signed_at,
+    visual_identity,
   };
 }
 
@@ -253,7 +255,7 @@ describe("/sites/[slug] — cache (AC4)", () => {
 
     expect(handles.from).toHaveBeenCalledWith("lead_sites");
     expect(handles.select).toHaveBeenCalledWith(
-      "id, slug, status, variables, signed_at",
+      "id, slug, status, variables, signed_at, visual_identity",
     );
     expect(handles.eq).toHaveBeenCalledWith("slug", SLUG);
   });

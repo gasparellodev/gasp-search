@@ -39,7 +39,7 @@ isolada com responsabilidade estreita, consumida pela rota raiz
 
 | Path | Propósito |
 |---|---|
-| `AboutSection.tsx` | Section principal: hero (image + h1 + about_text dividido em parágrafos) + 3 cards (Missão, Visão, Valores). Recebe `Pick<SiteVariables, 'about_text'\|'about_image_url'\|'mission'\|'vision'\|'values'\|'business_name'>`. |
+| `AboutSection.tsx` | Section principal: hero (image + h1 + about_text dividido em parágrafos) + 3 cards (Missão, Visão, Valores). Recebe `Pick<SiteVariables, 'about_text'\|'brand_assets'\|'mission'\|'vision'\|'values'\|'business_name'>` + opcional `manifestAboutUrl?: string \| null` (#217). Pattern de URL: `manifestAboutUrl ?? variables.brand_assets.about_image_url`. Caller (`/sobre/page.tsx`) deriva via `site.visual_identity?.about_url ?? null`. |
 
 ## Boundary client/server
 

@@ -33,6 +33,10 @@ import "server-only";
 import { cacheLife, cacheTag } from "next/cache";
 
 import { createServiceSupabase } from "@/lib/supabase/service";
+import {
+  VisualIdentityManifestSchema,
+  type VisualIdentityManifest,
+} from "@/types/visual-identity";
 
 export interface SiteRow {
   id: string;
@@ -48,6 +52,19 @@ export interface SiteRow {
    * `published_at` (publicação técnica) e `sent_at` (envio do preview).
    */
   signed_at: string | null;
+  /**
+   * Manifest de identidade visual AI persistido em `lead_sites.visual_identity`
+   * (JSONB, migration 0019, issues #215/#216). `null` quando a action
+   * `regenerateVisualIdentity` (#216) ainda não foi invocada para este
+   * site OU quando o manifest persistido falhar em `VisualIdentityManifestSchema.safeParse`
+   * (graceful degradation — caller cai em `brand_assets.*_image_url`).
+   *
+   * Sprint 2 / #A3 (issue #217): consumido pelos Server Components das
+   * 3 sub-rotas públicas (`/sites/[slug]`, `/sobre`, `/contato`) e pelo
+   * `opengraph-image.tsx` via fallback graceful
+   * `manifest?.X_url ?? variables.brand_assets.X_image_url`.
+   */
+  visual_identity: VisualIdentityManifest | null;
 }
 
 export async function getSite(slug: string): Promise<SiteRow | null> {
@@ -58,10 +75,36 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
   const supa = createServiceSupabase();
   const { data, error } = await supa
     .from("lead_sites")
-    .select("id, slug, status, variables, signed_at")
+    .select("id, slug, status, variables, signed_at, visual_identity")
     .eq("slug", slug)
     .maybeSingle();
 
   if (error || !data) return null;
-  return data as SiteRow;
+
+  // Defesa em profundidade: `visual_identity` é JSONB sem constraint de
+  // shape no DB. Validamos via Zod; em parse fail caímos pra null
+  // (consumer usa fallback `brand_assets.*_image_url`). NÃO logamos
+  // o manifest cru — pode conter URLs que vazariam em observability.
+  const rawManifest = (data as { visual_identity?: unknown }).visual_identity;
+  let visualIdentity: VisualIdentityManifest | null = null;
+  if (rawManifest != null) {
+    const parsed = VisualIdentityManifestSchema.safeParse(rawManifest);
+    if (parsed.success) {
+      visualIdentity = parsed.data;
+    } else {
+      console.warn("getSite:visual_identity:parse_fail", {
+        slug,
+        issuePaths: parsed.error.issues.map((i) => i.path.join(".")),
+      });
+    }
+  }
+
+  return {
+    id: (data as { id: string }).id,
+    slug: (data as { slug: string }).slug,
+    status: (data as { status: SiteRow["status"] }).status,
+    variables: (data as { variables: unknown }).variables,
+    signed_at: (data as { signed_at: string | null }).signed_at,
+    visual_identity: visualIdentity,
+  };
 }

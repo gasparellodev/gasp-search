@@ -64,6 +64,7 @@ function makeRow(opts: {
   status?: "draft" | "published" | "sent" | "archived";
   variables?: SiteVariablesV2;
   signed_at?: string | null;
+  visual_identity?: unknown;
 } = {}) {
   return {
     id: SITE_ID,
@@ -74,6 +75,10 @@ function makeRow(opts: {
     // null explícito quando o caller passa (gate signed_at=null deve
     // retornar 404).
     signed_at: "signed_at" in opts ? (opts.signed_at ?? null) : SIGNED_AT,
+    // #217: manifest persistido em lead_sites.visual_identity. Default
+    // null para preservar backward-compat dos testes existentes.
+    visual_identity:
+      "visual_identity" in opts ? opts.visual_identity ?? null : null,
   };
 }
 
@@ -201,6 +206,38 @@ describe("opengraph-image — fallback graceful", () => {
     };
     getSiteMock.mockResolvedValue(
       makeRow({ status: "published", variables: varsNoHero }),
+    );
+    const res = await callOgImage(SLUG);
+    expect(res.status).toBe(200);
+  });
+});
+
+// ===========================================================================
+// #217 — manifest precedence
+// ===========================================================================
+
+describe("opengraph-image — manifest precedence (#217)", () => {
+  const VALID_MANIFEST = {
+    hero_url: "https://cdn.example.com/touring/hero-ai.png",
+    categories_urls: ["https://cdn.example.com/touring/sedan-ai.png"],
+    about_url: "https://cdn.example.com/touring/about-ai.png",
+    contact_url: "https://cdn.example.com/touring/contact-ai.png",
+    generated_at: "2026-05-11T07:00:00.000Z",
+    model: "gpt-image-2-2026-04-21" as const,
+    cost_estimate_brl: 2.45,
+  };
+
+  it("visual_identity=null → 200 (cai pro brand_assets.hero_image_url)", async () => {
+    getSiteMock.mockResolvedValue(
+      makeRow({ status: "published", visual_identity: null }),
+    );
+    const res = await callOgImage(SLUG);
+    expect(res.status).toBe(200);
+  });
+
+  it("visual_identity com hero_url → 200 (manifest precedence)", async () => {
+    getSiteMock.mockResolvedValue(
+      makeRow({ status: "published", visual_identity: VALID_MANIFEST }),
     );
     const res = await callOgImage(SLUG);
     expect(res.status).toBe(200);

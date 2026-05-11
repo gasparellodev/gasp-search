@@ -84,6 +84,8 @@ describe("getSite (lib/sites/get-site.ts)", () => {
         slug: SLUG,
         status,
         variables: { foo: "bar" },
+        signed_at: null,
+        visual_identity: null,
       });
       const { getSite } = await import("@/lib/sites/get-site");
 
@@ -93,6 +95,8 @@ describe("getSite (lib/sites/get-site.ts)", () => {
         slug: SLUG,
         status,
         variables: { foo: "bar" },
+        signed_at: null,
+        visual_identity: null,
       });
     },
   );
@@ -143,8 +147,80 @@ describe("getSite (lib/sites/get-site.ts)", () => {
       throw new Error("expected lead_sites builder to be tracked");
     }
     expect(leadSites.select).toHaveBeenCalledWith(
-      "id, slug, status, variables, signed_at",
+      "id, slug, status, variables, signed_at, visual_identity",
     );
     expect(leadSites.eq).toHaveBeenCalledWith("slug", SLUG);
+  });
+
+  // ===========================================================================
+  // #217 — visual_identity parsing + fallback graceful
+  // ===========================================================================
+  describe("visual_identity manifest parsing (#217)", () => {
+    const VALID_MANIFEST = {
+      hero_url: "https://cdn.example.com/touring/hero-ai.png",
+      categories_urls: [
+        "https://cdn.example.com/touring/sedan.png",
+        "https://cdn.example.com/touring/suv.png",
+      ],
+      about_url: "https://cdn.example.com/touring/about-ai.png",
+      contact_url: "https://cdn.example.com/touring/contact-ai.png",
+      generated_at: "2026-05-11T07:00:00.000Z",
+      model: "gpt-image-2-2026-04-21",
+      cost_estimate_brl: 2.45,
+    } as const;
+
+    it("retorna `visual_identity: null` quando coluna é null", async () => {
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: "2026-05-10T00:00:00Z",
+        visual_identity: null,
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.visual_identity).toBeNull();
+    });
+
+    it("retorna manifest parseado quando shape válido", async () => {
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: "2026-05-10T00:00:00Z",
+        visual_identity: VALID_MANIFEST,
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.visual_identity).toEqual(VALID_MANIFEST);
+    });
+
+    it("retorna `visual_identity: null` quando shape inválido (graceful)", async () => {
+      const warnSpy = vi
+        .spyOn(console, "warn")
+        .mockImplementation(() => undefined);
+      setSupabaseResponse({
+        id: SITE_ID,
+        slug: SLUG,
+        status: "published",
+        variables: { foo: "bar" },
+        signed_at: "2026-05-10T00:00:00Z",
+        // Faltando keys obrigatórias (about_url, contact_url, etc.).
+        visual_identity: { hero_url: "https://x.com/h.png" },
+      });
+      const { getSite } = await import("@/lib/sites/get-site");
+
+      const result = await getSite(SLUG);
+      expect(result?.visual_identity).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        "getSite:visual_identity:parse_fail",
+        expect.objectContaining({ slug: SLUG }),
+      );
+      warnSpy.mockRestore();
+    });
   });
 });

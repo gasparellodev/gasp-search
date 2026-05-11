@@ -27,7 +27,10 @@ const baseVariables = {
 
 };
 
-const addressLineString = "Av. Boa Viagem, 1000 — Boa Viagem, Recife - PE, 51020-000";
+// Pre-existing fixture (kept for parity with formatAddressLine output in
+// ContactSection — referenced indirectly via address fields above).
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const _addressLineString = "Av. Boa Viagem, 1000 — Boa Viagem, Recife - PE, 51020-000";
 
 describe("<ContactSection />", () => {
   it("renderiza <h1> 'Contato'", () => {
@@ -164,6 +167,40 @@ describe("<ContactSection />", () => {
       `Contato — ${SITE_FIXTURE.business_name}`,
     );
     expect(img).toBeInTheDocument();
+  });
+
+  // #217 — manifest override
+  it("usa `brand_assets.contact_image_url` quando manifestContactUrl é null", () => {
+    render(
+      <ContactSection
+        variables={baseVariables}
+        siteId={SITE_ID}
+        slug={SLUG}
+        manifestContactUrl={null}
+      />,
+    );
+    const img = screen.getByAltText(
+      `Contato — ${SITE_FIXTURE.business_name}`,
+    );
+    expect(img.getAttribute("src")).toBe(
+      SITE_FIXTURE.brand_assets.contact_image_url,
+    );
+  });
+
+  it("usa manifestContactUrl quando fornecido (precedência sobre brand_assets)", () => {
+    const aiUrl = "https://cdn.example.com/touring/contact-ai.png";
+    render(
+      <ContactSection
+        variables={baseVariables}
+        siteId={SITE_ID}
+        slug={SLUG}
+        manifestContactUrl={aiUrl}
+      />,
+    );
+    const img = screen.getByAltText(
+      `Contato — ${SITE_FIXTURE.business_name}`,
+    );
+    expect(img.getAttribute("src")).toBe(aiUrl);
   });
 
   it("renderiza <SiteForm> com variant='contact'", () => {

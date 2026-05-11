@@ -15,7 +15,15 @@ interface HomeHeroProps {
   business_name: string;
   /** Slogan canônico — vira o `<h1>` da Home. */
   slogan: string;
-  /** URL/path da imagem hero (cutout transparente). Cai em demo cutout quando ausente. */
+  /**
+   * URL/path da imagem hero (cutout transparente). Cai em demo cutout quando ausente.
+   *
+   * **Resolução (Sprint 2 / #A3 / #217)**: o caller (`SitePage`) já aplica
+   * a precedência `manifest?.hero_url ?? variables.brand_assets.hero_image_url`
+   * antes de passar pra cá. Este componente permanece thin — só vê o
+   * resultado final. Demo cutout continua sendo o último fallback dentro
+   * de `resolveHeroImageUrl` quando ambos são null/vazio.
+   */
   hero_image_url: string | null | undefined;
   /** Cor primária do site (hex sanitizado) — bg do CTA pill (vermelho da marca). */
   primary_color: string;

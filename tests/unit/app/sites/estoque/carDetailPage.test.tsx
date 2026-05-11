@@ -43,7 +43,14 @@ function makeRow(
   variables: SiteVariablesV2 = SITE_FIXTURE,
   signed_at: string | null = null,
 ) {
-  return { id: SITE_ID, slug: SLUG, status, variables, signed_at };
+  return {
+    id: SITE_ID,
+    slug: SLUG,
+    status,
+    variables,
+    signed_at,
+    visual_identity: null,
+  };
 }
 
 beforeEach(() => {

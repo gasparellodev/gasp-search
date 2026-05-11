@@ -25,6 +25,7 @@ const hoisted = vi.hoisted(() => ({
   archiveLeadSite: vi.fn(),
   restoreLeadSite: vi.fn(),
   sendLeadSiteWhatsApp: vi.fn(),
+  regenerateVisualIdentity: vi.fn(),
   refresh: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/app/actions/lead-site", () => ({
   archiveLeadSite: hoisted.archiveLeadSite,
   restoreLeadSite: hoisted.restoreLeadSite,
   sendLeadSiteWhatsApp: hoisted.sendLeadSiteWhatsApp,
+  regenerateVisualIdentity: hoisted.regenerateVisualIdentity,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -838,4 +840,242 @@ describe("LeadSiteCardActions — #171 send WhatsApp flow", () => {
       /inesperado/i,
     );
   });
+});
+
+// ---------------------------------------------------------------------------
+// #217 — Regenerate visual identity flow (AlertDialog + Server Action)
+// ---------------------------------------------------------------------------
+
+const VALID_MANIFEST = {
+  hero_url: "https://cdn.example.com/touring/hero-ai.png",
+  categories_urls: [
+    "https://cdn.example.com/touring/sedan.png",
+    "https://cdn.example.com/touring/suv.png",
+  ],
+  about_url: "https://cdn.example.com/touring/about-ai.png",
+  contact_url: "https://cdn.example.com/touring/contact-ai.png",
+  generated_at: "2026-05-11T07:00:00.000Z",
+  model: "gpt-image-2-2026-04-21" as const,
+  cost_estimate_brl: 2.45,
+};
+
+describe("LeadSiteCardActions — #217 regenerate visual identity", () => {
+  it("status='published' renderiza o botão 'Regenerar identidade visual'", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(
+      screen.getByTestId("lead-site-regen-identity-button"),
+    ).toBeInTheDocument();
+  });
+
+  it("status='sent' também renderiza o botão (re-regenerate permitido)", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "sent" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(
+      screen.getByTestId("lead-site-regen-identity-button"),
+    ).toBeInTheDocument();
+  });
+
+  it("status='draft' NÃO renderiza o botão (cluster published-only)", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(
+      screen.queryByTestId("lead-site-regen-identity-button"),
+    ).toBeNull();
+  });
+
+  it("status='archived' NÃO renderiza o botão", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "archived" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(
+      screen.queryByTestId("lead-site-regen-identity-button"),
+    ).toBeNull();
+  });
+
+  it("click abre AlertDialog com texto correto (R$ 2,45 + 90s)", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    expect(
+      await screen.findByTestId("lead-site-regen-identity-dialog"),
+    ).toBeInTheDocument();
+    // Texto da descrição cita custo + qtd de imagens.
+    expect(
+      screen.getByText(/9 imagens/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/R\$\s*2,45/),
+    ).toBeInTheDocument();
+    // Texto de duração cita "90 segundos".
+    expect(
+      screen.getByTestId("lead-site-regen-identity-duration"),
+    ).toHaveTextContent(/90 segundos/i);
+  });
+
+  it("Cancelar fecha o dialog SEM chamar a action", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    await user.click(screen.getByTestId("lead-site-regen-identity-cancel"));
+    expect(hoisted.regenerateVisualIdentity).not.toHaveBeenCalled();
+  });
+
+  it("Confirmar chama regenerateVisualIdentity com {force:true} + toast.success + router.refresh", async () => {
+    hoisted.regenerateVisualIdentity.mockResolvedValue({
+      ok: true,
+      manifest: VALID_MANIFEST,
+      regenerated: true,
+    });
+    const user = userEvent.setup();
+    const leadSite = makeLeadSite({ status: "published" });
+    render(
+      <LeadSiteCardActions
+        leadSite={leadSite}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    await user.click(screen.getByTestId("lead-site-regen-identity-confirm"));
+
+    await waitFor(() => {
+      expect(hoisted.regenerateVisualIdentity).toHaveBeenCalledWith(
+        leadSite.id,
+        { force: true },
+      );
+    });
+    expect(hoisted.toastSuccess).toHaveBeenCalledWith(
+      "Identidade visual regenerada",
+      expect.objectContaining({
+        description: expect.stringMatching(/R\$\s*2,45/),
+      }),
+    );
+    expect(hoisted.refresh).toHaveBeenCalled();
+  });
+
+  it("toast.success usa cost_estimate_brl real do manifest (formatado BRL)", async () => {
+    hoisted.regenerateVisualIdentity.mockResolvedValue({
+      ok: true,
+      manifest: { ...VALID_MANIFEST, cost_estimate_brl: 3.78 },
+      regenerated: true,
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    await user.click(screen.getByTestId("lead-site-regen-identity-confirm"));
+
+    await waitFor(() => {
+      expect(hoisted.toastSuccess).toHaveBeenCalled();
+    });
+    expect(hoisted.toastSuccess.mock.calls[0]![1].description).toMatch(
+      /R\$\s*3,78/,
+    );
+  });
+
+  it.each([
+    ["auth", /sessão expirada/i],
+    ["not_found", /não encontrado/i],
+    ["cost_guardrail", /limite de US\$ 2/i],
+    ["validation", /validação interna/i],
+    ["generation_error", /rate limit|moderação/i],
+    ["storage_error", /storage/i],
+    ["db_error", /persistir/i],
+  ] as const)("error code '%s' → toast.error PT-BR", async (errorCode, pattern) => {
+    hoisted.regenerateVisualIdentity.mockResolvedValue({
+      ok: false,
+      error: errorCode,
+      message: "ignored — UI mapeia",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    await user.click(screen.getByTestId("lead-site-regen-identity-confirm"));
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    expect(hoisted.toastError.mock.calls[0]![0]).toMatch(
+      /Não foi possível regenerar/i,
+    );
+    expect(hoisted.toastError.mock.calls[0]![1].description).toMatch(pattern);
+  });
+
+  it("exception inesperada em regenerate dispara toast.error genérico", async () => {
+    hoisted.regenerateVisualIdentity.mockRejectedValue(new Error("boom"));
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    await user.click(screen.getByTestId("lead-site-regen-identity-confirm"));
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    expect(hoisted.toastError.mock.calls[0]![1].description).toMatch(
+      /inesperado/i,
+    );
+  });
+
+  it("AlertDialog do regenerate é acessível (sem violações axe-core)", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-regen-identity-button"));
+    // Esperar o dialog renderizar.
+    await screen.findByTestId("lead-site-regen-identity-dialog");
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  }, 15_000);
 });

@@ -104,6 +104,26 @@ describe("<AboutSection />", () => {
     expect(img).toBeInTheDocument();
   });
 
+  // #217 — manifest override
+  it("usa `brand_assets.about_image_url` quando manifestAboutUrl é null/undefined", () => {
+    render(
+      <AboutSection variables={baseVariables} manifestAboutUrl={null} />,
+    );
+    const img = screen.getByAltText(`Sobre — ${SITE_FIXTURE.business_name}`);
+    expect(img.getAttribute("src")).toBe(
+      SITE_FIXTURE.brand_assets.about_image_url,
+    );
+  });
+
+  it("usa manifestAboutUrl quando fornecido (precedência sobre brand_assets)", () => {
+    const aiUrl = "https://cdn.example.com/touring/about-ai.png";
+    render(
+      <AboutSection variables={baseVariables} manifestAboutUrl={aiUrl} />,
+    );
+    const img = screen.getByAltText(`Sobre — ${SITE_FIXTURE.business_name}`);
+    expect(img.getAttribute("src")).toBe(aiUrl);
+  });
+
   // AC7 round 3 — runtime axe-core (M2.3 #162 pattern). Roda contra o DOM
   // serializado pelo RTL e bloqueia violations serious/critical.
   it("não tem violações axe-core (a11y runtime)", async () => {

@@ -105,5 +105,12 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
-  return <SitePage variables={parsed.data} siteId={site.id} slug={site.slug} />;
+  return (
+    <SitePage
+      variables={parsed.data}
+      siteId={site.id}
+      slug={site.slug}
+      manifest={site.visual_identity}
+    />
+  );
 }

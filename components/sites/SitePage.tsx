@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariablesV2 } from "@/types/lead-site";
+import type { VisualIdentityManifest } from "@/types/visual-identity";
 
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
@@ -33,6 +34,17 @@ interface SitePageProps {
    * seção da página atual no lugar.
    */
   children?: ReactNode;
+  /**
+   * Manifest de identidade visual AI (Sprint 2 / #A3 / issue #217).
+   *
+   * Quando presente (parseado upstream via `getSite()` em #217), a Home
+   * usa `manifest.hero_url` como hero image — fallback gracioso pra
+   * `variables.brand_assets.hero_image_url` quando `null`. Sub-rotas
+   * (`/sobre`, `/contato`) NÃO usam este prop diretamente: elas passam
+   * o override pra `<AboutSection manifestAboutUrl>` / `<ContactSection
+   * manifestContactUrl>` separadamente.
+   */
+  manifest?: VisualIdentityManifest | null;
 }
 
 /**
@@ -63,12 +75,15 @@ export function SitePage({
   slug,
   activePage = "home",
   children,
+  manifest = null,
 }: SitePageProps) {
   const { brand_assets, slogan } = variables;
   const primary = sanitizeHex(brand_assets.primary_color);
   const textOnPrimary = sanitizeHex(brand_assets.text_on_primary);
   // Slogan é optional em v2 → fallback no business_name pra HomeHero (prop required).
   const heroSlogan = slogan ?? variables.business_name;
+  // #217 — Manifest tem precedência; fallback graceful pro brand_assets v2.
+  const heroImageUrl = manifest?.hero_url ?? brand_assets.hero_image_url;
 
   const cssVars = {
     "--site-primary": primary,
@@ -89,7 +104,7 @@ export function SitePage({
             <HomeHero
               business_name={variables.business_name}
               slogan={heroSlogan}
-              hero_image_url={brand_assets.hero_image_url}
+              hero_image_url={heroImageUrl}
               primary_color={brand_assets.primary_color}
               text_on_primary={brand_assets.text_on_primary}
               slug={slug}
