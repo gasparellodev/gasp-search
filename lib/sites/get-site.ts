@@ -45,6 +45,18 @@ export interface SiteRow {
   /** Validar via `SiteVariables.safeParse` antes do render. */
   variables: unknown;
   /**
+   * Rating Google da concessionária (lido de `leads.rating` via FK).
+   * `null` quando o lead vem do Apify Instagram (sem reviews) ou Maps
+   * sem avaliações públicas.
+   *
+   * **Sprint 4 / #H1 (issue #221)**: consumido por `<HomeTrustStrip>` via
+   * props explícitas em `SitePage`. PO decision: NÃO estender
+   * `SiteVariables` (evita migration); `getSite` faz select + relay.
+   */
+  lead_rating: number | null;
+  /** Contagem de reviews Google (lida de `leads.reviews_count`). */
+  lead_reviews_count: number | null;
+  /**
    * Momento de assinatura do contrato pelo cliente (issue #199, migration
    * 0018). `null` até confirmação manual via admin. Habilita o gate
    * `isIndexable(site)` em `lib/sites/metadata.ts` que controla
@@ -75,7 +87,9 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
   const supa = createServiceSupabase();
   const { data, error } = await supa
     .from("lead_sites")
-    .select("id, slug, status, variables, signed_at, visual_identity")
+    .select(
+      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count )",
+    )
     .eq("slug", slug)
     .maybeSingle();
 
@@ -99,6 +113,19 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
     }
   }
 
+  // `leads` join pode vir como objeto único (FK 1:1 implícita) ou array
+  // dependendo do Supabase client. Defendemos contra ambos os casos.
+  const rawLeads = (data as { leads?: unknown }).leads;
+  const leadRow: { rating: unknown; reviews_count: unknown } | null = Array.isArray(
+    rawLeads,
+  )
+    ? ((rawLeads[0] as { rating: unknown; reviews_count: unknown } | undefined) ??
+      null)
+    : ((rawLeads as { rating: unknown; reviews_count: unknown } | null) ?? null);
+  const leadRating = typeof leadRow?.rating === "number" ? leadRow.rating : null;
+  const leadReviewsCount =
+    typeof leadRow?.reviews_count === "number" ? leadRow.reviews_count : null;
+
   return {
     id: (data as { id: string }).id,
     slug: (data as { slug: string }).slug,
@@ -106,5 +133,7 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
     variables: (data as { variables: unknown }).variables,
     signed_at: (data as { signed_at: string | null }).signed_at,
     visual_identity: visualIdentity,
+    lead_rating: leadRating,
+    lead_reviews_count: leadReviewsCount,
   };
 }

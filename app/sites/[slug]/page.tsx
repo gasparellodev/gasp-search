@@ -111,6 +111,8 @@ export default async function Page({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       manifest={site.visual_identity}
+      rating={site.lead_rating}
+      reviewsCount={site.lead_reviews_count}
     />
   );
 }
