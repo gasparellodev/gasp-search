@@ -74,6 +74,7 @@ Cada PR deve passar por:
 - **Toda lista tem skeleton + empty state desenhado.** Não deixar tela em branco.
 - **Dark mode default.** Toggle no Topbar. Tailwind `darkMode: 'class'`.
 - **Acentuação PT-BR em mensagens** ao usuário e `notes`.
+- **Mocks de tests** ficam em `tests/__mocks__/` (Supabase, Anthropic, Apify) e fixtures factories em `tests/fixtures/` — ver [`tests/CLAUDE.md` → "Mock factories"](tests/CLAUDE.md). Convenção `make<Entity>(overrides?)` para factories, `createMockX` / `xMock()` para clients externos.
 
 ## Variáveis de ambiente
 

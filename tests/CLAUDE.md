@@ -56,6 +56,98 @@ tests/
    `documentElement.scrollWidth`/`body.scrollWidth` contra `clientWidth` nas
    rotas afetadas.
 
+## Mock factories
+
+Para evitar duplicação de `vi.mock(...)` ad-hoc em ~20 arquivos, o projeto
+mantém helpers centralizados em `tests/__mocks__/` (issue #203 / Sprint 0
+#F6). **Use-os para qualquer test novo** que precise mockar Supabase /
+Anthropic / Apify.
+
+- `createMockSupabaseClient(opts?)` — client chainable com `.from().select()
+  .eq().{single,maybeSingle}()`, `.insert().select().single()`,
+  `.update().eq()`, `.upsert()`, `.delete().eq()`. Overrides por tabela:
+
+  ```ts
+  import { createMockSupabaseClient } from "@/tests/__mocks__/supabase";
+
+  const supabase = createMockSupabaseClient({
+    tables: {
+      lead_sites: { maybeSingle: { data: makeLeadSite(), error: null } },
+    },
+  });
+  vi.mock("@/lib/supabase/service", () => ({
+    createServiceSupabase: () => supabase,
+  }));
+  ```
+
+- `anthropicMock()` + `mockAnthropicToolUse(input)` /
+  `mockAnthropicTextResponse(text)` — substitui `@anthropic-ai/sdk`.
+  `anthropicState.create.mockRejectedValueOnce(err)` simula erro.
+
+  ```ts
+  import {
+    anthropicMock,
+    mockAnthropicToolUse,
+    resetAnthropicMock,
+  } from "@/tests/__mocks__/anthropic";
+
+  vi.mock("@anthropic-ai/sdk", () => anthropicMock());
+  beforeEach(() => {
+    resetAnthropicMock();
+    mockAnthropicToolUse({ slogan: "X", cars: [] });
+  });
+  ```
+
+- `apifyMock()` + `mockApifyActorRun(items)` — substitui `apify-client`.
+
+  ```ts
+  import {
+    apifyMock,
+    mockApifyActorRun,
+    resetApifyMock,
+  } from "@/tests/__mocks__/apify";
+
+  vi.mock("apify-client", () => apifyMock());
+  beforeEach(() => {
+    resetApifyMock();
+    mockApifyActorRun([{ name: "Acme" }]);
+  });
+  ```
+
+### Fixture factories (`tests/fixtures/`)
+
+Convenção `make<Entity>(overrides?: Partial<T>): T`. Cada factory retorna
+instância nova (sem aliasing) e aplica `Partial<T>` shallow:
+
+- `makeSiteVariables(overrides?)` → `SiteVariables` (passa em
+  `SiteVariables.parse()`).
+- `makeLead(overrides?)` → `Tables<'leads'>`.
+- `makeLeadSite(overrides?)` → `Tables<'lead_sites'>` com `variables`
+  default do `validSiteVariablesFixture`.
+
+### Quando usar mock factory vs inline `vi.mock`
+
+- **Use factory** quando o test só precisa do shape padrão + 1-2 overrides.
+- **Use inline `vi.mock`** quando o test precisa de comportamento exótico
+  (Proxy lazy, chained method não suportado pela factory). Documente o
+  motivo no top do arquivo.
+
+## `gen:types` — regenerar `types/database.ts`
+
+```bash
+# Local (após `supabase start`):
+npm run gen:types
+
+# Remoto (requer `SUPABASE_PROJECT_REF` no env):
+SUPABASE_PROJECT_REF=<ref> npm run gen:types:remote
+```
+
+**Convenção:** ao adicionar migration nova em `supabase/migrations/`,
+rodar `gen:types` localmente e commitar `types/database.ts` no mesmo PR.
+**NÃO** é um step do CI (requer secret/projeto remoto); a defesa é o
+type-level test em `tests/unit/types/database.test.ts` que quebra se
+shape divergir.
+
 ## Comandos
 
 ```bash

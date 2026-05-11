@@ -33,4 +33,12 @@ payloads grandes e padronizar o "shape válido" de cada domínio.
 | `google-maps-place.json` | Resposta sintética do Apify Google Maps Scraper para validar o mapper `lib/apify/google-maps.ts`. |
 | `instagram/` | Fixtures do Apify Instagram (perfil + posts). |
 | `website-contact/` | Fixtures de scraping de website contact pages. |
-| `site-variables.ts` | `validSiteVariablesFixture` (passa em `SiteVariables.parse()`) e `validSiteCopyFixture` (passa em `SiteCopySchema.parse()`) — reutilizados em `tests/unit/types/lead-site.test.ts`, nas issues #158 (generateCopy IA), #159 (orquestrador `generateLeadSite`) e #166 (helpers E2E `tests/e2e/sites/helpers.ts`). |
+| `site-variables.ts` | `validSiteVariablesFixture` (passa em `SiteVariables.parse()`) e `validSiteCopyFixture` (passa em `SiteCopySchema.parse()`) — reutilizados em `tests/unit/types/lead-site.test.ts`, nas issues #158 (generateCopy IA), #159 (orquestrador `generateLeadSite`) e #166 (helpers E2E `tests/e2e/sites/helpers.ts`). Exporta também `makeSiteVariables(overrides?)` (#203) — factory `make<Entity>(Partial<T>): T`. |
+| `lead.ts` | `makeLead(overrides?: Partial<Tables<'leads'>>): Lead` (#203). Tipo derivado de `types/database.ts` — break compile-time se schema mudar. Geo fields (`latitude`/`longitude`/`google_place_id`) **não** estão no schema atual (ver observação 9597); incluir aqui no mesmo PR da migration se forem adicionados. |
+| `lead-site.ts` | `makeLeadSite(overrides?: Partial<Tables<'lead_sites'>>): LeadSite` (#203). `variables` default = `validSiteVariablesFixture` (passa em `SiteVariables.parse()`). Inclui `signed_at` adicionado em #199. |
+
+## Mock helpers relacionados
+
+Para mockar clients externos (Supabase, Anthropic, Apify) use os factories
+em `tests/__mocks__/` — documentação canônica em
+[`tests/CLAUDE.md` → seção "Mock factories"](../CLAUDE.md).
