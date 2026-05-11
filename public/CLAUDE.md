@@ -16,7 +16,19 @@ Assets estáticos servidos diretamente pelo Next: favicon, ícones, logos, image
 2. **Tamanho**: prefira SVG/WebP/AVIF. Imagens raster > 200KB devem ser otimizadas (squoosh, sharp).
 3. **Naming**: `kebab-case.ext`. Sem espaços.
 4. **Versionar**: imagens entram no git. Para conteúdo gerado por usuário, use Vercel Blob ou Supabase Storage (issue futura).
+5. **Assets de bancos/pagamento (#219).** `public/assets/banks/*.svg` e
+   `public/assets/payment/*.svg` são ícones monocromáticos cinza
+   produzidos para UI, não arquivos oficiais das marcas. Cada SVG deve
+   declarar `width`, `height` e `viewBox`, ter viewBox mínimo 32×32 e não
+   usar `<style>` inline para permanecer CSP-friendly. Logos e marcas
+   nominativas pertencem aos respectivos titulares (Santander, Bradesco,
+   Itaú, BV, Banco PAN, Caixa, Porto e demais métodos/serviços).
 
 ## Arquivos
 
-> Atualmente populado com defaults do create-next-app (next.svg, vercel.svg, file.svg, globe.svg, window.svg) — serão substituídos em #11 ou #34 (README).
+| Path | Propósito |
+|---|---|
+| `assets/banks/` | SVGs monocromáticos 40×40 usados pelo `BanksStrip` dos sites públicos. |
+| `assets/payment/` | SVGs monocromáticos 40×40 usados pelo `PaymentStrip` dos sites públicos. |
+| `assets/{about,contact,emphasis,hero,logos,sale,stock,sw4-details}/` | Assets estáticos do site demo/concessionária usados pelas rotas públicas. |
+| `*.svg` raiz | Defaults do create-next-app mantidos enquanto ainda referenciados pelo app/template. |

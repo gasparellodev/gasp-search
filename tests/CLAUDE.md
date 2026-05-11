@@ -31,6 +31,10 @@ tests/
 - Para componentes React, importe `render`/`screen` de `@testing-library/react`. `userEvent` para interações.
 - Imports do projeto via alias `@/...`.
 - **TDD obrigatório**: escreva o teste falhando antes da implementação.
+- Snapshots de componentes ficam no `__snapshots__/` colocalizado ao spec
+  quando o aceite pede baseline estrutural. Mantenha snapshots focados no
+  componente afetado e atualize-os só depois da asserção comportamental
+  passar.
 
 ### E2E (Playwright)
 - Crie em `tests/e2e/<area>/<fluxo>.spec.ts`.
