@@ -27,9 +27,15 @@ import type { Metadata } from "next";
 
 import { CarDetailSection } from "@/components/sites/stock/CarDetailSection";
 import { SitePage } from "@/components/sites/SitePage";
+import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
+import { env } from "@/lib/env";
+import {
+  buildBreadcrumbSchema,
+  buildVehicleSchema,
+} from "@/lib/sites/schema";
 
 interface PageProps {
   params: Promise<{ slug: string; carSlug: string }>;
@@ -91,6 +97,18 @@ export default async function CarDetailPage({ params }: PageProps) {
   const car = parsed.data.cars.find((c) => c.slug === carSlug);
   if (!car) notFound();
 
+  // Schemas per-page: Vehicle + BreadcrumbList (Início → Estoque → Carro).
+  // Sitewide graph (AutoDealer/Organization/LocalBusiness) injetado pelo
+  // layout — não duplicado aqui.
+  const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const siteUrl = `${baseUrl}/sites/${site.slug}`;
+  const vehicleSchema = buildVehicleSchema(car, parsed.data);
+  const breadcrumbSchema = buildBreadcrumbSchema([
+    { name: "Início", item: siteUrl },
+    { name: "Estoque", item: `${siteUrl}/estoque` },
+    { name: `${car.brand} ${car.model} ${car.year}`, item: `${siteUrl}/estoque/${carSlug}` },
+  ]);
+
   return (
     <SitePage
       variables={parsed.data}
@@ -98,6 +116,7 @@ export default async function CarDetailPage({ params }: PageProps) {
       slug={site.slug}
       activePage="estoque"
     >
+      <SiteSchema schemas={[vehicleSchema, breadcrumbSchema]} />
       <CarDetailSection
         variables={parsed.data}
         car={car}

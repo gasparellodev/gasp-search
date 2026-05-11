@@ -2,8 +2,13 @@ import "server-only";
 
 import type { ReactNode } from "react";
 
+import { SiteSchema } from "@/components/sites/seo/SiteSchema";
+import { getSite } from "@/lib/sites/get-site";
+import { buildSitewideGraph } from "@/lib/sites/schema";
+import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
+
 /**
- * Auto Showroom layout (issue #198 / #F1 Sprint 0).
+ * Auto Showroom layout (issue #198 / #F1 Sprint 0, schemas em #211 / Sprint 1).
  *
  * Wrapper das rotas `/sites/[slug]/*` que aplica `data-theme="auto-showroom"`
  * para ativar os tokens premium do DESIGN.md (`globals.css` §Auto Showroom).
@@ -23,10 +28,47 @@ import type { ReactNode } from "react";
  * `data-theme` no `<div>` wrapper aqui — Next 16 App Router permite
  * múltiplos layouts compostos. O CSS scoped pega via descendant selector
  * (`[data-theme="auto-showroom"] body { ... }`).
+ *
+ * **#211 / Sprint 1 — Schema.org sitewide `@graph`:** injetamos AutoDealer +
+ * Organization + LocalBusiness num único `<script>` JSON-LD em todas as
+ * rotas `/sites/<slug>/*`. Vehicle (detail) e BreadcrumbList (rotas
+ * internas) ficam em scripts próprios das pages.
+ *
+ * **Schemas SEMPRE injetados (mesmo quando `isIndexable === false`).** AI
+ * crawlers (ChatGPT/Perplexity/Claude/Gemini) consomem JSON-LD independente
+ * de `robots:noindex` no metadata. Sites em demo/preview ainda se beneficiam
+ * de citação em AI Overviews — moat técnico Phase 7.
+ *
+ * **Fallback path:** quando `getSite` retorna `null`, status `draft`/
+ * `archived`, ou variables falham `safeParse`, **omitimos** os schemas
+ * (sem JSON-LD parcial). A page abaixo trata `notFound()` de qualquer jeito.
  */
-export default function AutoShowroomLayout({ children }: { children: ReactNode }) {
+export default async function AutoShowroomLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const site = await getSite(slug);
+
+  // Computar sitewide graph apenas quando há site válido e variables
+  // parseáveis. Fallback path (null / draft / archived / parse fail) →
+  // sem JSON-LD. A page já vai chamar `notFound()` por conta própria.
+  const sitewideGraph =
+    site &&
+    site.status !== "draft" &&
+    site.status !== "archived"
+      ? (() => {
+          const parsed = readSiteVariablesSafe(site.variables);
+          return parsed.success ? buildSitewideGraph(parsed.data) : null;
+        })()
+      : null;
+
   return (
     <div data-theme="auto-showroom" className="min-h-dvh">
+      {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
     </div>
   );

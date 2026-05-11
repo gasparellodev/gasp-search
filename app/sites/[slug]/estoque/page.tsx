@@ -30,6 +30,9 @@ import type { Metadata } from "next";
 
 import { SitePage } from "@/components/sites/SitePage";
 import { StockSection } from "@/components/sites/stock/StockSection";
+import { SiteSchema } from "@/components/sites/seo/SiteSchema";
+import { env } from "@/lib/env";
+import { buildBreadcrumbSchema } from "@/lib/sites/schema";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
@@ -91,6 +94,14 @@ export default async function EstoquePage({
   // primeiro — semântica `?categoria=a&categoria=b` não é suportada V1.
   const categoriaFilter = Array.isArray(categoria) ? categoria[0] : categoria;
 
+  // BreadcrumbList per-page (sitewide graph fica no layout).
+  const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const siteUrl = `${baseUrl}/sites/${site.slug}`;
+  const breadcrumbSchema = buildBreadcrumbSchema([
+    { name: "Início", item: siteUrl },
+    { name: "Estoque", item: `${siteUrl}/estoque` },
+  ]);
+
   return (
     <SitePage
       variables={parsed.data}
@@ -98,6 +109,7 @@ export default async function EstoquePage({
       slug={site.slug}
       activePage="estoque"
     >
+      <SiteSchema schemas={breadcrumbSchema} />
       <StockSection
         variables={parsed.data}
         categoriaFilter={categoriaFilter ?? null}

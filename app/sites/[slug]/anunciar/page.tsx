@@ -19,9 +19,12 @@ import type { Metadata } from "next";
 
 import { AdvertiseSection } from "@/components/sites/advertise/AdvertiseSection";
 import { SitePage } from "@/components/sites/SitePage";
+import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
+import { env } from "@/lib/env";
+import { buildBreadcrumbSchema } from "@/lib/sites/schema";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -69,6 +72,14 @@ export default async function AnunciarPage({ params }: PageProps) {
     notFound();
   }
 
+  // BreadcrumbList per-page (sitewide graph fica no layout).
+  const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const siteUrl = `${baseUrl}/sites/${site.slug}`;
+  const breadcrumbSchema = buildBreadcrumbSchema([
+    { name: "Início", item: siteUrl },
+    { name: "Anunciar", item: `${siteUrl}/anunciar` },
+  ]);
+
   return (
     <SitePage
       variables={parsed.data}
@@ -76,6 +87,7 @@ export default async function AnunciarPage({ params }: PageProps) {
       slug={site.slug}
       activePage="anunciar"
     >
+      <SiteSchema schemas={breadcrumbSchema} />
       <AdvertiseSection
         siteId={site.id}
         slug={site.slug}
