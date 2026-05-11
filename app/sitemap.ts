@@ -4,17 +4,18 @@
  * Issue #212 / Sprint 1 / #S2 — SEO infra fundamental.
  *
  * Lista os mini-sites assinados via `listIndexableSites()` e expande para
- * 5 URLs estáticas por site:
- *   - `/sites/[slug]`             — Home (priority 1.0, daily)
- *   - `/sites/[slug]/estoque`     — Lista de estoque (0.9, daily)
- *   - `/sites/[slug]/sobre`       — Página sobre (0.7, monthly)
- *   - `/sites/[slug]/contato`     — Página contato (0.7, monthly)
- *   - `/sites/[slug]/anunciar`    — Formulário anuncia (0.6, monthly)
- *
- * **`/estoque/[carSlug]` fora de escopo nesta issue.** Decisão PO: V1
- * mantém só 5 URLs estáticas por site. V2 vai paginar via
- * `generateSitemaps()` quando o catalog crescer (cada site tem max 6
- * cars; com 100+ sites começa a fazer sentido cards individuais).
+ * 5 URLs estáticas + N URLs de car detail por site:
+ *   - `/sites/[slug]`               — Home (priority 1.0, daily)
+ *   - `/sites/[slug]/estoque`       — Lista de estoque (0.9, daily)
+ *   - `/sites/[slug]/sobre`         — Página sobre (0.7, monthly)
+ *   - `/sites/[slug]/contato`       — Página contato (0.7, monthly)
+ *   - `/sites/[slug]/anunciar`      — Formulário anuncia (0.6, monthly)
+ *   - `/sites/[slug]/estoque/[carSlug]` — Detail de cada veículo
+ *     (0.8, weekly) — extraído de `variables.cars[]` via
+ *     `SiteVariablesV2.safeParse`. Como `cars.min(4).max(6)`, no
+ *     máximo 6 URLs extras por site. Em parse failure, faz
+ *     `console.warn` + skip apenas as URLs de detail (mantém as 5
+ *     estáticas) para não quebrar o sitemap inteiro.
  *
  * **ISR via `revalidate = 3600`** (1h). Não usa `'use cache'` directive
  * — o helper `listIndexableSites` é importado direto sem cache wrapper
@@ -26,7 +27,9 @@
 import type { MetadataRoute } from "next";
 
 import { env } from "@/lib/env";
+import { slugifyVehicle } from "@/lib/finance";
 import { listIndexableSites } from "@/lib/sites/list-indexable-sites";
+import { SiteVariablesV2 } from "@/types/lead-site";
 
 export const revalidate = 3600;
 
@@ -60,6 +63,26 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
           lastModified,
           changeFrequency: route.changeFrequency,
           priority: route.priority,
+        });
+      }
+
+      // Car detail URLs — `variables.cars[]` (4-6 por site). `safeParse`
+      // tolera shape v1 ou variables corrompido sem derrubar o sitemap
+      // inteiro: warn + skip apenas as URLs de detail deste site.
+      const parsed = SiteVariablesV2.safeParse(site.variables);
+      if (!parsed.success) {
+        console.warn(
+          `sitemap: SiteVariablesV2 parse failed for slug=${site.slug}; skipping car detail URLs`,
+        );
+        continue;
+      }
+      for (const car of parsed.data.cars) {
+        const carSlug = car.slug || slugifyVehicle(car);
+        entries.push({
+          url: `${base}/sites/${site.slug}/estoque/${carSlug}`,
+          lastModified,
+          changeFrequency: "weekly",
+          priority: 0.8,
         });
       }
     }

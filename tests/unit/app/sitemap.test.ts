@@ -12,6 +12,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+import { fixtureSiteVariablesV2 } from "@/tests/fixtures/site-variables/site-variables-v2";
 import { validSiteVariablesFixture } from "@/tests/fixtures/site-variables";
 
 const listMocks = vi.hoisted(() => ({
@@ -211,13 +212,12 @@ describe("sitemap.ts (#212)", () => {
     expect(mod.revalidate).toBe(3600);
   });
 
-  // Smoke: variables válido + cars não explodem (V1: car detail OUT OF SCOPE).
-  // Quando V2 incluir car detail, mudar este teste pra esperar 5 + cars.
-  it("não inclui /estoque/[carSlug] em V1 (5 URLs mesmo com cars válidos)", async () => {
+  // Car detail URLs: extraídas de `variables.cars[]` via `SiteVariablesV2.safeParse`.
+  it("inclui /estoque/[carSlug] quando variables é SiteVariablesV2 válido", async () => {
     listMocks.listIndexableSites.mockResolvedValue([
       {
-        slug: "abc",
-        variables: validSiteVariablesFixture,
+        slug: "auto-fit",
+        variables: fixtureSiteVariablesV2,
         updated_at: "2026-05-10T10:00:00Z",
         signed_at: "2026-05-09T10:00:00Z",
         status: "published",
@@ -225,7 +225,92 @@ describe("sitemap.ts (#212)", () => {
     ]);
     const mod = await import("@/app/sitemap");
     const result = await mod.default();
+
+    // 5 estáticas + 4 cars (v2 fixture tem 4 cars — min do schema).
+    expect(result).toHaveLength(9);
+
+    const carUrls = result.filter((e) => /\/estoque\/[a-z0-9-]+$/.test(e.url));
+    expect(carUrls).toHaveLength(4);
+    // Cada car URL tem priority 0.8 + weekly.
+    for (const entry of carUrls) {
+      expect(entry.priority).toBe(0.8);
+      expect(entry.changeFrequency).toBe("weekly");
+      expect(entry.lastModified).toBeInstanceOf(Date);
+    }
+    // Slugs vêm do fixture (`bmw-m2-2023-001` etc.).
+    const urls = carUrls.map((e) => e.url);
+    expect(urls).toEqual(
+      expect.arrayContaining([
+        "http://localhost:3000/sites/auto-fit/estoque/bmw-m2-2023-001",
+        "http://localhost:3000/sites/auto-fit/estoque/porsche-911-gt3-2024-002",
+      ]),
+    );
+  });
+
+  it("skip car detail URLs + console.warn quando variables falha SiteVariablesV2.safeParse", async () => {
+    listMocks.listIndexableSites.mockResolvedValue([
+      {
+        slug: "abc",
+        // v1 shape — falha safeParse de V2 (sem brand_assets/schema_version).
+        variables: validSiteVariablesFixture,
+        updated_at: "2026-05-10T10:00:00Z",
+        signed_at: "2026-05-09T10:00:00Z",
+        status: "published",
+      },
+    ]);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const mod = await import("@/app/sitemap");
+    const result = await mod.default();
+
+    // Apenas as 5 estáticas — car detail URLs foram puladas, sem crash.
     expect(result).toHaveLength(5);
-    expect(result.every((e) => !e.url.includes("/estoque/"))).toBe(true);
+    expect(result.every((e) => !/\/estoque\/[a-z0-9-]+$/.test(e.url))).toBe(
+      true,
+    );
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0]?.[0]).toMatch(
+      /SiteVariablesV2 parse failed for slug=abc/,
+    );
+
+    warnSpy.mockRestore();
+  });
+
+  it("variables inválido em UM site não derruba car URLs dos outros sites", async () => {
+    listMocks.listIndexableSites.mockResolvedValue([
+      {
+        slug: "site-bom",
+        variables: fixtureSiteVariablesV2,
+        updated_at: "2026-05-10T10:00:00Z",
+        signed_at: "2026-05-09T10:00:00Z",
+        status: "published",
+      },
+      {
+        slug: "site-ruim",
+        variables: { not_valid: true },
+        updated_at: "2026-05-10T11:00:00Z",
+        signed_at: "2026-05-09T11:00:00Z",
+        status: "sent",
+      },
+    ]);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const mod = await import("@/app/sitemap");
+    const result = await mod.default();
+
+    // site-bom: 5 estáticas + 4 cars = 9. site-ruim: 5 estáticas. Total 14.
+    expect(result).toHaveLength(14);
+
+    const bomCars = result.filter(
+      (e) => e.url.includes("/sites/site-bom/estoque/") && e.url !== "x",
+    );
+    const ruimCars = result.filter((e) =>
+      /\/sites\/site-ruim\/estoque\/[a-z0-9-]+$/.test(e.url),
+    );
+    expect(bomCars.length).toBeGreaterThanOrEqual(4);
+    expect(ruimCars).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledOnce();
+
+    warnSpy.mockRestore();
   });
 });
