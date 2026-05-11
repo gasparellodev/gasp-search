@@ -16,6 +16,9 @@ const baseProps = {
   primary_color: SITE_FIXTURE.brand_assets.primary_color,
   text_on_primary: SITE_FIXTURE.brand_assets.text_on_primary,
   slug: SLUG,
+  // #214: AICitableHero injected inside HomeHero needs address + cars
+  address: SITE_FIXTURE.address,
+  cars: SITE_FIXTURE.cars,
 };
 
 describe("<HomeHero />", () => {

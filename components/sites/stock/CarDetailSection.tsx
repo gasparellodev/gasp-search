@@ -5,6 +5,7 @@ import Link from "next/link";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
+import { AICitableHero } from "../AICitableHero";
 import { SiteForm } from "../SiteForm";
 
 import { CarGallery } from "./CarGallery";
@@ -16,6 +17,8 @@ type CarDetailVariables = Pick<
   | "whatsapp"
   | "phone_display"
   | "brand_assets"
+  | "address"
+  | "cars"
 >;
 
 interface CarDetailSectionProps {
@@ -103,6 +106,24 @@ export function CarDetailSection({
               >
                 {car.model} <span className="text-foreground/60">{car.year}</span>
               </h1>
+              {/*
+                AI passage-citable (#214). Imediatamente após <h1>,
+                sempre visível mobile. `currentCar` derivado do car
+                renderizado pra frase contextualizada.
+              */}
+              <AICitableHero
+                variables={{
+                  business_name: variables.business_name,
+                  address: variables.address,
+                  cars: variables.cars,
+                }}
+                page="detalhe"
+                currentCar={{
+                  brand: car.brand,
+                  model: car.model,
+                  year: car.year,
+                }}
+              />
             </header>
 
             <ul

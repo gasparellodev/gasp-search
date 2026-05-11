@@ -93,6 +93,8 @@ export function SitePage({
               primary_color={brand_assets.primary_color}
               text_on_primary={brand_assets.text_on_primary}
               slug={slug}
+              address={variables.address}
+              cars={variables.cars}
             />
             <RoadDivider />
             <HomeCategories
