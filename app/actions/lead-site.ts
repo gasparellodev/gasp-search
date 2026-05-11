@@ -63,7 +63,7 @@ import type { AssetSources } from "@/lib/sites/brand-assets.types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
 import type { Database } from "@/types/database";
-import { SiteVariables } from "@/types/lead-site";
+import { SiteVariablesV2 } from "@/types/lead-site";
 import {
   checkDailyInstanceLimit,
   DAILY_INSTANCE_LIMIT,
@@ -543,11 +543,13 @@ export async function generateLeadSite(
     ok: true,
   });
 
-  // Step 8 + 9: Merge + SiteVariables.parse (defesa final)
+  // Step 8 + 9: Merge + SiteVariablesV2.parse (defesa final)
+  // `mergeSiteVariables` emite shape v2 desde issue #197 PR-C. Parser v2
+  // garante schema canônico antes do persist no DB.
   const merged = mergeSiteVariables(lead, assets, copy);
-  let variables: ReturnType<typeof SiteVariables.parse>;
+  let variables: SiteVariablesV2;
   try {
-    variables = SiteVariables.parse(merged);
+    variables = SiteVariablesV2.parse(merged);
   } catch (cause) {
     const validationError = new SiteVariablesValidationError(cause);
     const issuesSerialized =
@@ -630,42 +632,43 @@ export async function generateLeadSite(
 // ---------------------------------------------------------------------------
 
 /**
- * Lista de campos de `SiteVariables` que aceitam URL e devem passar por
- * `safeUrl()` antes do merge — defesa em profundidade contra schemes
- * maliciosos (`javascript:`, `data:`, `file:`, `vbscript:`).
+ * Lista de campos de `SiteVariablesV2` (top-level) que aceitam URL e devem
+ * passar por `safeUrl()` antes do merge — defesa em profundidade contra
+ * schemes maliciosos (`javascript:`, `data:`, `file:`, `vbscript:`).
  *
- * `cars[].thumbnail_url`, `cars[].gallery_urls[]`, `home_categories[].image_url`,
- * `emphasis.image_url` e `recent_sales[].image_url` são tratados em
+ * Issue #197 PR-C: campos visuais de v1 (`logo_url`, `hero_image_url`,
+ * `about_image_url`, `contact_hero_image_url`) saíram do top-level e
+ * agora vivem dentro de `brand_assets` — sanitizado em pass dedicado.
+ *
+ * `cars[].thumbnail_url`, `cars[].gallery_urls[]`, `cars[].photos[]`,
+ * `home_categories[].image_url`, `emphasis.image_url`,
+ * `recent_sales[].image_url` e `brand_assets.*` são tratados em
  * `sanitizePatchUrls` via passes específicos.
  */
 const TOP_LEVEL_URL_FIELDS = [
-  "logo_url",
-  "hero_image_url",
-  "about_image_url",
-  "contact_hero_image_url",
   "instagram_url",
   "facebook_url",
   "youtube_url",
+  "whatsapp_url",
 ] as const;
 
 /**
- * Aplica `safeUrl()` em todos os campos de URL do patch. URLs com scheme
+ * Aplica `safeUrl()` em todos os campos de URL do patch v2. URLs com scheme
  * malicioso viram `null` (ou são removidas do patch para campos não-nullable
  * — nesse caso o validador final reprova a tentativa).
  *
  * Estratégia:
- *  - Para nullable URLs (`instagram_url`, `facebook_url`, `youtube_url`),
- *    `null` é aceito.
- *  - Para non-nullable URLs (`logo_url`, `hero_image_url`, ...),
- *    `safeUrl` retornar `null` faz a SiteVariables.parse final falhar
+ *  - Para nullable URLs (social), `null` é aceito.
+ *  - Para non-nullable URLs (`brand_assets.logo_url`, `brand_assets.hero_image_url`, ...),
+ *    `safeUrl` retornar `null` faz a `SiteVariablesV2.parse` final falhar
  *    com error 'validation' — comportamento correto (rejeitar input
  *    sujo em vez de "limpar silenciosamente").
- *  - Para arrays (gallery_urls), aplica em cada item; itens inválidos
- *    viram `null` e o parse final reprova.
+ *  - Para arrays (`photos`, `gallery_urls`, `car_placeholders`), aplica em
+ *    cada item; itens inválidos viram `null` e o parse final reprova.
  */
 function sanitizePatchUrls(
-  patch: Partial<SiteVariables>,
-): Partial<SiteVariables> {
+  patch: Partial<SiteVariablesV2>,
+): Partial<SiteVariablesV2> {
   const out: Record<string, unknown> = { ...patch };
 
   for (const key of TOP_LEVEL_URL_FIELDS) {
@@ -677,6 +680,35 @@ function sanitizePatchUrls(
         out[key] = safeUrl(value);
       }
     }
+  }
+
+  // brand_assets.* (nested URLs)
+  if (patch.brand_assets && typeof patch.brand_assets === "object") {
+    const ba = patch.brand_assets;
+    out.brand_assets = {
+      ...ba,
+      logo_url:
+        typeof ba.logo_url === "string"
+          ? (safeUrl(ba.logo_url) ?? "")
+          : ba.logo_url,
+      hero_image_url:
+        typeof ba.hero_image_url === "string"
+          ? (safeUrl(ba.hero_image_url) ?? "")
+          : ba.hero_image_url,
+      about_image_url:
+        typeof ba.about_image_url === "string"
+          ? (safeUrl(ba.about_image_url) ?? "")
+          : ba.about_image_url,
+      contact_image_url:
+        typeof ba.contact_image_url === "string"
+          ? (safeUrl(ba.contact_image_url) ?? "")
+          : ba.contact_image_url,
+      car_placeholders: Array.isArray(ba.car_placeholders)
+        ? ba.car_placeholders.map((u) =>
+            typeof u === "string" ? (safeUrl(u) ?? "") : "",
+          )
+        : ba.car_placeholders,
+    };
   }
 
   // home_categories[].image_url
@@ -708,7 +740,7 @@ function sanitizePatchUrls(
     }));
   }
 
-  // cars[].thumbnail_url + cars[].gallery_urls[]
+  // cars[].thumbnail_url + cars[].gallery_urls[] + cars[].photos[]
   if (Array.isArray(patch.cars)) {
     out.cars = patch.cars.map((car) => ({
       ...car,
@@ -721,10 +753,15 @@ function sanitizePatchUrls(
             typeof u === "string" ? (safeUrl(u) ?? "") : "",
           )
         : car.gallery_urls,
+      photos: Array.isArray(car.photos)
+        ? car.photos.map((u) =>
+            typeof u === "string" ? (safeUrl(u) ?? "") : "",
+          )
+        : car.photos,
     }));
   }
 
-  return out as Partial<SiteVariables>;
+  return out as Partial<SiteVariablesV2>;
 }
 
 /**
@@ -754,7 +791,7 @@ function sanitizePatchUrls(
  */
 export async function updateLeadSiteVariables(
   leadSiteId: string,
-  patch: Partial<SiteVariables>,
+  patch: Partial<SiteVariablesV2>,
 ): Promise<UpdateLeadSiteVariablesResult> {
   // Step 1: Auth
   const server = await createServerSupabase();
@@ -797,8 +834,9 @@ export async function updateLeadSiteVariables(
   }
 
   // Step 4: Validação parcial (rejeita campos com tipos errados antes
-  // do merge — proteção contra payload adversarial).
-  const partialParse = SiteVariables.partial().safeParse(patch);
+  // do merge — proteção contra payload adversarial). Issue #197 PR-C:
+  // schema v2 (nested brand_assets, address, cars com v2 fields).
+  const partialParse = SiteVariablesV2.partial().safeParse(patch);
   if (!partialParse.success) {
     return {
       ok: false,
@@ -814,10 +852,10 @@ export async function updateLeadSiteVariables(
   const current = (existing.variables ?? {}) as Record<string, unknown>;
   const merged: unknown = { ...current, ...sanitized };
 
-  // Step 7: Validação final completa
-  let variables: SiteVariables;
+  // Step 7: Validação final completa (v2 — issue #197 PR-C)
+  let variables: SiteVariablesV2;
   try {
-    variables = SiteVariables.parse(merged);
+    variables = SiteVariablesV2.parse(merged);
   } catch (cause) {
     const issuesSerialized =
       cause instanceof ZodError

@@ -2,21 +2,33 @@
 
 /**
  * `<LeadSiteEditModal />` — modal de edição manual das variáveis do site
- * (issue #168).
+ * (issue #168 + #197 PR-C).
  *
  * Substitui o button disabled "Editar" do `<LeadSiteCardActions />` quando
  * `status IN ('published','sent')`. Renderiza form com inputs pra todos os
- * campos top-level de `SiteVariables` + array editável de `cars[]`.
+ * campos top-level de `SiteVariablesV2` + array editável de `cars[]`.
+ *
+ * **Migração v2 (#197 PR-C):**
+ *  - `address` é nested (`street`/`number`/`neighborhood`/`city`/`state`/`zip`)
+ *    com checkbox "endereço indisponível" que seta `address: null`.
+ *  - `brand_assets` é nested (`logo_url`/`primary_color`/`text_on_primary`/
+ *    `hero_image_url`/`about_image_url`/`contact_image_url`).
+ *  - `cars[]` ganha `category` (select), `doors` (select), `photos[]`
+ *    (textarea newline-separated, min 3 max 8), `vin` (regex 17 chars),
+ *    `plates_visible: false` literal **readonly** (compliance — sempre
+ *    enviado false; não editável pelo admin).
  *
  * Stack:
- *  - `react-hook-form` + `zodResolver(SiteVariables.partial())` — validação
+ *  - `react-hook-form` + `zodResolver(SiteVariablesV2.partial())` — validação
  *    inline + dirty fields tracking.
  *  - `radix-ui` Dialog (via `@/components/ui/dialog`) — focus trap,
  *    `role="dialog"` e `aria-modal="true"` automáticos.
  *  - Submit envia **apenas `dirtyFields`** pra Server Action
  *    `updateLeadSiteVariables`. Reduz payload e simplifica merge no server.
- *  - URL inputs são text fields V1. Upload de arquivo é follow-up V2
- *    (Vercel Blob picker — registrado no body da issue).
+ *  - Quando qualquer key nested está em `dirtyFields` (e.g.
+ *    `address.street` ou `brand_assets.logo_url`), o patch envia o objeto
+ *    **inteiro** (`address` ou `brand_assets`) — Server Action faz shallow
+ *    merge top-level e isso preserva o resto da row.
  *
  * **a11y**:
  *  - `aria-labelledby` aponta pro `DialogTitle`.
@@ -25,12 +37,13 @@
  *  - ESC fecha (Radix); foco volta ao trigger ao fechar.
  */
 
-import { useId, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
 import {
   useForm,
   useFieldArray,
   type SubmitHandler,
   type FieldErrors,
+  type Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
@@ -38,7 +51,8 @@ import { toast } from "sonner";
 
 import { updateLeadSiteVariables } from "@/app/actions/lead-site";
 import type { UpdateLeadSiteVariablesResult } from "@/app/actions/lead-site";
-import { SiteVariables } from "@/types/lead-site";
+import { SiteVariablesV2 } from "@/types/lead-site";
+import type { SiteCar, SiteVariablesV2 as SiteVariablesV2Type } from "@/types/lead-site";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,7 +69,7 @@ import { cn } from "@/lib/utils";
 
 import type { LeadSiteCardData } from "./lead-site-card-types";
 
-type FormValues = Partial<SiteVariables>;
+type FormValues = Partial<SiteVariablesV2Type>;
 
 interface LeadSiteEditModalProps {
   /** Linha de `lead_sites` carregada pelo Server Component pai. */
@@ -65,6 +79,17 @@ interface LeadSiteEditModalProps {
   /** Disparado em ESC, click no overlay, button "Cancelar" e após sucesso. */
   onOpenChange: (open: boolean) => void;
 }
+
+const CAR_CATEGORIES = [
+  "SUV",
+  "Sedan",
+  "Hatch",
+  "Pickup",
+  "Esportivo",
+  "Conversível",
+] as const;
+
+const CAR_DOORS = [2, 3, 4, 5] as const;
 
 /**
  * Mapeia o `error` discriminated da Server Action pra mensagem PT-BR.
@@ -89,14 +114,29 @@ function errorMessage(
 }
 
 /**
+ * Top-level keys de `SiteVariablesV2` que são objetos nested. Quando qualquer
+ * sub-key está em `dirtyFields`, mandamos o objeto inteiro (Server Action
+ * faz shallow merge top-level).
+ */
+const NESTED_OBJECT_KEYS = [
+  "address",
+  "brand_assets",
+  "emphasis",
+] as const satisfies ReadonlyArray<keyof FormValues>;
+
+/**
  * Computa o subset `dirtyFields` do payload completo do form. Usa o mapa
  * de `dirtyFields` do react-hook-form (true marcado nas chaves alteradas).
  *
  * Para arrays (`cars`, `home_categories`, `recent_sales`, `values`) e objetos
- * aninhados (`emphasis`), o RHF marca cada index/key. Como o Server Action
- * faz `{ ...current, ...patch }` em chaves top-level, mandamos o array/objeto
- * **inteiro** quando qualquer descendente foi tocado — o merge no server
- * usa shallow merge e isso preserva o resto.
+ * aninhados (`address`, `brand_assets`, `emphasis`), o RHF marca cada
+ * index/key. Como o Server Action faz `{ ...current, ...patch }` em chaves
+ * top-level, mandamos o array/objeto **inteiro** quando qualquer descendente
+ * foi tocado — o merge no server usa shallow merge e isso preserva o resto.
+ *
+ * Para `address` especificamente, mesmo quando admin marca "endereço
+ * indisponível" (seta `address: null`), o RHF marca dirty no top-level e
+ * mandamos o objeto null inteiro.
  */
 function computePatch(
   values: FormValues,
@@ -109,7 +149,34 @@ function computePatch(
       patch[key as string] = values[key];
     }
   }
+  // Garantia explícita: nested objects sempre vão inteiros se foram tocados.
+  // (Caso RHF marque apenas sub-key como dirty, copiamos o objeto top-level
+  // do values para preservar o shape nested completo.)
+  for (const nestedKey of NESTED_OBJECT_KEYS) {
+    if (dirtyFields[nestedKey]) {
+      patch[nestedKey] = values[nestedKey];
+    }
+  }
   return patch as FormValues;
+}
+
+/**
+ * Helper: converte string textarea (newline-separated) em array de URLs.
+ * Trim cada linha; descarta vazios.
+ */
+function parsePhotosTextarea(input: string): string[] {
+  return input
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+}
+
+/**
+ * Helper inverso: array de URLs → texto multilinha pro textarea.
+ */
+function stringifyPhotos(photos: readonly string[] | undefined): string {
+  if (!photos) return "";
+  return photos.join("\n");
 }
 
 /**
@@ -141,11 +208,7 @@ function Field({
         </p>
       ) : null}
       {error ? (
-        <p
-          id={errorId}
-          role="alert"
-          className="text-xs text-destructive"
-        >
+        <p id={errorId} role="alert" className="text-xs text-destructive">
           {error}
         </p>
       ) : null}
@@ -163,31 +226,93 @@ export function LeadSiteEditModal({
 
   const variables = leadSite.variables ?? undefined;
 
+  // Estado UI: checkbox "endereço indisponível" — controla null vs object.
+  // Inicializa em `true` quando o lead_site veio com `address: null`.
+  const [addressDisabled, setAddressDisabled] = useState<boolean>(
+    variables?.address == null,
+  );
+
+  // Photos textarea state — RHF não tem useFieldArray nested fácil, então
+  // gerenciamos via Controller-like pattern: estado local serializa pra string,
+  // setValue empurra array no submit.
+  const initialPhotos: Record<number, string> = {};
+  if (variables?.cars) {
+    variables.cars.forEach((car: SiteCar, idx) => {
+      initialPhotos[idx] = stringifyPhotos(car.photos);
+    });
+  }
+  const [photosByCarIdx, setPhotosByCarIdx] =
+    useState<Record<number, string>>(initialPhotos);
+
   const {
     register,
     handleSubmit,
     control,
     reset,
+    setValue,
+    getValues,
     formState: { errors, dirtyFields, isDirty },
   } = useForm<FormValues>({
-    resolver: zodResolver(SiteVariables.partial()),
+    // Cast deliberado: `Address.country` usa `.default('BR')` em Zod, o que
+    // gera input type com `country?: 'BR' | undefined` e output `country: 'BR'`.
+    // RHF infere o input type da Resolver, mas o usuário final do form
+    // espera o output type. O cast `Resolver<FormValues>` é seguro porque
+    // a Zod validation roda na hora certa — só o type-check tem essa fricção.
+    resolver: zodResolver(SiteVariablesV2.partial()) as unknown as Resolver<FormValues>,
     defaultValues: variables,
   });
 
   const carsArray = useFieldArray({
     control,
-    // `cars` é typed como SiteCar[] — RHF aceita o key.
     name: "cars" as never,
   });
 
   const onSubmit: SubmitHandler<FormValues> = (values) => {
-    if (!isDirty) {
-      // Nada mudou — feedback rápido sem chamar Server.
+    // Sync photos textarea state → form values antes de computar patch.
+    let photosTouched = false;
+    if (Array.isArray(values.cars)) {
+      values.cars.forEach((car, idx) => {
+        const textareaValue = photosByCarIdx[idx];
+        if (textareaValue !== undefined) {
+          const parsed = parsePhotosTextarea(textareaValue);
+          const current = car.photos ?? [];
+          // Comparação ordenada — array length + each value.
+          const same =
+            parsed.length === current.length &&
+            parsed.every((p, i) => p === current[i]);
+          if (!same) {
+            car.photos = parsed;
+            photosTouched = true;
+          }
+        }
+      });
+    }
+
+    // Marca `address: null` quando checkbox "indisponível" foi ativado.
+    let addressTouched = false;
+    if (addressDisabled && values.address !== null) {
+      values.address = null;
+      addressTouched = true;
+    }
+
+    if (!isDirty && !photosTouched && !addressTouched) {
       toast.message("Nenhuma alteração para salvar.");
       onOpenChange(false);
       return;
     }
-    const patch = computePatch(values, dirtyFields as Record<string, unknown>);
+
+    // Copia rasa do dirtyFields — RHF considera o original immutable.
+    const dirtyMap: Record<string, unknown> = {
+      ...(dirtyFields as Record<string, unknown>),
+    };
+    if (photosTouched) {
+      dirtyMap["cars"] = true;
+    }
+    if (addressTouched) {
+      dirtyMap["address"] = true;
+    }
+
+    const patch = computePatch(values, dirtyMap);
     startTransition(async () => {
       try {
         const result = await updateLeadSiteVariables(leadSite.id, patch);
@@ -195,7 +320,6 @@ export function LeadSiteEditModal({
           toast.success("Site atualizado!", {
             description: "As alterações já estão visíveis na pré-visualização.",
           });
-          // Reset com os novos valores como baseline pra próximo dirty diff.
           reset(values);
           onOpenChange(false);
         } else {
@@ -212,7 +336,7 @@ export function LeadSiteEditModal({
   };
 
   // Erros tipados — RHF entrega `errors` com nested shapes.
-  const e = errors as FieldErrors<SiteVariables>;
+  const e = errors as FieldErrors<SiteVariablesV2Type>;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -231,20 +355,27 @@ export function LeadSiteEditModal({
 
         <form
           noValidate
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={handleSubmit(onSubmit, (errs) => {
+            // RHF invalid handler — debug log para detectar quando validação
+            // bloqueia o submit. Em prod isso fica silencioso; testes podem
+            // assertar que errs vazio implica submit fluindo.
+            if (process.env.NODE_ENV === "test") {
+              console.debug("[LeadSiteEditModal] validation errors:", errs);
+            }
+          })}
           aria-label="Editar variáveis do site"
           className="flex flex-col gap-6"
         >
-          {/* ----------------------------- Globais ---------------------------- */}
+          {/* --------------------------- Identidade --------------------------- */}
           <section
-            aria-labelledby={`${baseId}-globals`}
+            aria-labelledby={`${baseId}-identity`}
             className="flex flex-col gap-3"
           >
             <h3
-              id={`${baseId}-globals`}
+              id={`${baseId}-identity`}
               className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
             >
-              Globais
+              Identidade
             </h3>
             <Field
               id={`${baseId}-business-name`}
@@ -254,9 +385,6 @@ export function LeadSiteEditModal({
               <Input
                 id={`${baseId}-business-name`}
                 aria-invalid={!!e.business_name}
-                aria-describedby={
-                  e.business_name ? `${baseId}-business-name-error` : undefined
-                }
                 {...register("business_name")}
               />
             </Field>
@@ -269,31 +397,54 @@ export function LeadSiteEditModal({
               <Input
                 id={`${baseId}-slogan`}
                 aria-invalid={!!e.slogan}
-                aria-describedby={
-                  e.slogan ? `${baseId}-slogan-error` : `${baseId}-slogan-hint`
-                }
                 {...register("slogan")}
+              />
+            </Field>
+          </section>
+
+          {/* --------------------- Identidade visual (brand_assets) --------- */}
+          <section
+            aria-labelledby={`${baseId}-brand-assets`}
+            className="flex flex-col gap-3"
+          >
+            <h3
+              id={`${baseId}-brand-assets`}
+              className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
+            >
+              Identidade visual
+            </h3>
+            <Field
+              id={`${baseId}-logo-url`}
+              label="URL do logo"
+              error={e.brand_assets?.logo_url?.message}
+            >
+              <Input
+                id={`${baseId}-logo-url`}
+                type="url"
+                placeholder="https://..."
+                aria-invalid={!!e.brand_assets?.logo_url}
+                {...register("brand_assets.logo_url")}
               />
             </Field>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field
                 id={`${baseId}-primary-color`}
                 label="Cor primária"
-                error={e.primary_color?.message}
+                error={e.brand_assets?.primary_color?.message}
                 hint="Hex 6 dígitos (ex.: #0c5cff)."
               >
                 <Input
                   id={`${baseId}-primary-color`}
                   type="text"
                   placeholder="#0c5cff"
-                  aria-invalid={!!e.primary_color}
-                  {...register("primary_color")}
+                  aria-invalid={!!e.brand_assets?.primary_color}
+                  {...register("brand_assets.primary_color")}
                 />
               </Field>
               <Field
                 id={`${baseId}-text-on-primary`}
                 label="Texto sobre primário"
-                error={e.text_on_primary?.message}
+                error={e.brand_assets?.text_on_primary?.message}
                 hint="#FFFFFF (branco) ou #0C0C0C (preto)."
               >
                 <select
@@ -301,8 +452,8 @@ export function LeadSiteEditModal({
                   className={cn(
                     "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm",
                   )}
-                  aria-invalid={!!e.text_on_primary}
-                  {...register("text_on_primary")}
+                  aria-invalid={!!e.brand_assets?.text_on_primary}
+                  {...register("brand_assets.text_on_primary")}
                 >
                   <option value="#FFFFFF">#FFFFFF (branco)</option>
                   <option value="#0C0C0C">#0C0C0C (preto)</option>
@@ -310,42 +461,42 @@ export function LeadSiteEditModal({
               </Field>
             </div>
             <Field
-              id={`${baseId}-logo-url`}
-              label="URL do logo"
-              error={e.logo_url?.message}
-            >
-              <Input
-                id={`${baseId}-logo-url`}
-                type="url"
-                placeholder="https://..."
-                aria-invalid={!!e.logo_url}
-                {...register("logo_url")}
-              />
-            </Field>
-          </section>
-
-          {/* ------------------------------ Home ------------------------------ */}
-          <section
-            aria-labelledby={`${baseId}-home`}
-            className="flex flex-col gap-3"
-          >
-            <h3
-              id={`${baseId}-home`}
-              className="text-sm font-semibold uppercase tracking-wide text-muted-foreground"
-            >
-              Home
-            </h3>
-            <Field
               id={`${baseId}-hero-image`}
               label="URL da imagem do hero"
-              error={e.hero_image_url?.message}
+              error={e.brand_assets?.hero_image_url?.message}
             >
               <Input
                 id={`${baseId}-hero-image`}
                 type="url"
                 placeholder="https://..."
-                aria-invalid={!!e.hero_image_url}
-                {...register("hero_image_url")}
+                aria-invalid={!!e.brand_assets?.hero_image_url}
+                {...register("brand_assets.hero_image_url")}
+              />
+            </Field>
+            <Field
+              id={`${baseId}-about-image`}
+              label="URL da imagem do Sobre"
+              error={e.brand_assets?.about_image_url?.message}
+            >
+              <Input
+                id={`${baseId}-about-image`}
+                type="url"
+                placeholder="https://..."
+                aria-invalid={!!e.brand_assets?.about_image_url}
+                {...register("brand_assets.about_image_url")}
+              />
+            </Field>
+            <Field
+              id={`${baseId}-contact-image`}
+              label="URL da imagem do Contato"
+              error={e.brand_assets?.contact_image_url?.message}
+            >
+              <Input
+                id={`${baseId}-contact-image`}
+                type="url"
+                placeholder="https://..."
+                aria-invalid={!!e.brand_assets?.contact_image_url}
+                {...register("brand_assets.contact_image_url")}
               />
             </Field>
           </section>
@@ -372,19 +523,6 @@ export function LeadSiteEditModal({
                 rows={5}
                 aria-invalid={!!e.about_text}
                 {...register("about_text")}
-              />
-            </Field>
-            <Field
-              id={`${baseId}-about-image`}
-              label="URL da imagem do Sobre"
-              error={e.about_image_url?.message}
-            >
-              <Input
-                id={`${baseId}-about-image`}
-                type="url"
-                placeholder="https://..."
-                aria-invalid={!!e.about_image_url}
-                {...register("about_image_url")}
               />
             </Field>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -503,17 +641,6 @@ export function LeadSiteEditModal({
                 />
               </Field>
               <Field
-                id={`${baseId}-address`}
-                label="Endereço"
-                error={e.address_line?.message}
-              >
-                <Input
-                  id={`${baseId}-address`}
-                  aria-invalid={!!e.address_line}
-                  {...register("address_line")}
-                />
-              </Field>
-              <Field
                 id={`${baseId}-hours`}
                 label="Horário"
                 error={e.hours?.message}
@@ -525,19 +652,122 @@ export function LeadSiteEditModal({
                 />
               </Field>
             </div>
-            <Field
-              id={`${baseId}-contact-hero`}
-              label="URL da imagem do Contato"
-              error={e.contact_hero_image_url?.message}
-            >
-              <Input
-                id={`${baseId}-contact-hero`}
-                type="url"
-                placeholder="https://..."
-                aria-invalid={!!e.contact_hero_image_url}
-                {...register("contact_hero_image_url")}
-              />
-            </Field>
+
+            {/* -------------------- Endereço (nested address) --------------- */}
+            <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium">Endereço</h4>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={addressDisabled}
+                    onChange={(ev) => {
+                      const next = ev.target.checked;
+                      setAddressDisabled(next);
+                      if (next) {
+                        setValue("address", null, {
+                          shouldDirty: true,
+                        });
+                      } else {
+                        // Re-popula com defaults vazios — admin preenche.
+                        const current = getValues("address");
+                        if (!current) {
+                          setValue(
+                            "address",
+                            {
+                              street: "",
+                              number: "",
+                              neighborhood: "",
+                              city: "",
+                              state: "",
+                              zip: "",
+                              country: "BR",
+                            },
+                            { shouldDirty: true },
+                          );
+                        }
+                      }
+                    }}
+                    data-testid="lead-site-edit-address-disabled"
+                  />
+                  Endereço indisponível
+                </label>
+              </div>
+              {!addressDisabled ? (
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Field
+                    id={`${baseId}-address-street`}
+                    label="Rua"
+                    error={e.address?.street?.message}
+                  >
+                    <Input
+                      id={`${baseId}-address-street`}
+                      aria-invalid={!!e.address?.street}
+                      {...register("address.street")}
+                    />
+                  </Field>
+                  <Field
+                    id={`${baseId}-address-number`}
+                    label="Número"
+                    error={e.address?.number?.message}
+                    hint="Use 'S/N' se sem número."
+                  >
+                    <Input
+                      id={`${baseId}-address-number`}
+                      aria-invalid={!!e.address?.number}
+                      {...register("address.number")}
+                    />
+                  </Field>
+                  <Field
+                    id={`${baseId}-address-neighborhood`}
+                    label="Bairro"
+                    error={e.address?.neighborhood?.message}
+                  >
+                    <Input
+                      id={`${baseId}-address-neighborhood`}
+                      aria-invalid={!!e.address?.neighborhood}
+                      {...register("address.neighborhood")}
+                    />
+                  </Field>
+                  <Field
+                    id={`${baseId}-address-city`}
+                    label="Cidade"
+                    error={e.address?.city?.message}
+                  >
+                    <Input
+                      id={`${baseId}-address-city`}
+                      aria-invalid={!!e.address?.city}
+                      {...register("address.city")}
+                    />
+                  </Field>
+                  <Field
+                    id={`${baseId}-address-state`}
+                    label="UF"
+                    error={e.address?.state?.message}
+                    hint="2 letras maiúsculas (SP, RJ, ...)."
+                  >
+                    <Input
+                      id={`${baseId}-address-state`}
+                      maxLength={2}
+                      aria-invalid={!!e.address?.state}
+                      {...register("address.state")}
+                    />
+                  </Field>
+                  <Field
+                    id={`${baseId}-address-zip`}
+                    label="CEP"
+                    error={e.address?.zip?.message}
+                    hint="00000-000 ou 00000000."
+                  >
+                    <Input
+                      id={`${baseId}-address-zip`}
+                      aria-invalid={!!e.address?.zip}
+                      {...register("address.zip")}
+                    />
+                  </Field>
+                </div>
+              ) : null}
+            </div>
           </section>
 
           {/* ----------------------------- Estoque ---------------------------- */}
@@ -571,8 +801,11 @@ export function LeadSiteEditModal({
                     description: "",
                     thumbnail_url: "",
                     gallery_urls: ["", "", ""],
+                    photos: ["", "", ""],
                     datasheet: [],
                     featured: false,
+                    category: "Sedan",
+                    plates_visible: false,
                   } as never)
                 }
                 data-testid="lead-site-edit-add-car"
@@ -644,7 +877,112 @@ export function LeadSiteEditModal({
                         })}
                       />
                     </Field>
+                    <Field
+                      id={`${baseId}-car-${index}-category`}
+                      label="Categoria"
+                      error={e.cars?.[index]?.category?.message}
+                    >
+                      <select
+                        id={`${baseId}-car-${index}-category`}
+                        className={cn(
+                          "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm",
+                        )}
+                        aria-invalid={!!e.cars?.[index]?.category}
+                        {...register(`cars.${index}.category` as const)}
+                      >
+                        {CAR_CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field
+                      id={`${baseId}-car-${index}-doors`}
+                      label="Portas"
+                      error={e.cars?.[index]?.doors?.message}
+                      hint="Opcional."
+                    >
+                      <select
+                        id={`${baseId}-car-${index}-doors`}
+                        className={cn(
+                          "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm",
+                        )}
+                        aria-invalid={!!e.cars?.[index]?.doors}
+                        {...register(`cars.${index}.doors` as const, {
+                          setValueAs: (v) => {
+                            if (v === "" || v == null) return undefined;
+                            return Number(v);
+                          },
+                        })}
+                      >
+                        <option value="">— não informar —</option>
+                        {CAR_DOORS.map((d) => (
+                          <option key={d} value={d}>
+                            {d}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field
+                      id={`${baseId}-car-${index}-vin`}
+                      label="VIN/Chassi"
+                      error={e.cars?.[index]?.vin?.message}
+                      hint="17 caracteres alfanuméricos (sem I/O/Q). Opcional."
+                    >
+                      <Input
+                        id={`${baseId}-car-${index}-vin`}
+                        maxLength={17}
+                        aria-invalid={!!e.cars?.[index]?.vin}
+                        {...register(`cars.${index}.vin` as const, {
+                          // VIN é optional + regex 17 chars; string vazia deve
+                          // virar undefined senão regex falha.
+                          setValueAs: (v) => {
+                            if (typeof v !== "string") return v;
+                            const trimmed = v.trim();
+                            return trimmed.length === 0 ? undefined : trimmed;
+                          },
+                        })}
+                      />
+                    </Field>
                   </div>
+                  <div className="mt-2">
+                    <Field
+                      id={`${baseId}-car-${index}-photos`}
+                      label="Fotos (URLs, uma por linha)"
+                      hint="Entre 3 e 8 URLs, uma por linha."
+                    >
+                      <Textarea
+                        id={`${baseId}-car-${index}-photos`}
+                        rows={4}
+                        data-testid={`lead-site-edit-car-${index}-photos`}
+                        value={photosByCarIdx[index] ?? ""}
+                        onChange={(ev) => {
+                          setPhotosByCarIdx((prev) => ({
+                            ...prev,
+                            [index]: ev.target.value,
+                          }));
+                        }}
+                      />
+                    </Field>
+                  </div>
+                  {/*
+                   * `plates_visible: false` — sempre enviado false (compliance).
+                   * Não editável pelo admin. Não registramos no RHF para evitar
+                   * dirty spurious; o Server Action shallow-merge mantém o valor
+                   * `false` que veio em `cars[].plates_visible` no payload do
+                   * defaultValues (carros existentes têm o field).
+                   *
+                   * Para novos carros adicionados via `carsArray.append`, o
+                   * defaultValue já inclui `plates_visible: false`.
+                   */}
+                  <input
+                    type="hidden"
+                    aria-hidden="true"
+                    data-testid={`lead-site-edit-car-${index}-plates-hidden`}
+                    value="false"
+                    readOnly
+                  />
                 </li>
               ))}
             </ul>

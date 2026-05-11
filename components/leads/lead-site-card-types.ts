@@ -8,7 +8,7 @@
  */
 
 import type { Database } from "@/types/database";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 export type LeadSiteStatus = Database["public"]["Enums"]["lead_site_status"];
 
@@ -23,9 +23,11 @@ export interface LeadSiteCardData {
   sent_at: string | null;
   view_count: number;
   /**
-   * `variables` JSON (issue #168). Tipado como `SiteVariables | null` —
-   * legado/draft pode persistir `{}` ou `null`. O modal de edição parseia
-   * via `SiteVariables.partial()` antes de enviar e a Server Action faz
+   * `variables` JSON (issue #168, schema v2 desde #197 PR-C). Tipado como
+   * `SiteVariablesV2 | null` — legado/draft pode persistir `{}` ou `null`.
+   * Caller (Server Component pai) normaliza v1 → v2 via
+   * `readSiteVariablesSafe` antes de passar. O modal de edição parseia
+   * via `SiteVariablesV2.partial()` antes de enviar e a Server Action faz
    * a validação final. */
-  variables: SiteVariables | null;
+  variables: SiteVariablesV2 | null;
 }
