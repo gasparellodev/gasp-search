@@ -108,7 +108,7 @@ test.describe("sites rendering — 6 rotas", () => {
     const res = await page.goto(`/sites/${slug}/estoque`);
     expect(res?.status()).toBe(200);
     await expect(
-      page.getByRole("heading", { level: 1, name: /^Estoque$/ }),
+      page.getByRole("heading", { level: 1, name: /^Nosso Estoque$/ }),
     ).toBeVisible();
     // O fixture tem 4 cars; exigimos pelo menos 1 link pra detalhe.
     const carLinks = page.locator(`a[href*="/sites/${slug}/estoque/"]`);

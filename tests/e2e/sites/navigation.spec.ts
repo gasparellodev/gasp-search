@@ -76,7 +76,7 @@ test.describe("sites navigation", () => {
     await header.getByRole("link", { name: /^Estoque$/ }).click();
     await expect(page).toHaveURL(new RegExp(`/sites/${slug}/estoque$`));
     await expect(
-      page.getByRole("heading", { level: 1, name: /^Estoque$/ }),
+      page.getByRole("heading", { level: 1, name: /^Nosso Estoque$/ }),
     ).toBeVisible();
   });
 });

@@ -87,6 +87,9 @@ if (typeof Element !== "undefined") {
     Element.prototype.releasePointerCapture =
       function releasePointerCapture() {};
   }
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = function setPointerCapture() {};
+  }
 }
 
 afterEach(() => {
