@@ -629,3 +629,67 @@ describe("buildSiteMetadata — edge cases", () => {
     );
   });
 });
+
+// ===========================================================================
+// #213 — Canonical validation across as 6 rotas reais
+//
+// PO refinement (#213): garante que cada uma das 6 rotas do Site Generator
+// (`/`, `/sobre`, `/contato`, `/anunciar`, `/estoque`, `/estoque/[carSlug]`)
+// retorna canonical URL absoluto correto + hreflang pt-BR/x-default
+// apontando pro mesmo canonical + metadataBase populado.
+//
+// Cobertura redundante com testes de helper acima — intencional. Mantém
+// defense in depth contra regressão do contrato com as `page.tsx`.
+// ===========================================================================
+
+describe("buildSiteMetadata — canonical validation per route (#213)", () => {
+  const routes: Array<{
+    pathname: string;
+    expectedTail: string;
+    label: string;
+  }> = [
+    { pathname: "/", expectedTail: "", label: "home" },
+    { pathname: "/sobre", expectedTail: "/sobre", label: "sobre" },
+    { pathname: "/contato", expectedTail: "/contato", label: "contato" },
+    { pathname: "/anunciar", expectedTail: "/anunciar", label: "anunciar" },
+    { pathname: "/estoque", expectedTail: "/estoque", label: "estoque" },
+    {
+      pathname: "/estoque/civic-2020",
+      expectedTail: "/estoque/civic-2020",
+      label: "estoque-detalhe",
+    },
+  ];
+
+  for (const route of routes) {
+    it(`rota '${route.label}' (${route.pathname}) → canonical absoluto + hreflang`, () => {
+      const meta = buildSiteMetadata({
+        variables: baseVars,
+        pageLabel: route.label,
+        pathname: route.pathname,
+      });
+      const expected = `${APP_URL}/sites/${baseVars.business_slug}${route.expectedTail}`;
+
+      // Canonical absoluto sem query/trailing duplicado.
+      expect(meta.alternates?.canonical).toBe(expected);
+      // metadataBase populado com APP_URL.
+      expect(meta.metadataBase).toBeInstanceOf(URL);
+      expect(meta.metadataBase?.toString()).toBe(`${APP_URL}/`);
+      // hreflang pt-BR + x-default ambos apontam pro canonical.
+      expect(meta.alternates?.languages).toEqual({
+        "pt-BR": expected,
+        "x-default": expected,
+      });
+    });
+  }
+
+  it("não emite query string nem fragment no canonical", () => {
+    const meta = buildSiteMetadata({
+      variables: baseVars,
+      pageLabel: "estoque",
+      pathname: "/estoque",
+    });
+    const canonical = meta.alternates?.canonical;
+    expect(canonical).not.toContain("?");
+    expect(canonical).not.toContain("#");
+  });
+});

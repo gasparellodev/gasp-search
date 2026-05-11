@@ -16,9 +16,11 @@
  * **Decisões PO refinement (issue #211):**
  *
  * 1. **`@graph` single-script no layout.** `buildSitewideGraph` retorna
- *    `{@context, @graph: [AutoDealer, Organization, LocalBusiness]}` — 1
- *    script-tag única vs 3. Linking via `@id` cross-references valida
- *    melhor no Rich Results Test e reduz parsing overhead.
+ *    `{@context, @graph: [AutoDealer, WebSite, Organization, LocalBusiness]}`
+ *    — 1 script-tag única vs 4. Linking via `@id` cross-references valida
+ *    melhor no Rich Results Test e reduz parsing overhead. WebSite
+ *    adicionado em #213 (Sprint 1 / #S3) com `publisher` linkando ao
+ *    Organization existente.
  *
  * 2. **`address === null` → key omitida.** Não emite `PostalAddress`
  *    vazio com só `addressCountry: 'BR'` (spam sinal). Schema.org permite
@@ -348,6 +350,39 @@ export function buildLocalBusinessSchema(
 }
 
 // ---------------------------------------------------------------------------
+// buildWebSiteSchema — WebSite (root entity, publisher → Organization)
+// ---------------------------------------------------------------------------
+
+/**
+ * `WebSite` Schema.org — entidade raiz do site público da concessionária.
+ *
+ * **Por que esta entidade?** Em conjunto com `Organization` e `AutoDealer`,
+ * fecha a hierarquia de entidades canônicas Schema.org para sites
+ * publishers (Google + AI crawlers parseiam `WebSite` para identificar
+ * navegação raiz e canonical URL do domínio).
+ *
+ * `publisher` cross-referencia o `Organization` via `@id` (`#org`) — não
+ * duplica dados. `inLanguage` fixed `pt-BR` enquanto V1 é monolíngue.
+ *
+ * **V1 NÃO emite `potentialAction.SearchAction`.** O site não tem busca
+ * interna no MVP. Quando #estoque ganhar query string filterable (V2),
+ * adicionar `SearchAction` aqui com `urlTemplate` apontando pra
+ * `/estoque?q={search_term_string}`.
+ */
+export function buildWebSiteSchema(variables: SchemaInput): JsonLdNode {
+  const slug = variables.business_slug;
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": siteId(slug, "website"),
+    name: variables.business_name,
+    url: siteUrl(slug),
+    inLanguage: "pt-BR",
+    publisher: { "@id": siteId(slug, "org") },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // buildVehicleSchema — Vehicle individual (rota detail)
 // ---------------------------------------------------------------------------
 
@@ -458,11 +493,16 @@ export function buildBreadcrumbSchema(
 // ---------------------------------------------------------------------------
 
 /**
- * `@graph` consolidado do layout — emite AutoDealer + Organization +
- * LocalBusiness num único `<script>` JSON-LD.
+ * `@graph` consolidado do layout — emite AutoDealer + WebSite +
+ * Organization + LocalBusiness num único `<script>` JSON-LD.
  *
  * Linking via `@id` (sem duplicar `@context` nos nodes — esse vai no
  * root do graph). Rich Results Test valida cross-references.
+ *
+ * **Ordem fixa** (necessária pra snapshot/test estável): dealer → website
+ * → org → localbusiness. WebSite vai depois de AutoDealer porque é a
+ * entidade-raiz "site público" enquanto AutoDealer é o produto principal
+ * (auto-listing > publisher entity).
  */
 export function buildSitewideGraph(variables: SchemaInput): {
   "@context": "https://schema.org";
@@ -480,6 +520,7 @@ export function buildSitewideGraph(variables: SchemaInput): {
     "@context": "https://schema.org",
     "@graph": [
       stripContext(buildAutoDealerSchema(variables)),
+      stripContext(buildWebSiteSchema(variables)),
       stripContext(buildOrganizationSchema(variables)),
       stripContext(buildLocalBusinessSchema(variables)),
     ],
