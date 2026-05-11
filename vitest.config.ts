@@ -47,6 +47,7 @@ export default defineConfig({
         // runtime (não-só type aliases) entram no coverage. Type-only files
         // como `database.ts` ficam de fora.
         "types/lead-site.ts",
+        "types/visual-identity.ts",
       ],
       exclude: [
         "**/*.d.ts",

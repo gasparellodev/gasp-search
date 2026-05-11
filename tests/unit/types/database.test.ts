@@ -148,7 +148,7 @@ describe("types/database", () => {
     >();
   });
 
-  it("Tables<'lead_sites'> tem todas as 15 colunas tipadas (AC8 #153 + archived_at #169)", () => {
+  it("Tables<'lead_sites'> tem todas as 17 colunas tipadas (AC8 #153 + archived_at #169 + signed_at #199 + visual_identity #215)", () => {
     type LeadSiteRow = Tables<"lead_sites">;
     expectTypeOf<LeadSiteRow["id"]>().toBeString();
     expectTypeOf<LeadSiteRow["user_id"]>().toBeString();
@@ -158,6 +158,11 @@ describe("types/database", () => {
       Enums<"lead_site_status">
     >();
     // variables é jsonb na DB → Json no TS (validado em runtime via Zod, ver M1.2).
+    // visual_identity é jsonb nullable na DB → Json | null no TS (#215, validado
+    // em runtime via VisualIdentityManifestSchema em types/visual-identity.ts).
+    expectTypeOf<LeadSiteRow["visual_identity"]>().toEqualTypeOf<
+      import("@/types/database").Json | null
+    >();
     expectTypeOf<LeadSiteRow["generation_error"]>().toEqualTypeOf<
       string | null
     >();
@@ -172,9 +177,11 @@ describe("types/database", () => {
     expectTypeOf<LeadSiteRow["created_at"]>().toBeString();
     expectTypeOf<LeadSiteRow["updated_at"]>().toBeString();
 
-    // Sanity: todas as 16 colunas estão presentes (não mais, não menos).
+    // Sanity: todas as 17 colunas estão presentes (não mais, não menos).
     // `signed_at` adicionado em #199 (migration 0018) — habilita o gate
     // `isIndexable(site)` em `lib/sites/metadata.ts` (SEO foundation).
+    // `visual_identity` adicionado em #215 (migration 0019) — foundation
+    // pra Sprint 2 #A2 (generateVisualIdentity action em #216).
     type Cols = keyof LeadSiteRow;
     expectTypeOf<Cols>().toEqualTypeOf<
       | "id"
@@ -183,6 +190,7 @@ describe("types/database", () => {
       | "slug"
       | "status"
       | "variables"
+      | "visual_identity"
       | "generation_error"
       | "generated_at"
       | "published_at"
