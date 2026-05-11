@@ -615,11 +615,11 @@ export async function generateLeadSite(
   // Actions: invalida o cache populado por fetches com `cacheTag('site:<slug>')`
   // dentro de funções `'use cache'` (a route /sites/[slug] em #160).
   //
-  // **#213**: `og:<slug>` cobre o opengraph-image dinâmico
-  // (`app/sites/[slug]/opengraph-image.tsx`). Sem invalidar, o preview
-  // social ficaria stale 1h (revalidate=3600) após publicação/edição.
+  // **#247**: removido `updateTag('og:<slug>')` — o opengraph-image
+  // (`app/sites/[slug]/opengraph-image.tsx`) agora invalida transitivamente
+  // via `getSite()` (que carrega `cacheTag('site:<slug>')` internamente) +
+  // `revalidate = 3600`. Mesma estratégia de `llms.txt` (#246).
   updateTag(`site:${slug}`);
-  updateTag(`og:${slug}`);
   revalidatePath(`/leads/${leadId}`);
 
   logStep("complete", {
@@ -912,9 +912,9 @@ export async function updateLeadSiteVariables(
   }
 
   // Step 9: Cache invalidation
-  // #213: também invalida `og:<slug>` (opengraph-image dinâmica).
+  // #247: removido `updateTag('og:<slug>')` — opengraph-image invalida
+  // transitivamente via `getSite()` + `revalidate = 3600` (ver #246).
   updateTag(`site:${existing.slug}`);
-  updateTag(`og:${existing.slug}`);
   if (existing.lead_id) {
     revalidatePath(`/leads/${existing.lead_id}`);
   }
@@ -1030,10 +1030,10 @@ export async function archiveLeadSite(
   }
 
   // Step 5: Cache invalidation
-  // #213: também invalida `og:<slug>` (opengraph-image dinâmica) — site
-  // arquivado para de servir OG image (handler retorna 404 via gate isIndexable).
+  // #247: removido `updateTag('og:<slug>')` — opengraph-image invalida
+  // transitivamente via `getSite()` + `revalidate = 3600`. Site arquivado
+  // para de servir OG image (handler retorna 404 via gate isIndexable).
   updateTag(`site:${existing.slug}`);
-  updateTag(`og:${existing.slug}`);
   if (existing.lead_id) {
     revalidatePath(`/leads/${existing.lead_id}`);
   }
@@ -1128,10 +1128,10 @@ export async function restoreLeadSite(
   }
 
   // Step 5: Cache invalidation
-  // #213: também invalida `og:<slug>` (opengraph-image dinâmica) — site
-  // restaurado volta a servir OG image.
+  // #247: removido `updateTag('og:<slug>')` — opengraph-image invalida
+  // transitivamente via `getSite()` + `revalidate = 3600`. Site restaurado
+  // volta a servir OG image automaticamente.
   updateTag(`site:${existing.slug}`);
-  updateTag(`og:${existing.slug}`);
   if (existing.lead_id) {
     revalidatePath(`/leads/${existing.lead_id}`);
   }
@@ -1387,10 +1387,10 @@ export async function sendLeadSiteWhatsApp(
   }
 
   // Step 8: Cache invalidation
-  // #213: também invalida `og:<slug>` (opengraph-image dinâmica) — status
-  // transicionou `published` → `sent`, ainda indexável.
+  // #247: removido `updateTag('og:<slug>')` — opengraph-image invalida
+  // transitivamente via `getSite()` + `revalidate = 3600`. Status transitou
+  // `published` → `sent`, ainda indexável.
   updateTag(`site:${existing.slug}`);
-  updateTag(`og:${existing.slug}`);
   if (existing.lead_id) {
     revalidatePath(`/leads/${existing.lead_id}`);
   }

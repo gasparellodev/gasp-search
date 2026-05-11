@@ -19,8 +19,11 @@
  *   6. Hero null/inválido → ImageResponse retornado (fallback gradient).
  *   7. variables invalid (safeParse falha) → 404.
  *
- * **Cache directives**: `revalidate = 3600` exportado. `cacheTag('og:<slug>')`
- * é setado dentro do handler via `cacheTag()` import — testamos via spy.
+ * **Cache directives** (#247): `revalidate = 3600` exportado. Sem
+ * `cacheTag` standalone no arquivo — Next 16 exige `cacheTag` dentro
+ * de `"use cache"` (que Metadata files retornando `Response` não podem
+ * usar). Invalidação flui via `getSite()` (`cacheTag('site:<slug>')`)
+ * + ISR. Padrão alinhado com `llms.txt/route.ts` (#246).
  */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
@@ -173,10 +176,10 @@ describe("opengraph-image — happy path", () => {
     expect(res.status).toBe(200);
   });
 
-  it("seta cacheTag('og:<slug>') pra invalidação cross-file", async () => {
+  it("não chama cacheTag standalone (#247 — invalidação via getSite + ISR)", async () => {
     getSiteMock.mockResolvedValue(makeRow({ status: "published" }));
     await callOgImage(SLUG);
-    expect(cacheMocks.cacheTag).toHaveBeenCalledWith(`og:${SLUG}`);
+    expect(cacheMocks.cacheTag).not.toHaveBeenCalled();
   });
 });
 
