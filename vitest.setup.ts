@@ -46,6 +46,22 @@ if (!process.env.ANTHROPIC_API_KEY) {
 if (!process.env.ANTHROPIC_MODEL) {
   process.env.ANTHROPIC_MODEL = "claude-sonnet-4-6";
 }
+// OpenAI defaults (Phase 7 #216 — visual identity).
+if (!process.env.OPENAI_API_KEY) {
+  process.env.OPENAI_API_KEY = "sk-openai-test";
+}
+if (!process.env.OPENAI_IMAGE_MODEL) {
+  process.env.OPENAI_IMAGE_MODEL = "gpt-image-2-2026-04-21";
+}
+if (!process.env.OPENAI_IMAGE_FALLBACK_MODEL) {
+  process.env.OPENAI_IMAGE_FALLBACK_MODEL = "gpt-image-1-mini";
+}
+if (!process.env.OPENAI_IMAGE_CONCURRENCY) {
+  process.env.OPENAI_IMAGE_CONCURRENCY = "2";
+}
+if (!process.env.BRL_RATE) {
+  process.env.BRL_RATE = "5.0";
+}
 
 // Polyfills mínimos para libs que assumem APIs do browser (cmdk, radix popover).
 class ResizeObserverStub {

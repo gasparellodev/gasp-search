@@ -51,6 +51,7 @@ Caso contrário, prefira API route REST em `app/api/`.
 |---|---|
 | `site-form.ts` | `submitSiteForm(siteId, payload)` — Server Action chamada pelo `<SiteForm>` público (#161). MVP: stub que valida via `SiteFormSchema` e retorna `{ success: true }`. Persistência em `site_form_submissions` é follow-up. |
 | `site-announcement.ts` | `submitAnnouncement(siteId, payload)` — Server Action stub V1 chamada pelo `<AnnounceForm>` público (#163). Valida via `AnnouncementSchema` e retorna `{ ok: true } \| { ok: false; error }`. **Nota**: usa `ok` em vez de `success` (variação aprovada na issue #163 — a discriminated union shape do retorno está documentada inline). Persistência em `lead_announcements` é follow-up (tabela ainda não existe). Sem PII em logs. |
+| `lead-site.ts` (regenerateVisualIdentity) | **#216 — Phase 7 Sprint 2 #A2.** `regenerateVisualIdentity(leadSiteId, options?: {force?: boolean})` — gera identidade visual AI (9 banners) via OpenAI Images API. Pipeline: auth → fetch (RLS) → idempotência (`!force && visual_identity != null` → retorna existing) → `buildIdentityContext` (v1 ou v2 SiteVariables) → `buildAssetSpecsForCars` (filtra categorias presentes) → cost guardrail ($2 USD hard cap) → optional `deleteExistingAssets` (se force) → loop `p-limit(env.OPENAI_IMAGE_CONCURRENCY ?? 2)` com `generateImage` + `uploadAssetToStorage` → `VisualIdentityManifestSchema.parse` → UPDATE `lead_sites.visual_identity` via service_role → `updateTag(\`site:\${slug}\`)`. Retorno discriminado `RegenerateVisualIdentityResult = { ok: true; manifest; regenerated: boolean } \| { ok: false; error: 'auth' \| 'not_found' \| 'cost_guardrail' \| 'validation' \| 'generation_error' \| 'storage_error' \| 'db_error'; message }`. Telemetria PII-safe `{slug, asset_count, total_cost_usd, duration_ms, model_used, forced}`. |
 | `lead-site.ts` | `generateLeadSite(leadId)` — orquestrador completo do M1.7 (#159, schema v2 desde #197 PR-C). Pipeline: auth → rate-limit (DB-backed) → fetch lead → brand assets (#156) → slug (#155) → IA copy (#158) → URL sanitization → **`SiteVariablesV2.parse`** → upsert lead_sites (`onConflict: 'user_id,lead_id'`) → `updateTag` + `revalidatePath`. Retorno discriminated union `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'rate_limit' \| 'ai_error' \| 'validation' \| 'db_error'; message }`. Preserva slug em regen (links WhatsApp não quebram). Logs estruturados PII-safe em ≥4 steps. **Também exporta `updateLeadSiteVariables(leadSiteId, patch)`** (#168): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`) → `SiteVariables.partial().safeParse` → `safeUrl` em URLs → merge shallow → `SiteVariables.parse` final → update via service_role → `updateTag` + `revalidatePath`. Retorno `{ ok: true; slug } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'validation' \| 'db_error'; message }`. **Mais `archiveLeadSite(leadSiteId)` e `restoreLeadSite(leadSiteId)`** (#169): ambas com pipeline auth → fetch row (RLS) → status guard → update via service_role → `updateTag` + `revalidatePath`. `archiveLeadSite` exige status `'published' \| 'sent'` e seta `status='archived'` + `archived_at=now`. `restoreLeadSite` exige status `'archived'` e seta `status='published'` + `archived_at=null`. Retorno compartilhado `LeadSiteStatusActionResult = { ok: true } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'db_error'; message }`. **Mais `sendLeadSiteWhatsApp(leadSiteId)`** (#171): pipeline auth → fetch row (RLS) → status guard (`'published' \| 'sent'`, re-send permitido) → fetch `leads.name` → `renderTemplate(SITE_PREVIEW_TEMPLATE, { business_name, site_url })` → `sendWhatsAppMessage` (Phase 6 helper: insere `lead_messages`, chama Evolution sendText, atualiza status, promove `lead.stage`) → update via service_role `status='sent'`, `sent_at=now` → `updateTag` + `revalidatePath`. Retorno `SendLeadSiteWhatsAppResult = { ok: true } \| { ok: false; error: 'auth' \| 'not_found' \| 'invalid_status' \| 'whatsapp_error' \| 'db_error'; message }`. `whatsapp_error` carrega mensagem PT-BR mapeada do `reason` do helper Evolution (instance_disconnected / lead_missing_phone / evolution_error). |
 
 ## Dependências
@@ -135,6 +136,36 @@ Sucesso → `{ ok: true }`. Persistência: `lead_sites.status='sent'`, `sent_at=
 **Ordem de checks**: auth → fetch (RLS) → status guard → daily-limit guard → render → send. O guard `rate_limit_daily` roda **depois** de status guard (não desperdiça query em sites não-elegíveis) e **antes** do render+send (zero risco de tocar Evolution acima do hard limit).
 
 **Logs PII-safe**: errorName + errorMessage + reason (Evolution). Não loga conteúdo da mensagem nem telefone do destinatário.
+
+### `regenerateVisualIdentity` (#216)
+
+| Caminho | error | Persistido como |
+|---|---|---|
+| Sem auth | `auth` | n/a |
+| Site inexistente / RLS bloqueia | `not_found` | n/a |
+| `buildIdentityContext` falha (business_name vazio, shape ruim) | `validation` | n/a |
+| Estimativa de custo > $2 USD (hard cap V1) | `cost_guardrail` | n/a (sem chamar OpenAI) |
+| `deleteExistingAssets` falha (force=true) | `storage_error` | n/a |
+| `generateImage` lança `ImageGenerationError` (rate_limit persistente, moderation, etc) | `generation_error` | n/a — manifest antigo preservado |
+| `uploadAssetToStorage` lança erro genérico | `storage_error` | n/a |
+| `VisualIdentityManifestSchema.parse` final falha (URLs inválidas pós-upload) | `validation` | n/a |
+| Update `lead_sites.visual_identity` DB error | `db_error` | n/a |
+
+Sucesso → `{ ok: true; manifest; regenerated: boolean }`. `regenerated=false`
+quando idempotência retorna manifest existente sem chamar OpenAI. Persistência
+(quando regenerated=true): `lead_sites.visual_identity = manifest` validado +
+`updated_at=now`. Sempre invalida cache via `updateTag(\`site:\${slug}\`)`.
+
+**Custo target V1**: ~$0.49 USD/cliente (1-9 imagens dependendo de quantas
+categorias estão presentes nos cars). Conversão BRL via `env.BRL_RATE` (default 5.0).
+
+**Concorrência**: `p-limit(env.OPENAI_IMAGE_CONCURRENCY ?? 2)` — Tier-1
+OpenAI tem 5 IPM, default 2 é safe. Aumentar quando subir Tier.
+
+**Fallback de modelo** (`gpt-image-2` → `gpt-image-1-mini`) é responsabilidade
+do caller via override em `generateImage({model: ...})`. Em V1 não há fallback
+automático no nível desta action — manifest antigo é preservado em qualquer
+falha persistente, e o admin pode tentar regenerar manualmente (force=true).
 
 ## Quando atualizar este `CLAUDE.md`
 

@@ -41,14 +41,20 @@ const imageUrlOrPath = z
 /**
  * Modelos de geração de imagem suportados em V1.
  *
- * - `gpt-image-2`: modelo OpenAI default (#216 spec). Preferido.
- * - `dall-e-3`: fallback legado caso `gpt-image-2` indisponível.
+ * - `gpt-image-2-2026-04-21`: snapshot pinado do modelo OpenAI default
+ *   (#216 spike). Pinned date para builds reproduzíveis — `gpt-image-2`
+ *   sem snapshot pode receber mudanças silenciosas.
+ * - `gpt-image-1-mini`: fallback automático caso `gpt-image-2` retorne
+ *   erro persistente (não-retryable). **DALL-E 3 NÃO é fallback** —
+ *   modelo será deprecado 2026-05-12 (#216 PO refinement).
  *
- * Strings literais — discrim union no futuro pode levar a uma migração
- * de `model` para enum com snapshot date (ex.: `gpt-image-2-2026-04-21`).
- * Por ora, mantido conciso pra alinhar com issue #215 AC.
+ * Discrim union — quando models adicionais entrarem, manter
+ * snapshot-date format pra reprodutibilidade.
  */
-export const VisualIdentityModelSchema = z.enum(["gpt-image-2", "dall-e-3"]);
+export const VisualIdentityModelSchema = z.enum([
+  "gpt-image-2-2026-04-21",
+  "gpt-image-1-mini",
+]);
 export type VisualIdentityModel = z.infer<typeof VisualIdentityModelSchema>;
 
 /**

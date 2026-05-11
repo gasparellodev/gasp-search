@@ -17,6 +17,7 @@ exemplos por mock. Este arquivo mantém apenas a tabela de arquivos.
 | `supabase.ts` | `@supabase/supabase-js` (via `lib/supabase/*`) | `createMockSupabaseClient({tables})` retorna client chainable. Builders rastreados em `client.builders[table]`. `fromCalls` lista tabelas tocadas. |
 | `anthropic.ts` | `@anthropic-ai/sdk` (usado em `lib/ai/anthropic.ts` e `lib/sites/generate-copy.ts`) | `anthropicMock()`, `mockAnthropicToolUse(input)`, `mockAnthropicTextResponse(text)`, `resetAnthropicMock()`, `anthropicState.create` (vi.fn() para `.mockRejectedValueOnce` etc.). |
 | `apify.ts` | `apify-client` (usado em `lib/apify/*` e `lib/sites/brand-assets.ts`) | `apifyMock()`, `mockApifyActorRun(items)`, `mockApifyDatasetItems(items)`, `resetApifyMock()`, `apifyState.actorCall` / `.datasetListItems` (vi.fn()s). |
+| `openai.ts` | `openai` SDK (usado em `lib/openai/image-client.ts` — Phase 7 #216 visual identity) | `openaiMock()` (factory pra `vi.mock('openai', ...)`), `mockOpenAIImageSuccess(b64?)`, `mockOpenAIRateLimit()`, `mockOpenAIInvalidSize()`, `mockOpenAIModerationBlocked()`, `mockOpenAIServerError()`, `resetOpenAIMock()`, `openaiState.generate` (vi.fn() pra `.mockRejectedValueOnce` etc.), `MockOpenAIError` class (espelha shape de `OpenAI.APIError` com `status`/`code`/`type`), constante `TINY_PNG_B64` (1x1 PNG transparent base64). |
 
 ## Regras
 
