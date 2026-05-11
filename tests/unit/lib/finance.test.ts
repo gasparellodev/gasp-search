@@ -16,6 +16,7 @@ import {
   DEFAULT_MONTHLY_INTEREST,
   DEFAULT_CARD_INSTALLMENT_MONTHS,
   DEFAULT_CARD_DOWN_PCT,
+  DISCLAIMER_TEXT,
 } from "@/lib/finance";
 import { SiteCar } from "@/types/lead-site";
 
@@ -296,5 +297,22 @@ describe("slugifyVehicle", () => {
       const parsed = SiteCar.shape.slug.safeParse(slug);
       expect(parsed.success).toBe(true);
     }
+  });
+});
+
+describe("DISCLAIMER_TEXT", () => {
+  it("exporta string PT-BR alinhada com CDC + Bacen", () => {
+    expect(DISCLAIMER_TEXT).toBe(
+      "Sujeito a aprovação de crédito. Taxas variam conforme análise de crédito.",
+    );
+  });
+
+  it("é uma string não-vazia (usável em React children sem checagem extra)", () => {
+    expect(typeof DISCLAIMER_TEXT).toBe("string");
+    expect(DISCLAIMER_TEXT.length).toBeGreaterThan(0);
+  });
+
+  it("menciona aprovação de crédito (compliance CDC art. 52)", () => {
+    expect(DISCLAIMER_TEXT.toLowerCase()).toContain("aprovação de crédito");
   });
 });

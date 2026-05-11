@@ -55,8 +55,11 @@ issues #163-#164.
    `SiteVariables` no V1.
 4. **HomeEmphasis description**: `whitespace-pre-line` em `<p>`. NUNCA
    `dangerouslySetInnerHTML`.
-5. **HomeRecentSales mobile**: `flex snap-x snap-mandatory
-   overflow-x-auto`. Desktop vira `md:grid md:grid-cols-3`.
+5. **HomeRecentArrivals mobile**: `flex snap-x snap-mandatory
+   overflow-x-auto`. Desktop vira `md:grid md:grid-cols-4` (até 8 cards).
+   Empty state (`cars.length === 0`) → trust signal + WhatsApp CTA `general`,
+   nunca seção em branco. **Substitui** o legacy `HomeRecentSales`
+   (Sprint 4 / #H2 — issue #222).
 6. **A11y**: cada seção tem `<h2>` (exceto Hero, que tem `<h1>` único
    da página). Imagens têm `alt` não-vazio. Links têm
    `focus-visible:ring`.
@@ -91,7 +94,9 @@ issues #163-#164.
 | `HomeCategories.tsx` | **LEGACY V1.** Grid 3-cols (1-col mobile) com cards-imagem do `variables.home_categories[]` linkando a `/estoque?categoria=<slugify>`. Substituído por `<HomeCategoriesCars>` em `SitePage` na Sprint 4 (#221). Arquivo mantido pra rollback rápido; remover em cleanup futuro. |
 | `HomeForm.tsx` | Wrapper Server sobre `<SiteForm>` (Client) que injeta o título canônico da Home + `variant='home'`. |
 | `HomeEmphasis.tsx` | "Em destaque" 2-cols: imagem left + card alabaster (rounded 25px) com title/car_name/description (`pre-line`). |
-| `HomeRecentSales.tsx` | 3 cards horizontais: grid desktop / scroll-snap mobile. Cada card: imagem + car_name + `CheckCircle`. |
+| `HomeRecentArrivals.tsx` | **Server-only (Sprint 4 / #H2 — issue #222).** Substitui legacy `HomeRecentSales`. Header `<h2>Recém-chegados</h2>` + CTA "Ver estoque completo" → `/sites/<slug>/estoque`. Renderiza até 8 `<CarCard>` de `variables.cars.slice(0, 8)` (PO spec ambiguity #10 resolvida com `cars` — `recent_sales` schema só tem 3 entries com car_name+image, incompat com anatomia full CarCard). Mobile: scroll horizontal snap; desktop `md:grid-cols-4`. **Empty state** (`cars.length === 0`) → trust signal + WhatsApp CTA template `general`. |
+| `HomeFinancingWidget.tsx` | **Client (Sprint 4 / #H2 — issue #222).** Diferencial competitivo nº 2 — calculadora INLINE. Split 6/6 desktop: copy + `<BanksStrip>` à esquerda; form + output à direita. Inputs: price text mask vanilla (`useState` + `formatBRL`, sem `react-input-mask`/`imask`), slider entrada 0-50% step 5%, select prazo `{12, 24, 36, 48, 60}`. Output em `aria-live="polite"` com `min-height` fixo (layout shift 0). Edge cases: price=0 → "—"; downPaymentPct=100 → "Sem financiamento". `useDeferredValue` em vez de `setTimeout` (React 19 idiom). DISCLAIMER_TEXT obrigatório (CDC + Bacen) abaixo do output. CTA → `buildWhatsAppLink({template: 'financing', ...})` com `finance` context. |
+| `HomeTradeinWidget.tsx` | **Server-only (Sprint 4 / #H2 — issue #222).** Split 6/6 desktop: foto editorial + h2 + body + 2 CTAs. **Foto chain** (PO decision B1): `manifestAboutUrl ?? aboutImageUrl ?? '/assets/about/porsche-model.png'` — não há slot `tradein_editorial` no `VisualIdentityManifest`, reusamos `about_url` (zero impacto no pipeline AI). CTAs: "Avaliar meu carro" → `/sites/<slug>/anunciar` (primary preto) + "WhatsApp" → `buildWhatsAppLink({template: 'tradein', ...})` (outlined verde). |
 
 ## Boundary client/server
 
@@ -101,10 +106,12 @@ HomeHero (server) ───┐
 HomeTrustStrip (server) ─── pure server
 HomeCategoriesCars (server) ─── pure server
 HomeCategories (server, legacy) ─── pure server
+HomeRecentArrivals (server) ─── compõe <CarCard> (server) — pure server
+HomeFinancingWidget (CLIENT) ── useState + useDeferredValue (real-time calc)
+HomeTradeinWidget (server) ─── pure server
 HomeForm (server) ───┐
                      └─ delega ao <SiteForm> (client) ── react-hook-form
 HomeEmphasis (server) ─── pure server
-HomeRecentSales (server) ─── pure server
 ```
 
 `HomeHero` é server mas embute o `<HomeQuickSearchBar>` (Client) por
