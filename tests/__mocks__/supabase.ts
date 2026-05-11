@@ -113,6 +113,7 @@ export interface MockTableBuilder {
   delete: MockFn<[unknown?], MockTableBuilder>;
   eq: MockFn<[string, unknown], MockTableBuilder>;
   in: MockFn<[string, unknown[]], MockTableBuilder>;
+  not: MockFn<[string, string, unknown], MockTableBuilder>;
   order: MockFn<[string, unknown?], MockTableBuilder>;
   limit: MockFn<[number], MockTableBuilder>;
   single: MockFn<[], Promise<SupabaseResult>>;
@@ -190,6 +191,7 @@ export function createMockSupabaseClient(
     // Filtros / modifiers: retornam o próprio builder e preservam `pendingResult`.
     builder.eq = vi.fn(() => builder) as unknown as MockTableBuilder["eq"];
     builder.in = vi.fn(() => builder) as unknown as MockTableBuilder["in"];
+    builder.not = vi.fn(() => builder) as unknown as MockTableBuilder["not"];
     builder.order = vi.fn(() => builder) as unknown as MockTableBuilder["order"];
     builder.limit = vi.fn(() => builder) as unknown as MockTableBuilder["limit"];
 

@@ -11,7 +11,9 @@ export const config = {
   // Roda em quase tudo, exceto:
   // - api/* (handlers próprios, validam sessão por request)
   // - _next/static, _next/image, favicon, assets
+  // - robots.txt, sitemap.xml (#212 — SEO files públicos; crawlers
+  //   acessam sem cookie e o auth gate causaria 307→/login).
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)).*)",
   ],
 };
