@@ -510,9 +510,12 @@ describe("generateLeadSite — AC1 happy path", () => {
     const opts = upsert!.opts as { onConflict?: string };
     expect(opts.onConflict).toBe("user_id,lead_id");
 
-    // revalidate calls
+    // revalidate calls — #213: também invalida `og:<slug>` pra opengraph-image
     expect(cacheMocks.updateTag).toHaveBeenCalledWith(
       "site:abc12345-toyota-do-recife",
+    );
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith(
+      "og:abc12345-toyota-do-recife",
     );
     expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
       `/leads/${VALID_LEAD_ID}`,
@@ -1323,6 +1326,9 @@ describe("updateLeadSiteVariables — happy path", () => {
     expect(cacheMocks.updateTag).toHaveBeenCalledWith(
       "site:abc123-toyota-recife",
     );
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith(
+      "og:abc123-toyota-recife",
+    );
     expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
       `/leads/${VALID_LEAD_ID}`,
     );
@@ -1793,6 +1799,7 @@ describe("archiveLeadSite — happy path", () => {
     expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
 
     expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:abc123-toyota");
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("og:abc123-toyota");
     expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
       `/leads/${VALID_LEAD_ID}`,
     );
@@ -1975,6 +1982,7 @@ describe("restoreLeadSite — happy path", () => {
     expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
 
     expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:archived-slug");
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("og:archived-slug");
     expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
       `/leads/${VALID_LEAD_ID}`,
     );
@@ -2217,8 +2225,9 @@ describe("sendLeadSiteWhatsApp — happy path", () => {
     );
     expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
 
-    // Cache invalidation
+    // Cache invalidation — #213: também invalida `og:<slug>`.
     expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:abc-touring-cars");
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("og:abc-touring-cars");
     expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
       `/leads/${VALID_LEAD_ID}`,
     );

@@ -22,6 +22,7 @@ import {
   buildOrganizationSchema,
   buildSitewideGraph,
   buildVehicleSchema,
+  buildWebSiteSchema,
 } from "@/lib/sites/schema";
 import { fixtureSiteVariablesV2 } from "@/tests/fixtures/site-variables/site-variables-v2";
 import type { SiteVariablesV2 } from "@/types/lead-site";
@@ -354,14 +355,55 @@ describe("buildBreadcrumbSchema()", () => {
   });
 });
 
+describe("buildWebSiteSchema()", () => {
+  it("emite @context, @type WebSite e @id absoluto com fragment #website", () => {
+    const schema = buildWebSiteSchema(makeV2());
+    expect(asRecord(schema)["@context"]).toBe("https://schema.org");
+    expect(asRecord(schema)["@type"]).toBe("WebSite");
+    expect(asRecord(schema)["@id"]).toBe(
+      `${BASE_URL}/sites/${makeV2().business_slug}#website`,
+    );
+  });
+
+  it("name = business_name e url absoluta do site", () => {
+    const schema = buildWebSiteSchema(makeV2());
+    expect(asRecord(schema).name).toBe("Auto Fit Multimarcas");
+    expect(asRecord(schema).url).toBe(
+      `${BASE_URL}/sites/auto-fit-multimarcas`,
+    );
+  });
+
+  it("inLanguage = 'pt-BR' sempre presente (V1 monolíngue)", () => {
+    const schema = buildWebSiteSchema(makeV2());
+    expect(asRecord(schema).inLanguage).toBe("pt-BR");
+  });
+
+  it("publisher cross-references o Organization (#org fragment)", () => {
+    const schema = buildWebSiteSchema(makeV2());
+    expect(asRecord(schema).publisher).toEqual({
+      "@id": `${BASE_URL}/sites/auto-fit-multimarcas#org`,
+    });
+  });
+
+  it("V1 NÃO emite potentialAction/SearchAction (omitido até V2)", () => {
+    const schema = buildWebSiteSchema(makeV2());
+    expect("potentialAction" in asRecord(schema)).toBe(false);
+  });
+});
+
 describe("buildSitewideGraph()", () => {
-  it("emite @context + @graph com AutoDealer, Organization, LocalBusiness", () => {
+  it("emite @context + @graph com AutoDealer, WebSite, Organization, LocalBusiness", () => {
     const graph = buildSitewideGraph(makeV2());
     expect(graph["@context"]).toBe("https://schema.org");
     const types = (graph["@graph"] as Array<{ "@type": string }>).map(
       (n) => n["@type"],
     );
-    expect(types).toEqual(["AutoDealer", "Organization", "LocalBusiness"]);
+    expect(types).toEqual([
+      "AutoDealer",
+      "WebSite",
+      "Organization",
+      "LocalBusiness",
+    ]);
   });
 
   it("nodes do @graph NÃO duplicam @context (já no root)", () => {
@@ -369,5 +411,16 @@ describe("buildSitewideGraph()", () => {
     for (const node of graph["@graph"] as Array<Record<string, unknown>>) {
       expect("@context" in node).toBe(false);
     }
+  });
+
+  it("WebSite node linka publisher ao Organization via @id (cross-reference)", () => {
+    const graph = buildSitewideGraph(makeV2());
+    const website = (graph["@graph"] as Array<Record<string, unknown>>).find(
+      (n) => n["@type"] === "WebSite",
+    );
+    expect(website).toBeDefined();
+    expect((website!.publisher as Record<string, unknown>)["@id"]).toBe(
+      `${BASE_URL}/sites/auto-fit-multimarcas#org`,
+    );
   });
 });

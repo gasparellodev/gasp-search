@@ -61,6 +61,12 @@ Caso contrário, prefira API route REST em `app/api/`.
   `lead-site.ts`. **`updateTag` (não `revalidateTag`)** em Server Actions —
   requer 1 arg só e tem semântica read-your-own-writes específica do
   contexto Server Action, alinhado com Next 16 cache-components.
+  **#213 — 2 tags por Server Action**: `site:<slug>` (cache do `getSite`
+  helper em `lib/sites/get-site.ts`) + `og:<slug>` (cache do
+  `app/sites/[slug]/opengraph-image.tsx`). Sem o segundo, preview social
+  ficaria stale 1h após publicação/edição/arquivamento. Os 5 caminhos
+  (`generateLeadSite`, `updateLeadSiteVariables`, `archiveLeadSite`,
+  `restoreLeadSite`, `sendLeadSiteWhatsApp`) emitem ambas as tags.
 
 ## Mapa de erros (lead-site.ts)
 
