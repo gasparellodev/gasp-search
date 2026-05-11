@@ -53,6 +53,7 @@ import { getSite } from "@/lib/sites/get-site";
 import { isIndexable } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 import { sanitizeHex } from "@/lib/sites/sanitize";
+import { isPrivateOrLinkLocalHost } from "@/lib/sites/url-safety";
 
 // ---------------------------------------------------------------------------
 // Next Metadata file convention exports
@@ -240,17 +241,24 @@ export default async function Image({ params }: OgImageParams): Promise<Response
  * Resolve hero URL para fetch absoluto no Edge runtime. Paths relativos
  * (`/...`) viram `${APP_URL}/...`. HTTP(S) absoluto passa direto.
  *
- * **Não faz fetch antecipado** — ImageResponse fetcha sob demanda e
- * trata 404/timeout interno como `null` (background gradient assume).
- * Wrapping defensivo aqui só normaliza shape.
+ * **Não faz fetch antecipado** — ImageResponse fetcha sob demanda.
+ * Wrapping defensivo aqui normaliza shape e bloqueia hosts privados /
+ * metadata para evitar SSRF via URL editável em `brand_assets`.
  */
 async function resolveHeroUrl(input: string | null | undefined): Promise<string | null> {
-  if (typeof input !== "string" || input.length === 0) return null;
-  if (/^https?:\/\//i.test(input)) return input;
+  if (typeof input !== "string") return null;
+
+  const value = input.trim();
+  if (value.length === 0) return null;
+
+  if (/^https?:\/\//i.test(value)) {
+    return isPrivateOrLinkLocalHost(value) ? null : value;
+  }
+
   // Path relativo — precisa ser absoluto pro Edge fetcher.
   const base = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "";
   if (!base) return null;
-  return `${base}${input}`;
+  return `${base}${value}`;
 }
 
 // Module-scope memoization. Edge re-cria isolate por request, mas dentro
