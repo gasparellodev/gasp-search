@@ -37,6 +37,7 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |
 | `dashboard/summary.ts` | **Server-only.** Agrega métricas e últimas buscas do dashboard |
 | `dashboard/types.ts` | Tipos compartilháveis com Client Components do dashboard |
+| `og/load-geist.ts` | **Server-only, Edge-compatible.** Carrega `/fonts/geist-600.woff2` do próprio deployment para OG images com timeout de 1s, memoização por isolate e fallback `null`; evita GitHub raw/CDN e evita embutir o WOFF2 no Edge bundle. |
 | `sites/slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` único globalmente em `lead_sites.slug`. Cliente Supabase recebido por DI. |
 | `sites/errors.ts` | `SlugCollisionError` — erro tipado com `attempts`/`business_name` para o gerador de slug. |
 | `utils/slug.ts` | `slugify(input)` puro — NFKD, lowercase, hífens, fallback `'lead'`. Reusável fora do dominio sites. |
