@@ -1,0 +1,690 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`<SiteFooter /> > mantém snapshot estrutural do footer global 1`] = `
+<footer
+  class="mt-16 border-t border-foreground/10 bg-background"
+  data-testid="site-footer"
+>
+  <div
+    class="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-4 md:gap-0 md:px-8 md:py-16"
+  >
+    <div
+      class="space-y-6 md:pr-8"
+    >
+      <img
+        alt="Touring Cars"
+        class="h-10 w-auto object-contain"
+        data-nimg="1"
+        decoding="async"
+        height="40"
+        loading="lazy"
+        src="https://cdn.example.com/touring/logo.png"
+        style="color: transparent;"
+        width="140"
+      />
+      <p
+        class="text-sm text-foreground/70"
+      >
+        Qualidade, Segurança, Transparência.
+      </p>
+      <ul
+        class="flex items-center gap-5"
+      >
+        <li>
+          <a
+            aria-label="Instagram"
+            class="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+            href="https://instagram.com/touringcars"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              fill="currentColor"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
+            >
+              <path
+                d="M12 2.16c3.2 0 3.58.01 4.85.07 1.17.05 1.8.25 2.23.41.56.22.96.48 1.38.9.42.42.68.82.9 1.38.16.42.36 1.06.41 2.23.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.05 1.17-.25 1.8-.41 2.23-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.42.16-1.06.36-2.23.41-1.27.06-1.65.07-4.85.07s-3.58-.01-4.85-.07c-1.17-.05-1.8-.25-2.23-.41a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.16-.42-.36-1.06-.41-2.23C2.17 15.58 2.16 15.2 2.16 12s.01-3.58.07-4.85c.05-1.17.25-1.8.41-2.23.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.42-.16 1.06-.36 2.23-.41C8.42 2.17 8.8 2.16 12 2.16ZM12 0C8.74 0 8.33.01 7.05.07 5.78.13 4.9.32 4.14.62 3.35.93 2.68 1.34 2.01 2.01 1.34 2.68.93 3.35.62 4.14.32 4.9.13 5.78.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.06 1.27.25 2.15.55 2.91.31.79.72 1.46 1.39 2.13.67.67 1.34 1.08 2.13 1.39.76.3 1.64.49 2.91.55C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c1.27-.06 2.15-.25 2.91-.55a5.86 5.86 0 0 0 2.13-1.39 5.86 5.86 0 0 0 1.39-2.13c.3-.76.49-1.64.55-2.91.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.06-1.27-.25-2.15-.55-2.91a5.86 5.86 0 0 0-1.39-2.13A5.86 5.86 0 0 0 19.86.62C19.1.32 18.22.13 16.95.07 15.67.01 15.26 0 12 0Zm0 5.84A6.16 6.16 0 1 0 12 18.16 6.16 6.16 0 0 0 12 5.84ZM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-11.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88Z"
+              />
+            </svg>
+          </a>
+        </li>
+        <li>
+          <a
+            aria-label="Facebook"
+            class="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+            href="https://facebook.com/touringcars"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              fill="currentColor"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
+            >
+              <path
+                d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.99 3.66 9.13 8.44 9.88v-6.99H7.9V12h2.54V9.8c0-2.51 1.5-3.89 3.78-3.89 1.1 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99C18.34 21.13 22 16.99 22 12Z"
+              />
+            </svg>
+          </a>
+        </li>
+        <li>
+          <a
+            aria-label="YouTube"
+            class="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+            href="https://youtube.com/@touringcars"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              fill="currentColor"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
+            >
+              <path
+                d="M23.5 6.2a3 3 0 0 0-2.12-2.12C19.49 3.6 12 3.6 12 3.6s-7.49 0-9.38.48A3 3 0 0 0 .5 6.2C.02 8.1.02 12 .02 12s0 3.9.48 5.8a3 3 0 0 0 2.12 2.12c1.89.48 9.38.48 9.38.48s7.49 0 9.38-.48a3 3 0 0 0 2.12-2.12c.48-1.9.48-5.8.48-5.8s0-3.9-.48-5.8ZM9.6 15.6V8.4l6.24 3.6L9.6 15.6Z"
+              />
+            </svg>
+          </a>
+        </li>
+        <li>
+          <a
+            aria-label="WhatsApp"
+            class="inline-flex size-10 items-center justify-center rounded-full text-foreground transition hover:bg-foreground/5"
+            href="https://wa.me/5581981000000?text=Ol%C3%A1!%20Vi%20o%20site%20da%20Touring%20Cars%20e%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es.&utm_source=site&utm_medium=whatsapp&utm_campaign=general&utm_content=footer&utm_term=touring-cars"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <svg
+              aria-hidden="true"
+              class="size-5"
+              fill="currentColor"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
+            >
+              <path
+                d="M17.47 14.38c-.3-.15-1.74-.86-2-.96-.27-.1-.46-.15-.66.15-.2.3-.76.96-.93 1.16-.17.2-.34.22-.64.07-.3-.15-1.25-.46-2.38-1.47a8.94 8.94 0 0 1-1.65-2.05c-.17-.3-.02-.45.13-.6.13-.13.3-.34.45-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.66-1.6-.91-2.18-.24-.57-.48-.5-.66-.5h-.56c-.2 0-.5.07-.76.37s-1 .98-1 2.39c0 1.4 1.03 2.76 1.18 2.95.15.2 2.03 3.1 4.93 4.35 1.96.85 2.74.78 3.55.42 1.86-.84 2.13-2.86 2.16-3.13.03-.27 0-.5-.04-.55-.05-.05-.18-.07-.38-.18Zm-5.4 7.42a8.94 8.94 0 0 1-4.55-1.24l-.33-.2-3.39.89.91-3.3-.22-.34a8.94 8.94 0 1 1 7.58 4.2Zm0-19.8a10.8 10.8 0 0 0-9.32 16.36L1 24l5.81-1.52a10.8 10.8 0 1 0 5.27-20.48Z"
+              />
+            </svg>
+          </a>
+        </li>
+      </ul>
+    </div>
+    <div
+      class="space-y-4 md:border-l md:border-foreground/10 md:px-8"
+    >
+      <h2
+        class="text-base font-semibold text-foreground"
+      >
+        Contato
+      </h2>
+      <address
+        class="space-y-3 text-sm not-italic text-foreground/80"
+        data-testid="site-footer-address"
+      >
+        <p
+          class="font-medium text-foreground"
+        >
+          Touring Cars
+        </p>
+        <a
+          class="inline-flex items-center gap-2 transition hover:text-foreground"
+          href="https://wa.me/5581981000000?text=Ol%C3%A1!%20Vi%20o%20site%20da%20Touring%20Cars%20e%20gostaria%20de%20mais%20informa%C3%A7%C3%B5es.&utm_source=site&utm_medium=whatsapp&utm_campaign=general&utm_content=footer&utm_term=touring-cars"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-phone size-4"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384"
+            />
+          </svg>
+          WhatsApp
+        </a>
+        <p>
+          (81) 3512-9411
+        </p>
+        <p>
+          <a
+            class="inline-flex items-center gap-2 transition hover:text-foreground"
+            href="mailto:contato@touringcars.com.br"
+          >
+            <svg
+              aria-hidden="true"
+              class="lucide lucide-mail size-4"
+              fill="none"
+              height="24"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="m22 7-8.991 5.727a2 2 0 0 1-2.009 0L2 7"
+              />
+              <rect
+                height="16"
+                rx="2"
+                width="20"
+                x="2"
+                y="4"
+              />
+            </svg>
+            contato@touringcars.com.br
+          </a>
+        </p>
+        <p
+          class="flex items-start gap-2 text-foreground/60"
+        >
+          <svg
+            aria-hidden="true"
+            class="lucide lucide-map-pin mt-0.5 size-4 shrink-0"
+            fill="none"
+            height="24"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+            width="24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"
+            />
+            <circle
+              cx="12"
+              cy="10"
+              r="3"
+            />
+          </svg>
+          <span>
+            Av. Boa Viagem, 1000 - Boa Viagem, Recife - PE, 51020-000
+          </span>
+        </p>
+      </address>
+    </div>
+    <div
+      class="space-y-4 md:border-l md:border-foreground/10 md:px-8"
+    >
+      <h2
+        class="text-base font-semibold text-foreground"
+      >
+        Horários
+      </h2>
+      <p
+        class="flex items-start gap-2 text-sm text-foreground/70"
+      >
+        <svg
+          aria-hidden="true"
+          class="lucide lucide-clock mt-0.5 size-4 shrink-0"
+          fill="none"
+          height="24"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+          width="24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle
+            cx="12"
+            cy="12"
+            r="10"
+          />
+          <path
+            d="M12 6v6l4 2"
+          />
+        </svg>
+        <span>
+          Seg–Sex 09h–18h
+        </span>
+      </p>
+    </div>
+    <div
+      class="space-y-4 md:border-l md:border-foreground/10 md:pl-8"
+    >
+      <h2
+        class="text-base font-semibold text-foreground"
+      >
+        Navegação
+      </h2>
+      <nav
+        aria-label="Links do rodapé"
+      >
+        <ul
+          class="space-y-3 text-sm text-foreground/75"
+        >
+          <li>
+            <a
+              class="transition hover:text-foreground"
+              href="/sites/touring-cars"
+            >
+              Home
+            </a>
+          </li>
+          <li>
+            <a
+              class="transition hover:text-foreground"
+              href="/sites/touring-cars/estoque"
+            >
+              Estoque
+            </a>
+          </li>
+          <li>
+            <a
+              class="transition hover:text-foreground"
+              href="/sites/touring-cars/sobre"
+            >
+              Sobre
+            </a>
+          </li>
+          <li>
+            <a
+              class="transition hover:text-foreground"
+              href="/sites/touring-cars/contato"
+            >
+              Contato
+            </a>
+          </li>
+          <li>
+            <a
+              class="transition hover:text-foreground"
+              href="https://gasplab.com/lgpd"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Política de privacidade LGPD
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+  <section
+    aria-label="Bancos parceiros"
+    class="border-t border-foreground/10 py-6"
+    role="group"
+  >
+    <div
+      class="mx-auto flex max-w-7xl flex-col gap-4 px-4 md:px-8"
+    >
+      <h2
+        class="text-xs font-semibold uppercase tracking-normal text-foreground/55"
+      >
+        Bancos parceiros
+      </h2>
+      <ul
+        class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7"
+      >
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Santander"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/santander.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Santander
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Bradesco"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/bradesco.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Bradesco
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Itaú"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/itau.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Itaú
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="BV"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/bv.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              BV
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Banco PAN"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/pan.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Banco PAN
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Caixa"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/caixa.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Caixa
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Porto Bank"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/banks/porto.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Porto Bank
+            </span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+  <section
+    aria-label="Métodos de pagamento"
+    class="border-t border-foreground/10 py-6"
+    role="group"
+  >
+    <div
+      class="mx-auto flex max-w-7xl flex-col gap-4 px-4 md:px-8"
+    >
+      <h2
+        class="text-xs font-semibold uppercase tracking-normal text-foreground/55"
+      >
+        Métodos de pagamento
+      </h2>
+      <ul
+        class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6"
+      >
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Pix"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/payment/pix.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Pix
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Cartão"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/payment/cartao.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Cartão
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Financiamento"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/payment/financiamento.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Financiamento
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Troca"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/payment/troca.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Troca
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Boleto"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/payment/boleto.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Boleto
+            </span>
+          </div>
+        </li>
+        <li>
+          <div
+            class="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center"
+          >
+            <img
+              alt="Dinheiro"
+              class="size-10 object-contain"
+              data-nimg="1"
+              decoding="async"
+              height="40"
+              loading="lazy"
+              src="/assets/payment/dinheiro.svg"
+              style="color: transparent;"
+              width="40"
+            />
+            <span
+              aria-hidden="true"
+              class="text-xs font-medium text-foreground/60"
+            >
+              Dinheiro
+            </span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+  <div
+    class="border-t border-foreground/10"
+  >
+    <div
+      class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-center text-sm text-foreground/60 md:flex-row md:px-8 md:text-left"
+    >
+      <p>
+        © 
+        2026
+         
+        Touring Cars
+        . Todos os direitos reservados.
+      </p>
+      <a
+        class="font-medium text-foreground/70 transition hover:text-foreground"
+        href="https://gasplab.com"
+        rel="noopener noreferrer"
+        target="_blank"
+      >
+        Site por GaspLab
+      </a>
+    </div>
+  </div>
+</footer>
+`;

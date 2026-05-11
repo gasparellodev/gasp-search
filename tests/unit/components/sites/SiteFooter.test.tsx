@@ -1,9 +1,14 @@
+import { axe, toHaveNoViolations } from "jest-axe";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { BanksStrip } from "@/components/sites/BanksStrip";
+import { PaymentStrip } from "@/components/sites/PaymentStrip";
 import { SiteFooter } from "@/components/sites/SiteFooter";
 
 import { SITE_FIXTURE } from "./site-fixtures";
+
+expect.extend(toHaveNoViolations);
 
 const footerVars = {
   business_name: SITE_FIXTURE.business_name,
@@ -18,10 +23,74 @@ const footerVars = {
   youtube_url: SITE_FIXTURE.youtube_url,
   address: SITE_FIXTURE.address,
   hours: SITE_FIXTURE.hours,
-
 };
 
 describe("<SiteFooter />", () => {
+  it("renderiza layout 4 colunas com marca, NAP, horários e navegação", () => {
+    render(<SiteFooter variables={footerVars} />);
+
+    expect(screen.getByRole("heading", { name: "Contato" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Horários" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Navegação" })).toBeInTheDocument();
+
+    const footer = screen.getByTestId("site-footer");
+    expect(within(footer).getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/sites/touring-cars",
+    );
+    expect(
+      within(footer).getByRole("link", { name: "Política de privacidade LGPD" }),
+    ).toHaveAttribute("href", "https://gasplab.com/lgpd");
+  });
+
+  it("renderiza NAP completo em <address> semântico", () => {
+    render(<SiteFooter variables={footerVars} />);
+
+    const address = screen.getByTestId("site-footer-address");
+    expect(address.tagName).toBe("ADDRESS");
+    expect(within(address).getByText("Touring Cars")).toBeInTheDocument();
+    expect(within(address).getByText("(81) 3512-9411")).toBeInTheDocument();
+    expect(within(address).getByText("contato@touringcars.com.br")).toBeInTheDocument();
+    expect(
+      within(address).getByText(
+        "Av. Boa Viagem, 1000 - Boa Viagem, Recife - PE, 51020-000",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("usa fallback de horários quando variables.hours é null", () => {
+    render(<SiteFooter variables={{ ...footerVars, hours: null }} />);
+
+    expect(
+      screen.getByText("Segunda a Sexta: 09h-18h | Sábado: 09h-13h"),
+    ).toBeInTheDocument();
+  });
+
+  it("renderiza banks-strip, payment-methods e microbranding", () => {
+    render(<SiteFooter variables={footerVars} />);
+
+    expect(screen.getByRole("group", { name: "Bancos parceiros" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Santander" })).toHaveAttribute(
+      "src",
+      "/assets/banks/santander.svg",
+    );
+    expect(screen.getByRole("img", { name: "Porto Bank" })).toHaveAttribute(
+      "width",
+      "40",
+    );
+    expect(
+      screen.getByRole("group", { name: "Métodos de pagamento" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Pix" })).toHaveAttribute(
+      "src",
+      "/assets/payment/pix.svg",
+    );
+    expect(screen.getByRole("link", { name: "Site por GaspLab" })).toHaveAttribute(
+      "href",
+      "https://gasplab.com",
+    );
+  });
+
   it("renderiza copyright com ano corrente e business_name", () => {
     render(<SiteFooter variables={footerVars} />);
     const year = new Date().getFullYear().toString();
@@ -86,14 +155,6 @@ describe("<SiteFooter />", () => {
     expect(screen.getByText("(81) 3512-9411")).toBeInTheDocument();
   });
 
-  it("newsletter form é visual-only (input desabilitado, sem name)", () => {
-    render(<SiteFooter variables={footerVars} />);
-    const form = screen.getByTestId("newsletter-form");
-    const input = within(form).getByLabelText(/e-mail para newsletter/i);
-    expect(input).toBeDisabled();
-    expect(input).not.toHaveAttribute("name");
-  });
-
   it("omite address_line e hours quando ambos null", () => {
     render(
       <SiteFooter
@@ -103,15 +164,69 @@ describe("<SiteFooter />", () => {
     expect(
       screen.queryByText(/Av\. Boa Viagem/i),
     ).not.toBeInTheDocument();
-    expect(screen.queryByText(/Seg–Sex/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Segunda a Sexta/i)).toBeInTheDocument();
   });
 
-it("omite email quando null mas mantém phone_display e WhatsApp", () => {
+  it("omite email quando null mas mantém phone_display e WhatsApp", () => {
     render(<SiteFooter variables={{ ...footerVars, email: null }} />);
     expect(
       screen.queryByText("contato@touringcars.com.br"),
     ).not.toBeInTheDocument();
     expect(screen.getByText("(81) 3512-9411")).toBeInTheDocument();
     expect(screen.getByLabelText("WhatsApp")).toBeInTheDocument();
+  });
+
+  it("não tem violações axe-core (a11y runtime)", async () => {
+    const { container } = render(<SiteFooter variables={footerVars} />);
+    const results = await axe(container);
+
+    expect(results).toHaveNoViolations();
+  });
+
+  it("mantém snapshot estrutural do footer global", () => {
+    const { container } = render(<SiteFooter variables={footerVars} />);
+
+    expect(container.firstChild).toMatchSnapshot();
+  });
+});
+
+describe("<BanksStrip />", () => {
+  it("renderiza os 7 bancos com assets SVG estáveis", () => {
+    render(<BanksStrip />);
+
+    const banks = [
+      "Santander",
+      "Bradesco",
+      "Itaú",
+      "BV",
+      "Banco PAN",
+      "Caixa",
+      "Porto Bank",
+    ];
+    for (const bank of banks) {
+      const icon = screen.getByRole("img", { name: bank });
+      expect(icon).toHaveAttribute("width", "40");
+      expect(icon).toHaveAttribute("height", "40");
+    }
+  });
+});
+
+describe("<PaymentStrip />", () => {
+  it("renderiza os 6 métodos de pagamento com assets SVG estáveis", () => {
+    render(<PaymentStrip />);
+
+    const methods = [
+      "Pix",
+      "Cartão",
+      "Financiamento",
+      "Troca",
+      "Boleto",
+      "Dinheiro",
+    ];
+    for (const method of methods) {
+      const icon = screen.getByRole("img", { name: method });
+      expect(icon).toHaveAttribute("width", "40");
+      expect(icon).toHaveAttribute("height", "40");
+    }
   });
 });

@@ -1,10 +1,12 @@
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { Clock, Mail, MapPin, Phone } from "lucide-react";
 
-import { sanitizeHex } from "@/lib/sites/sanitize";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
+import { BanksStrip } from "./BanksStrip";
+import { PaymentStrip } from "./PaymentStrip";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -31,6 +33,8 @@ interface SiteFooterProps {
   variables: FooterVariables;
 }
 
+const FALLBACK_HOURS = "Segunda a Sexta: 09h-18h | Sábado: 09h-13h";
+
 /**
  * Renderiza o `Address` v2 nested como linha humana para o footer.
  * Retorna `null` se address é null (lead sem endereço estruturado).
@@ -39,19 +43,19 @@ function formatAddressLine(
   address: SiteVariablesV2["address"],
 ): string | null {
   if (!address) return null;
-  return `${address.street}, ${address.number} — ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zip}`;
+  return `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zip}`;
 }
 
 /**
- * Footer global do site público (Phase 7 — issue #161, v2 em #206).
+ * Footer global do site público (Phase 7 — issue #161, v2 em #206, G2 em #219).
  *
  * Layout:
- *   - 3 colunas no desktop: marca + sociais | contato | newsletter.
+ *   - 4 colunas no desktop: marca | contato/NAP | horários | navegação.
  *   - Empilhado em mobile.
  *
  * **v2 (#206):** consome `brand_assets` nested + `address` estruturado.
- *
- * Newsletter input é **visual-only** no MVP. Spec §15 não exige captura.
+ * **G2 (#219):** adiciona NAP semântico, banks strip, payment methods e
+ * microbranding GaspLab.
  *
  * Ícones sociais omitidos individualmente quando o URL é `null`.
  */
@@ -65,18 +69,17 @@ export function SiteFooter({ variables }: SiteFooterProps) {
     siteSlug: variables.business_slug,
     component: "footer",
   });
-  const safePrimary = sanitizeHex(brand_assets.primary_color);
-  const safeTextOnPrimary = sanitizeHex(brand_assets.text_on_primary);
   const addressLine = formatAddressLine(variables.address);
+  const hours = variables.hours ?? FALLBACK_HOURS;
 
   return (
     <footer
       data-testid="site-footer"
       className="mt-16 border-t border-foreground/10 bg-background"
     >
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-3 md:gap-8 md:px-8 md:py-16">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-4 md:gap-0 md:px-8 md:py-16">
         {/* Marca + sociais */}
-        <div className="space-y-6">
+        <div className="space-y-6 md:pr-8">
           <Image
             src={brand_assets.logo_url}
             alt={variables.business_name}
@@ -142,80 +145,122 @@ export function SiteFooter({ variables }: SiteFooterProps) {
           </ul>
         </div>
 
-        {/* Contato */}
-        <div className="space-y-4">
+        {/* NAP */}
+        <div className="space-y-4 md:border-l md:border-foreground/10 md:px-8">
           <h2 className="text-base font-semibold text-foreground">Contato</h2>
-          <ul className="space-y-3 text-sm text-foreground/80">
-            <li>
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 transition hover:text-foreground"
-              >
-                WhatsApp
-              </a>
-            </li>
+          <address
+            data-testid="site-footer-address"
+            className="space-y-3 text-sm not-italic text-foreground/80"
+          >
+            <p className="font-medium text-foreground">{variables.business_name}</p>
+            <a
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 transition hover:text-foreground"
+            >
+              <Phone className="size-4" aria-hidden />
+              WhatsApp
+            </a>
+            <p>{variables.phone_display}</p>
             {variables.email && (
-              <li>
+              <p>
                 <a
                   href={`mailto:${variables.email}`}
-                  className="transition hover:text-foreground"
+                  className="inline-flex items-center gap-2 transition hover:text-foreground"
                 >
+                  <Mail className="size-4" aria-hidden />
                   {variables.email}
                 </a>
-              </li>
+              </p>
             )}
-            <li>{variables.phone_display}</li>
             {addressLine && (
-              <li className="text-foreground/60">{addressLine}</li>
+              <p className="flex items-start gap-2 text-foreground/60">
+                <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>{addressLine}</span>
+              </p>
             )}
-            {variables.hours && (
-              <li className="text-foreground/60">{variables.hours}</li>
-            )}
-          </ul>
+          </address>
         </div>
 
-        {/* Newsletter — VISUAL ONLY no MVP */}
-        <div className="space-y-4">
-          <h2 className="text-base font-semibold text-foreground">Inscreva-se</h2>
-          <p className="text-sm text-foreground/70">
-            Informe seu email para receber as últimas novidades da{" "}
-            {variables.business_name}.
+        {/* Horários */}
+        <div className="space-y-4 md:border-l md:border-foreground/10 md:px-8">
+          <h2 className="text-base font-semibold text-foreground">Horários</h2>
+          <p className="flex items-start gap-2 text-sm text-foreground/70">
+            <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>{hours}</span>
           </p>
-          <form
-            data-testid="newsletter-form"
-            className="flex items-center gap-2"
-          >
-            <label htmlFor="newsletter-email" className="sr-only">
-              E-mail para newsletter
-            </label>
-            <input
-              id="newsletter-email"
-              type="email"
-              placeholder="E-mail"
-              autoComplete="off"
-              disabled
-              className="flex-1 rounded-md border border-foreground/15 bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 disabled:cursor-not-allowed disabled:opacity-60"
-            />
-            <button
-              type="button"
-              disabled
-              aria-label="Inscrever (em breve)"
-              data-testid="site-footer-newsletter-submit"
-              style={{ backgroundColor: safePrimary, color: safeTextOnPrimary }}
-              className="inline-flex size-10 items-center justify-center rounded-md transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              <ArrowRight className="size-5" aria-hidden />
-            </button>
-          </form>
+        </div>
+
+        {/* Navegação */}
+        <div className="space-y-4 md:border-l md:border-foreground/10 md:pl-8">
+          <h2 className="text-base font-semibold text-foreground">Navegação</h2>
+          <nav aria-label="Links do rodapé">
+            <ul className="space-y-3 text-sm text-foreground/75">
+              <li>
+                <Link
+                  href={`/sites/${variables.business_slug}`}
+                  className="transition hover:text-foreground"
+                >
+                  Home
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/sites/${variables.business_slug}/estoque`}
+                  className="transition hover:text-foreground"
+                >
+                  Estoque
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/sites/${variables.business_slug}/sobre`}
+                  className="transition hover:text-foreground"
+                >
+                  Sobre
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href={`/sites/${variables.business_slug}/contato`}
+                  className="transition hover:text-foreground"
+                >
+                  Contato
+                </Link>
+              </li>
+              <li>
+                <a
+                  href="https://gasplab.com/lgpd"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="transition hover:text-foreground"
+                >
+                  Política de privacidade LGPD
+                </a>
+              </li>
+            </ul>
+          </nav>
         </div>
       </div>
 
+      <BanksStrip />
+      <PaymentStrip />
+
       <div className="border-t border-foreground/10">
-        <p className="mx-auto max-w-7xl px-4 py-6 text-center text-sm text-foreground/60 md:px-8">
-          © {year} {variables.business_name}. Todos os direitos reservados.
-        </p>
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-center text-sm text-foreground/60 md:flex-row md:px-8 md:text-left">
+          <p>
+            © {year} {variables.business_name}. Todos os direitos reservados.
+          </p>
+          <a
+            href="https://gasplab.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-foreground/70 transition hover:text-foreground"
+          >
+            Site por GaspLab
+          </a>
+        </div>
       </div>
     </footer>
   );
