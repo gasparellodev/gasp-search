@@ -9,6 +9,11 @@ Adapter pattern para OpenAI APIs. Atualmente uma única integração:
 Cliente é server-only via `import "server-only"`. `OPENAI_API_KEY`
 jamais entra no bundle do cliente.
 
+`OPENAI_API_KEY` é **opcional** no schema (`lib/env.ts`) para permitir
+build em ambientes sem o secret (Vercel preview, CI sem secret).
+Validação acontece lazy em `getOpenAIClient()`: throw eloquente só
+quando algum code path tenta gerar imagem.
+
 ## Como adicionar
 
 - Cada integração tem um arquivo dedicado (`image-client.ts`,

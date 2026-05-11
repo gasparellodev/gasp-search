@@ -455,3 +455,37 @@ describe("getOpenAIClient", () => {
     expect(openaiState.constructorOptions).toHaveLength(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Lazy env validation (QA bloq #1 fix — Vercel/CI build sem OPENAI_API_KEY)
+// ---------------------------------------------------------------------------
+
+describe("getOpenAIClient — lazy env validation", () => {
+  it("throws clean error quando OPENAI_API_KEY undefined (boot continua, fail só ao usar)", async () => {
+    // OPENAI_API_KEY é opcional em lib/env.ts. Build (Vercel preview, CI
+    // sem secret) precisa bootar sem o secret. A validação acontece aqui,
+    // na primeira tentativa de gerar imagem — não no module boot.
+    const saved = process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+    vi.resetModules();
+
+    try {
+      const mod = await import("@/lib/openai/image-client");
+      mod.__resetOpenAIClient();
+      expect(() => mod.getOpenAIClient()).toThrow(
+        /OPENAI_API_KEY required for image generation/i,
+      );
+    } finally {
+      if (saved !== undefined) process.env.OPENAI_API_KEY = saved;
+      vi.resetModules();
+    }
+  });
+
+  it("não throws quando OPENAI_API_KEY presente (happy path)", async () => {
+    process.env.OPENAI_API_KEY = "sk-openai-test";
+    vi.resetModules();
+    const mod = await import("@/lib/openai/image-client");
+    mod.__resetOpenAIClient();
+    expect(() => mod.getOpenAIClient()).not.toThrow();
+  });
+});

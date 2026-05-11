@@ -132,6 +132,7 @@ jobs:
           APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'placeholder-openai' }}
       - if: steps.check.outputs.ready == 'true'
         run: npm run test:e2e
         env:
@@ -145,6 +146,7 @@ jobs:
           APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'placeholder-openai' }}
           # E2E Phase 7 sites (#166). Quando os secrets existirem +
           # apontarem pra Supabase real, os specs em tests/e2e/sites/
           # deixam de fazer test.skip e passam a rodar.
@@ -193,3 +195,4 @@ jobs:
           APIFY_WEBSITE_CONTACT_ACTOR_ID: vdrmota~contact-info-scraper
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY || 'placeholder-anthropic' }}
           ANTHROPIC_MODEL: claude-sonnet-4-6
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || 'placeholder-openai' }}

@@ -168,11 +168,22 @@ let clientSingleton: OpenAI | null = null;
  *
  * **`maxRetries: 0`** — caller decide retry via `ImageGenerationError.retryable`
  * (mais previsível que retry exponential interno do SDK).
+ *
+ * **Lazy env validation**: `env.OPENAI_API_KEY` é opcional no schema
+ * (`lib/env.ts`) para permitir build em ambientes sem o secret (Vercel
+ * preview, CI sem secret configurado). Se a key faltar no momento de
+ * gerar imagem, lança erro eloquente em vez de explodir no boot.
  */
 export function getOpenAIClient(): OpenAI {
   if (!clientSingleton) {
+    const apiKey = env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "OPENAI_API_KEY required for image generation. Set the env var em Vercel/CI antes de chamar code paths que geram imagem.",
+      );
+    }
     clientSingleton = new OpenAI({
-      apiKey: env.OPENAI_API_KEY,
+      apiKey,
       timeout: 120_000, // 120s — single image pode levar 60-90s
       maxRetries: 0,
     });
