@@ -17,6 +17,14 @@
  *  - #171 — "Enviar via WhatsApp" agora ATIVO em status `'published'` /
  *           `'sent'` (re-send permitido). Dispara `sendLeadSiteWhatsApp`
  *           com `useTransition` + toast.
+ *  - #217 — "Regenerar identidade visual" botão + `<AlertDialog>`
+ *           destrutivo (~R$ 2,45, ~9 imagens, até 90s) chamando
+ *           `regenerateVisualIdentity({force:true})` (#216). Visível só
+ *           em status `'published'`/`'sent'`. Toast por error code
+ *           (7 codes: auth/not_found/cost_guardrail/validation/
+ *           generation_error/storage_error/db_error) com mensagens PT-BR.
+ *           `router.refresh()` após sucesso (manifest novo entra no
+ *           próximo render do Server Component pai).
  */
 
 import { useState, useTransition } from "react";
@@ -28,6 +36,7 @@ import {
   ArchiveX,
   Copy,
   ExternalLink,
+  ImageIcon,
   Loader2,
   Pencil,
   RotateCcw,
@@ -39,16 +48,19 @@ import { toast } from "sonner";
 import {
   archiveLeadSite,
   generateLeadSite,
+  regenerateVisualIdentity,
   restoreLeadSite,
   sendLeadSiteWhatsApp,
 } from "@/app/actions/lead-site";
 import type {
   GenerateLeadSiteResult,
   LeadSiteStatusActionResult,
+  RegenerateVisualIdentityResult,
   SendLeadSiteWhatsAppResult,
 } from "@/app/actions/lead-site";
 import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { formatBRL } from "@/lib/finance";
 import { cn } from "@/lib/utils";
 
 import { LeadSiteEditModal } from "./LeadSiteEditModal";
@@ -137,6 +149,47 @@ function sendActionErrorMessage(
   }
 }
 
+/**
+ * Mapeia o `error` da Server Action `regenerateVisualIdentity` (#216) pra
+ * mensagem PT-BR — 7 códigos cobertos (issue #217).
+ *
+ * Decisões de mensagem (PO refinement #217):
+ *  - `auth`: "Sessão expirada. Faça login novamente." (padrão da casa).
+ *  - `not_found`: "Site não encontrado." (RLS bloqueou ou ID inexistente).
+ *  - `cost_guardrail`: cita "$2 USD" — caller que clicou esperava ~R$ 2,45;
+ *    se passou de $2 USD algo está errado (provavelmente muitos cars).
+ *  - `validation`: contexto (Zod issue) é PII-safe mas opaco pro user;
+ *    mensagem amigável + sugere retry.
+ *  - `generation_error`: rate-limit OpenAI / moderation persistente; orienta
+ *    aguardar 1 min (mesma cadência de #216 retry semantics).
+ *  - `storage_error`: Supabase Storage falhou; retry simples.
+ *  - `db_error`: UPDATE falhou pós-geração; manifest novo perdido mas as
+ *    imagens ficaram no Storage — orienta retry (idempotência com `force:true`
+ *    vai sobrescrever de novo).
+ */
+function regenerateErrorMessage(
+  error: RegenerateVisualIdentityResult & { ok: false },
+): string {
+  switch (error.error) {
+    case "auth":
+      return "Sessão expirada. Faça login novamente.";
+    case "not_found":
+      return "Site não encontrado.";
+    case "cost_guardrail":
+      return "Custo estimado excede o limite de US$ 2 por geração. Contate o suporte.";
+    case "validation":
+      return "Erro de validação interna no manifest gerado. Tente novamente.";
+    case "generation_error":
+      return "Falha ao gerar imagens (rate limit OpenAI ou moderação). Tente novamente em 1 minuto.";
+    case "storage_error":
+      return "Falha ao salvar as imagens no Storage. Tente novamente.";
+    case "db_error":
+      return "Imagens geradas mas falha ao persistir. Tente novamente.";
+    default:
+      return "Erro desconhecido ao regenerar a identidade visual.";
+  }
+}
+
 export function LeadSiteCardActions({
   leadSite,
   leadId,
@@ -147,8 +200,12 @@ export function LeadSiteCardActions({
   const [isArchiving, startArchiveTransition] = useTransition();
   const [isRestoring, startRestoreTransition] = useTransition();
   const [isSending, startSendTransition] = useTransition();
+  const [isRegeneratingIdentity, startRegenerateIdentityTransition] =
+    useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [regenerateIdentityDialogOpen, setRegenerateIdentityDialogOpen] =
+    useState(false);
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
 
   // ---------------------------------------------------------------
@@ -240,6 +297,43 @@ export function LeadSiteCardActions({
         }
       } catch {
         toast.error("Não foi possível enviar o site", {
+          description: "Erro inesperado. Tente novamente.",
+        });
+      }
+    });
+  }
+
+  function handleRegenerateIdentity() {
+    if (!leadSite) return;
+    startRegenerateIdentityTransition(async () => {
+      try {
+        // `force: true` — UI admin assume intenção "quero regerar mesmo
+        // se já existe manifest válido" (cobra ~R$ 2,45 cada).
+        const result = await regenerateVisualIdentity(leadSite.id, {
+          force: true,
+        });
+        if (result.ok) {
+          // Custo real do manifest novo. `cost_estimate_brl` é
+          // calculado server-side em `estimateTotalCost(specs).brl`
+          // (env.BRL_RATE × USD), então o usuário sempre vê o número
+          // exato, não a estimativa de UI (~R$ 2,45).
+          const formattedCost = formatBRL(result.manifest.cost_estimate_brl, {
+            fractionDigits: 2,
+          });
+          toast.success("Identidade visual regenerada", {
+            description: `Custo desta geração: ${formattedCost}.`,
+          });
+          setRegenerateIdentityDialogOpen(false);
+          // Server Component pai (`<LeadSiteCard />`) re-busca via
+          // `getSite()` → manifest novo flui pros 3 sections + OG image.
+          router.refresh();
+        } else {
+          toast.error("Não foi possível regenerar a identidade visual", {
+            description: regenerateErrorMessage(result),
+          });
+        }
+      } catch {
+        toast.error("Não foi possível regenerar a identidade visual", {
           description: "Erro inesperado. Tente novamente.",
         });
       }
@@ -429,6 +523,34 @@ export function LeadSiteCardActions({
             </>
           )}
         </Button>
+
+        <RegenerateIdentityConfirmDialog
+          open={regenerateIdentityDialogOpen}
+          onOpenChange={setRegenerateIdentityDialogOpen}
+          isRegenerating={isRegeneratingIdentity}
+          onConfirm={handleRegenerateIdentity}
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isRegeneratingIdentity}
+            aria-busy={isRegeneratingIdentity}
+            data-testid="lead-site-regen-identity-button"
+          >
+            {isRegeneratingIdentity ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                Gerando imagens (até 90s)…
+              </>
+            ) : (
+              <>
+                <ImageIcon className="size-4" aria-hidden="true" />
+                Regenerar identidade visual
+              </>
+            )}
+          </Button>
+        </RegenerateIdentityConfirmDialog>
       </div>
     </TooltipProvider>
   );
@@ -531,6 +653,121 @@ function ArchiveConfirmDialog({
                 </>
               ) : (
                 "Arquivar"
+              )}
+            </Button>
+          </div>
+        </AlertDialogPrimitive.Content>
+      </AlertDialogPrimitive.Portal>
+    </AlertDialogPrimitive.Root>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Confirm dialog destrutivo (Regenerar identidade visual) — issue #217
+// ---------------------------------------------------------------------------
+
+interface RegenerateIdentityConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isRegenerating: boolean;
+  onConfirm: () => void;
+  children: React.ReactNode;
+}
+
+/**
+ * `<AlertDialog>` (Radix) destrutivo que confirma a regeneração de
+ * identidade visual AI (#216, ~R$ 2,45/run, 9 imagens, até 90s).
+ *
+ * **Default focus em Cancelar** — Radix AlertDialog auto-focusa o
+ * primeiro `Cancel` por convenção (per spec axe). "Confirmar regeneração"
+ * fica em `variant="default"` mas o caller pode trocar pra destructive
+ * se preferir; mantemos default pra alinhar com Archive (consistência
+ * visual no card).
+ *
+ * Estilo segue o padrão Apple SK do app (alabaster card, border sutil).
+ * Acessibilidade vetada por jest-axe nos testes.
+ */
+function RegenerateIdentityConfirmDialog({
+  open,
+  onOpenChange,
+  isRegenerating,
+  onConfirm,
+  children,
+}: RegenerateIdentityConfirmDialogProps) {
+  return (
+    <AlertDialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <AlertDialogPrimitive.Trigger asChild>
+        {children}
+      </AlertDialogPrimitive.Trigger>
+      <AlertDialogPrimitive.Portal>
+        <AlertDialogPrimitive.Overlay
+          className={cn(
+            "fixed inset-0 z-50 bg-black/40",
+            "data-[state=open]:animate-in data-[state=open]:fade-in-0",
+            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0",
+          )}
+        />
+        <AlertDialogPrimitive.Content
+          data-testid="lead-site-regen-identity-dialog"
+          className={cn(
+            "fixed top-1/2 left-1/2 z-50 w-[min(28rem,calc(100vw-2rem))]",
+            "-translate-x-1/2 -translate-y-1/2",
+            "bg-card text-card-foreground",
+            "border border-border rounded-xl shadow-lg",
+            "p-6",
+            "data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+            "data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95",
+          )}
+        >
+          <AlertDialogPrimitive.Title className="text-lg font-semibold leading-none">
+            Regenerar identidade visual
+          </AlertDialogPrimitive.Title>
+          <AlertDialogPrimitive.Description className="text-muted-foreground mt-2 text-sm">
+            Isso vai gerar 9 imagens com IA custando aproximadamente
+            R$ 2,45. As imagens atuais serão substituídas.
+          </AlertDialogPrimitive.Description>
+          <p
+            className="text-muted-foreground mt-2 text-xs"
+            data-testid="lead-site-regen-identity-duration"
+          >
+            ⏱ Pode levar até 90 segundos.
+          </p>
+          <div className="mt-6 flex justify-end gap-2">
+            <AlertDialogPrimitive.Cancel asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isRegenerating}
+                data-testid="lead-site-regen-identity-cancel"
+              >
+                Cancelar
+              </Button>
+            </AlertDialogPrimitive.Cancel>
+            <Button
+              type="button"
+              size="sm"
+              onClick={(e) => {
+                // Mesma estratégia do Archive: handler controla
+                // `setRegenerateIdentityDialogOpen(false)` após sucesso
+                // pra mostrar o spinner durante a transition.
+                e.preventDefault();
+                onConfirm();
+              }}
+              disabled={isRegenerating}
+              aria-busy={isRegenerating}
+              data-testid="lead-site-regen-identity-confirm"
+            >
+              {isRegenerating ? (
+                <>
+                  <Loader2
+                    className="size-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                  Gerando imagens (até 90s)…
+                </>
+              ) : (
+                "Confirmar regeneração"
               )}
             </Button>
           </div>

@@ -97,9 +97,13 @@ export default async function SobrePage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="sobre"
+      manifest={site.visual_identity}
     >
       <SiteSchema schemas={breadcrumbSchema} />
-      <AboutSection variables={parsed.data} />
+      <AboutSection
+        variables={parsed.data}
+        manifestAboutUrl={site.visual_identity?.about_url ?? null}
+      />
     </SitePage>
   );
 }

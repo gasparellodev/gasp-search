@@ -15,6 +15,30 @@ componentes:
   receber `primary_color` / `text_on_primary` direto via prop como
   fallback (sanitizados via `sanitizeHex`).
 
+## Manifest de identidade visual (Sprint 2 / #A3 — #217)
+
+A Server Action `regenerateVisualIdentity` (#216) persiste um
+`VisualIdentityManifest` (9 URLs AI) em `lead_sites.visual_identity`.
+Os 3 Server Components consumem manifest **upstream via prop**, com
+fallback gracioso ao `brand_assets`:
+
+```ts
+// Pattern unificado (página upstream resolve, componente fica thin):
+const heroUrl   = manifest?.hero_url    ?? variables.brand_assets.hero_image_url;
+const aboutUrl  = manifest?.about_url   ?? variables.brand_assets.about_image_url;
+const contactUrl = manifest?.contact_url ?? variables.brand_assets.contact_image_url;
+```
+
+- **`<HomeHero hero_image_url>`** — `<SitePage manifest>` resolve.
+- **`<AboutSection manifestAboutUrl>`** — `/sobre/page.tsx` resolve.
+- **`<ContactSection manifestContactUrl>`** — `/contato/page.tsx` resolve.
+- **`opengraph-image.tsx`** — mesmo pattern para hero (manifest precedence).
+
+Sprint 4 (#H1/#H2/#H3) vai adicionar `<HomeWarrantySection>` /
+`<HomeTradeinWidget>` / `<HomeCategoriesCars>` que consomem
+`manifest.categories_urls[]`; **NÃO existe ainda** e fica fora do scope
+de #217. Componentes que ainda não foram criados não recebem override.
+
 ## Como adicionar
 
 - 1 arquivo por componente, em PascalCase (ex: `SiteHeader.tsx`).
@@ -86,7 +110,7 @@ em light mode, conflita com tema).
 
 | Path | Propósito |
 |---|---|
-| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 → M2.4 — issues #160 + #162 + #163).** Wrapper público de `/sites/[slug]` e sub-rotas. Recebe `{ variables, siteId, slug, activePage?, children? }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Sem `children`: compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) + `<SiteFooter>` (default M2.3). Com `children`: rendeza-os entre Header e Footer (M2.4 — `/sobre`, `/contato`, `/anunciar`). `activePage` (default `'home'`) propaga pro `<SiteHeader>` para destacar o link ativo no nav. |
+| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 → M2.4 — issues #160 + #162 + #163 + #217).** Wrapper público de `/sites/[slug]` e sub-rotas. Recebe `{ variables, siteId, slug, activePage?, children?, manifest? }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Sem `children`: compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) + `<SiteFooter>` (default M2.3). Com `children`: rendeza-os entre Header e Footer (M2.4 — `/sobre`, `/contato`, `/anunciar`). `activePage` (default `'home'`) propaga pro `<SiteHeader>` para destacar o link ativo no nav. **#217 (Sprint 2 / #A3):** `manifest?: VisualIdentityManifest \| null` (vindo de `site.visual_identity` parseado em `getSite()`) resolve `heroImageUrl = manifest?.hero_url ?? brand_assets.hero_image_url` e propaga pra `<HomeHero hero_image_url>`. Sub-rotas (sobre/contato) NÃO recebem o override pelo SitePage — elas passam o override diretamente pro `<AboutSection manifestAboutUrl>` / `<ContactSection manifestContactUrl>` (mesmo manifest, fields diferentes). |
 | `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. **Logo policy** (decisão 2026-05-09): renderiza `<Image>` quando `logo_url` é truthy; cai em texto estilizado (`<span>` com `business_name`) quando vazio/`null`. Permite leads sem logo real renderizando logotype textual sem tocar JSX. |
 | `MobileNav.tsx` | **Client Component.** Hambúrguer + menu dropdown com estado `open`. ESC fecha + foco volta ao botão. |
 | `SiteFooter.tsx` | Server Component. 3 colunas: marca/sociais, contato, newsletter (visual). Ícones sociais omitidos individualmente quando URL é `null`. Copyright com ano corrente. |

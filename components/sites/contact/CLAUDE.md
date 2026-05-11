@@ -41,7 +41,7 @@ Sub-componentes que compõem a página Contato do site público
 
 | Path | Propósito |
 |---|---|
-| `ContactSection.tsx` | Section principal: hero (image + h1 + canais + sociais) + form de captura. Recebe `Pick<SiteVariables, ...>` + `siteId` + `slug`. |
+| `ContactSection.tsx` | Section principal: hero (image + h1 + canais + sociais) + form de captura. Recebe `Pick<SiteVariables, ...>` + `siteId` + `slug` + opcional `manifestContactUrl?: string \| null` (#217). Pattern de URL: `manifestContactUrl ?? variables.brand_assets.contact_image_url`. Caller (`/contato/page.tsx`) deriva via `site.visual_identity?.contact_url ?? null`. |
 
 ## Boundary client/server
 

@@ -1,6 +1,23 @@
 "use server";
 
 /**
+ * **`maxDuration` (Sprint 2 / #A3 — issue #217):** o `'use server'`
+ * file SO pode exportar funções async (Next 16 valida em build), então
+ * `export const maxDuration = 90` aqui quebra o bundle. A solução
+ * canônica é declarar `export const maxDuration = 90` no **page que
+ * invoca a action** (`app/(app)/leads/[id]/page.tsx`) — a Vercel
+ * function host estende o limite da rota que monta o Client Component
+ * que dispara a Server Action.
+ *
+ * Server Action `regenerateVisualIdentity` (#216) chama OpenAI Images API
+ * em N=9 prompts (1 hero + 6 categories + 1 about + 1 contact) com
+ * `p-limit(env.OPENAI_IMAGE_CONCURRENCY ?? 2)`. Em Tier-1 OpenAI cada
+ * geração leva ~6-10s; com 2 lanes paralelas a wallclock fica entre
+ * 30-60s. 90s dá folga sobre o target (~60s) sem ultrapassar o limite
+ * Vercel Pro (300s).
+ */
+
+/**
  * Server Action `generateLeadSite(leadId)` — culminação do M1 do Phase 7
  * Site Generator (issue #159).
  *

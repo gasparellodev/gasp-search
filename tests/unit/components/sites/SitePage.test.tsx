@@ -76,4 +76,42 @@ describe("<SitePage />", () => {
       wrapper!.style.getPropertyValue("--site-primary"),
     ).toBe("#0C0C0C");
   });
+
+  // #217 — manifest fallback
+  it("manifest=null → HomeHero usa `brand_assets.hero_image_url`", () => {
+    render(
+      <SitePage
+        variables={SITE_FIXTURE}
+        siteId={SITE_ID}
+        slug={SLUG}
+        manifest={null}
+      />,
+    );
+    const img = screen.getByAltText(`Hero — ${SITE_FIXTURE.business_name}`);
+    expect(img.getAttribute("src")).toBe(
+      SITE_FIXTURE.brand_assets.hero_image_url,
+    );
+  });
+
+  it("manifest.hero_url presente → HomeHero usa manifest.hero_url (precedência)", () => {
+    const manifest = {
+      hero_url: "https://cdn.example.com/ai-hero.png",
+      categories_urls: ["https://cdn.example.com/ai-cat-1.png"],
+      about_url: "https://cdn.example.com/ai-about.png",
+      contact_url: "https://cdn.example.com/ai-contact.png",
+      generated_at: "2026-05-11T07:00:00.000Z",
+      model: "gpt-image-2-2026-04-21" as const,
+      cost_estimate_brl: 2.45,
+    };
+    render(
+      <SitePage
+        variables={SITE_FIXTURE}
+        siteId={SITE_ID}
+        slug={SLUG}
+        manifest={manifest}
+      />,
+    );
+    const img = screen.getByAltText(`Hero — ${SITE_FIXTURE.business_name}`);
+    expect(img.getAttribute("src")).toBe(manifest.hero_url);
+  });
 });

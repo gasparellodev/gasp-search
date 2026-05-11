@@ -136,11 +136,18 @@ export default async function Image({ params }: OgImageParams): Promise<Response
   const accent = sanitizeHex(variables.brand_assets.primary_color);
   const textOnPrimary = variables.brand_assets.text_on_primary;
 
-  // Hero image: usa `brand_assets.hero_image_url` se válido. ImageResponse
-  // do Next requer URL absoluta para fetch — paths `/...` precisam ser
-  // resolvidos contra a app URL. Em fallback, omitimos backgroundImage e
-  // ficamos no gradient.
-  const heroUrl = await resolveHeroUrl(variables.brand_assets.hero_image_url);
+  // Hero image: precedência (Sprint 2 / #A3 / #217)
+  //   1. `site.visual_identity.hero_url` (manifest AI gerado, persistido
+  //      por `regenerateVisualIdentity` em #216).
+  //   2. `variables.brand_assets.hero_image_url` (brand pipeline #156).
+  //
+  // ImageResponse do Next requer URL absoluta para fetch — paths `/...`
+  // precisam ser resolvidos contra a app URL. Em fallback total,
+  // omitimos backgroundImage e ficamos no gradient escuro.
+  const manifestHeroUrl = site.visual_identity?.hero_url ?? null;
+  const heroUrl = await resolveHeroUrl(
+    manifestHeroUrl ?? variables.brand_assets.hero_image_url,
+  );
 
   // Font: tentamos Geist via Vercel CDN; se fail, system font fallback.
   const fonts = await loadGeistFont();

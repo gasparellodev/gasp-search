@@ -11,6 +11,14 @@ type AboutVariables = Pick<
 
 interface AboutSectionProps {
   variables: AboutVariables;
+  /**
+   * URL override do banner Sobre (Sprint 2 / #A3 / issue #217). Quando
+   * presente, tem precedência sobre `variables.brand_assets.about_image_url`.
+   * O caller (`app/sites/[slug]/sobre/page.tsx`) deriva via
+   * `manifest?.about_url ?? variables.brand_assets.about_image_url`,
+   * mantendo este componente thin (uma única fonte de URL).
+   */
+  manifestAboutUrl?: string | null;
 }
 
 /**
@@ -25,13 +33,21 @@ interface AboutSectionProps {
  *
  * **v2 (#206):** `about_image_url` migrou para `brand_assets.about_image_url`.
  *
+ * **#217 (Sprint 2 / #A3):** `manifestAboutUrl` aceita override do
+ * `lead_sites.visual_identity.about_url` (banner AI gerado). Fallback
+ * graceful pra `variables.brand_assets.about_image_url` quando ausente.
+ *
  * **Anti-XSS (per spec §13)**: zero uso de `dangerouslySetInnerHTML`
  * e zero `react-markdown`. Os parágrafos vêm do split do texto IA,
  * renderizados como children React seguros.
  */
-export function AboutSection({ variables }: AboutSectionProps) {
+export function AboutSection({
+  variables,
+  manifestAboutUrl,
+}: AboutSectionProps) {
   const paragraphs = variables.about_text.split("\n\n").filter(Boolean);
-  const aboutImageUrl = variables.brand_assets.about_image_url;
+  const aboutImageUrl =
+    manifestAboutUrl ?? variables.brand_assets.about_image_url;
 
   return (
     <section data-testid="about-section" className="w-full bg-background">

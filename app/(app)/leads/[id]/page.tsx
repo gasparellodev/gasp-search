@@ -13,6 +13,21 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * `maxDuration = 90` — Sprint 2 / #A3 (issue #217).
+ *
+ * O `<LeadSiteCardActions>` aninhado nesta rota dispara a Server Action
+ * `regenerateVisualIdentity` (#216) que chama OpenAI Images API em 9
+ * prompts paralelos (`p-limit(env.OPENAI_IMAGE_CONCURRENCY ?? 2)`),
+ * com wallclock típico de 30-60s em Tier-1. Vercel Pro permite até
+ * 300s; 90s é folga sobre o target sem desperdiçar quota.
+ *
+ * Não pode ser declarado em `app/actions/lead-site.ts` — `'use server'`
+ * files só exportam funções async (Next 16 build error). O limite vive
+ * na rota que monta o Client Component que dispara a Action.
+ */
+export const maxDuration = 90;
+
 interface LeadDetailPageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;

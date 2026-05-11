@@ -33,6 +33,14 @@ interface ContactSectionProps {
   variables: ContactVariables;
   siteId: string;
   slug: string;
+  /**
+   * URL override do banner Contato (Sprint 2 / #A3 / issue #217). Quando
+   * presente, tem precedência sobre `variables.brand_assets.contact_image_url`.
+   * O caller (`app/sites/[slug]/contato/page.tsx`) deriva via
+   * `manifest?.contact_url ?? variables.brand_assets.contact_image_url`,
+   * mantendo este componente thin (uma única fonte de URL).
+   */
+  manifestContactUrl?: string | null;
 }
 
 function formatAddressLine(
@@ -52,6 +60,7 @@ export function ContactSection({
   variables,
   siteId,
   slug,
+  manifestContactUrl,
 }: ContactSectionProps) {
   const { brand_assets } = variables;
   const digits = variables.whatsapp.replace(/\D/g, "");
@@ -69,7 +78,9 @@ export function ContactSection({
     phoneDigits !== digits;
   const telHref = `tel:+${digits}`;
   const addressLine = formatAddressLine(variables.address);
-  const contactImageUrl = brand_assets.contact_image_url;
+  // #217 — manifest override tem precedência; fallback pro brand_assets v2.
+  const contactImageUrl =
+    manifestContactUrl ?? brand_assets.contact_image_url;
 
   return (
     <section data-testid="contact-section" className="w-full bg-background">

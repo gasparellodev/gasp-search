@@ -86,12 +86,14 @@ export default async function ContatoPage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="contato"
+      manifest={site.visual_identity}
     >
       <SiteSchema schemas={breadcrumbSchema} />
       <ContactSection
         variables={parsed.data}
         siteId={site.id}
         slug={site.slug}
+        manifestContactUrl={site.visual_identity?.contact_url ?? null}
       />
     </SitePage>
   );

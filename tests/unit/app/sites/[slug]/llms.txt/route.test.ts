@@ -63,6 +63,7 @@ function makeRow(opts: {
     status: opts.status ?? "published",
     variables: opts.variables ?? SITE_FIXTURE,
     signed_at: "signed_at" in opts ? (opts.signed_at ?? null) : SIGNED_AT,
+    visual_identity: null,
   };
 }
 
