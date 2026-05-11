@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { AssetSources } from "@/lib/sites/brand-assets.types";
 import {
   BUSINESS_NAME_MAX,
+  buildAddressFromLead,
   clampBusinessName,
   mergeSiteVariables,
 } from "@/lib/sites/merge";
 import type { Database } from "@/types/database";
 import type { SiteCopy } from "@/types/lead-site";
-import { SiteVariables } from "@/types/lead-site";
+import { SiteVariablesV2 } from "@/types/lead-site";
 
 type Lead = Database["public"]["Tables"]["leads"]["Row"];
 
@@ -145,19 +146,16 @@ function makeCopy(overrides: Partial<SiteCopy> = {}): SiteCopy {
 
 describe("clampBusinessName", () => {
   it("retorna o nome inalterado quando ≤ BUSINESS_NAME_MAX", () => {
-    
     expect(clampBusinessName("Auto Center Brasil")).toBe("Auto Center Brasil");
   });
 
   it("colapsa whitespace duplicado e trim", () => {
-    
     expect(clampBusinessName("  Auto   Center  Brasil  ")).toBe(
       "Auto Center Brasil",
     );
   });
 
   it("corta no separador ' - ' antes do limite (caso prod Apify Maps)", () => {
-    
     const longName =
       "Poliguara Car Multimarcas - Venda, Troca e Financiamento de Carros Novos e Semi-Novos. Poá-SP";
     expect(longName.length).toBeGreaterThan(BUSINESS_NAME_MAX);
@@ -165,7 +163,6 @@ describe("clampBusinessName", () => {
   });
 
   it("corta no ' | ' quando presente antes de outros separadores", () => {
-    
     const longName =
       "Concessionária ABC | Venda, troca e financiamento de carros novos e seminovos com garantia estendida";
     expect(longName.length).toBeGreaterThan(BUSINESS_NAME_MAX);
@@ -173,7 +170,6 @@ describe("clampBusinessName", () => {
   });
 
   it("hard-truncate com ellipsis quando não há separador natural", () => {
-    
     const longName = "A".repeat(120);
     const out = clampBusinessName(longName);
     expect(out.length).toBe(BUSINESS_NAME_MAX);
@@ -181,7 +177,6 @@ describe("clampBusinessName", () => {
   });
 
   it("nunca excede BUSINESS_NAME_MAX em saída", () => {
-    
     const cases = [
       "Curto",
       "A".repeat(80),
@@ -197,110 +192,194 @@ describe("clampBusinessName", () => {
 });
 
 // ---------------------------------------------------------------------------
+// buildAddressFromLead
+// ---------------------------------------------------------------------------
+
+describe("buildAddressFromLead", () => {
+  it("retorna null quando lead.city é null", () => {
+    expect(buildAddressFromLead(makeLead({ city: null }))).toBeNull();
+  });
+
+  it("retorna null quando lead.state é null", () => {
+    expect(buildAddressFromLead(makeLead({ state: null }))).toBeNull();
+  });
+
+  it("retorna null mesmo com city/state válidos (V1 admin completa)", () => {
+    // Decisão #197 PR-C: Apify Maps não traz street/number/neighborhood/zip
+    // estruturados — retornar null evita crash em SiteVariablesV2.parse.
+    // Admin completa via LeadSiteEditModal.
+    expect(buildAddressFromLead(makeLead())).toBeNull();
+  });
+
+  it("retorna null para state inválido (não-UF)", () => {
+    expect(buildAddressFromLead(makeLead({ state: "Pernambuco" }))).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // mergeSiteVariables — happy path + production bug regression
 // ---------------------------------------------------------------------------
 
-describe("mergeSiteVariables", () => {
-  it("happy path: SiteVariables.parse(merged) passa com fixtures válidas", () => {
-    
+describe("mergeSiteVariables — shape v2", () => {
+  it("happy path: SiteVariablesV2.parse(merged) passa com fixtures válidas", () => {
     const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy());
-    expect(() => SiteVariables.parse(merged)).not.toThrow();
+    const result = SiteVariablesV2.safeParse(merged);
+    if (!result.success) {
+      // Surface specific issues to help debug if test fails.
+      throw new Error(
+        `SiteVariablesV2.parse failed: ${result.error.issues
+          .map((i) => `${i.path.join(".")}: ${i.code} (${i.message})`)
+          .join("; ")}`,
+      );
+    }
+    expect(result.success).toBe(true);
+  });
+
+  it("schema_version literal 2", () => {
+    const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy()) as {
+      schema_version: number;
+    };
+    expect(merged.schema_version).toBe(2);
+  });
+
+  it("brand_assets nested com 6 campos canônicos + car_placeholders", () => {
+    const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy()) as {
+      brand_assets: {
+        logo_url: string;
+        primary_color: string;
+        text_on_primary: string;
+        hero_image_url: string;
+        about_image_url: string;
+        contact_image_url: string;
+        car_placeholders: string[];
+      };
+    };
+    expect(merged.brand_assets.logo_url).toBe("https://example.com/logo.png");
+    expect(merged.brand_assets.primary_color).toBe("#0a0a0a");
+    expect(merged.brand_assets.text_on_primary).toBe("#FFFFFF");
+    expect(merged.brand_assets.hero_image_url).toBe(
+      "https://example.com/hero.png",
+    );
+    expect(merged.brand_assets.about_image_url).toBe(
+      "https://example.com/about.png",
+    );
+    // Renomeio v1→v2: contact_hero_image_url → contact_image_url
+    expect(merged.brand_assets.contact_image_url).toBe(
+      "https://example.com/contact.png",
+    );
+    expect(merged.brand_assets.car_placeholders).toHaveLength(6);
+  });
+
+  it("address: null quando lead não tem city/state válidos", () => {
+    const merged = mergeSiteVariables(
+      makeLead({ city: null, state: null }),
+      makeAssets(),
+      makeCopy(),
+    ) as { address: unknown };
+    expect(merged.address).toBeNull();
+  });
+
+  it("address: null mesmo com city/state V1 (admin completa via modal)", () => {
+    const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy()) as {
+      address: unknown;
+    };
+    expect(merged.address).toBeNull();
+  });
+
+  it("nenhum campo flat v1 (address_line, hero_image_url top-level, etc)", () => {
+    const merged = mergeSiteVariables(
+      makeLead(),
+      makeAssets(),
+      makeCopy(),
+    ) as Record<string, unknown>;
+    // Esses keys devem ter saído pra dentro de brand_assets/address.
+    expect("address_line" in merged).toBe(false);
+    expect("hero_image_url" in merged).toBe(false);
+    expect("about_image_url" in merged).toBe(false);
+    expect("contact_hero_image_url" in merged).toBe(false);
+    expect("primary_color" in merged).toBe(false);
+    expect("text_on_primary" in merged).toBe(false);
+    expect("logo_url" in merged).toBe(false);
   });
 
   it("regression: lead.name com 94 chars (Apify Maps) não quebra parse", () => {
-    // Reproduz o bug exato observado em prod (lead 2dc85432-...) que
-    // levou ao `SiteVariablesValidationError` em 2026-05-09.
-    
     const lead = makeLead({
       name: "Poliguara Car Multimarcas - Venda, Troca e Financiamento de Carros Novos e Semi-Novos. Poá-SP",
     });
     const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.business_name).toBe("Poliguara Car Multimarcas");
     expect(parsed.business_name.length).toBeLessThanOrEqual(BUSINESS_NAME_MAX);
   });
 
   it("phone com formatação variada: produz whatsapp 10-13 dígitos", () => {
-    
     const lead = makeLead({
       phone: "+55 11 4380-3858",
       whatsapp: null,
     });
     const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.whatsapp).toBe("551143803858");
     expect(parsed.whatsapp).toMatch(/^\d{10,13}$/);
   });
 
   it("phone com mais de 13 dígitos: clampa pros 13 últimos (E.164 max)", () => {
-    
-    // 14 dígitos: "12345678901234". Esperado: últimos 13 = "2345678901234".
     const lead = makeLead({
       phone: "+1-234-567-8901-234",
       whatsapp: null,
     });
     const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.whatsapp).toBe("2345678901234");
     expect(parsed.whatsapp).toMatch(/^\d{10,13}$/);
   });
 
   it("instagram_handle null → instagram_url null", () => {
-    
     const lead = makeLead({ instagram_handle: null });
     const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.instagram_url).toBeNull();
   });
 
   it("instagram_handle com '@' inicial: strip antes de virar URL", () => {
-    
     const lead = makeLead({ instagram_handle: "@autocenter" });
     const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.instagram_url).toBe("https://instagram.com/autocenter");
   });
 
-  it("city/state null → address_line null", () => {
-    
-    const lead = makeLead({ city: null, state: null });
-    const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
-    expect(parsed.address_line).toBeNull();
-  });
-
   it("email null aceito (schema permite nullable)", () => {
-    
     const lead = makeLead({ email: null });
     const merged = mergeSiteVariables(lead, makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.email).toBeNull();
   });
 
-  it("cars[]: 4-6 entries com gallery_urls de 3 elementos", () => {
-    
+  it("cars[]: 4-6 entries com photos[] length 3 + plates_visible false", () => {
     const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.cars.length).toBeGreaterThanOrEqual(4);
     expect(parsed.cars.length).toBeLessThanOrEqual(6);
     for (const car of parsed.cars) {
-      expect(car.gallery_urls.length).toBeGreaterThanOrEqual(3);
+      expect(car.photos).toBeDefined();
+      expect(car.photos!.length).toBeGreaterThanOrEqual(3);
+      expect(car.plates_visible).toBe(false);
+      expect(car.category).toBe("Sedan");
     }
   });
 
   it("home_categories sempre length 3, recent_sales sempre length 3", () => {
-    
     const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.home_categories).toHaveLength(3);
     expect(parsed.recent_sales).toHaveLength(3);
   });
 
-  it("metadata: generated_by literal correto + generation_version não-vazio", () => {
-    
+  it("metadata: generated_by literal correto + generation_version + schema_version 2", () => {
     const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy());
-    const parsed = SiteVariables.parse(merged);
+    const parsed = SiteVariablesV2.parse(merged);
     expect(parsed.generated_by).toBe("claude-sonnet-4-6");
     expect(parsed.generation_version.length).toBeGreaterThan(0);
+    expect(parsed.schema_version).toBe(2);
   });
 });

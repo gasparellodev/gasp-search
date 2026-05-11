@@ -11,7 +11,7 @@ import userEvent from "@testing-library/user-event";
 
 import { LeadSiteEditModal } from "@/components/leads/LeadSiteEditModal";
 import type { LeadSiteCardData } from "@/components/leads/lead-site-card-types";
-import type { SiteVariables } from "@/types/lead-site";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 // ---------------------------------------------------------------------------
 // Hoisted mocks
@@ -40,23 +40,37 @@ vi.mock("sonner", () => ({
 // Fixtures
 // ---------------------------------------------------------------------------
 
-function makeVariables(): SiteVariables {
+function makeVariables(): SiteVariablesV2 {
   return {
+    // Identidade
     business_name: "Toyota Recife",
     business_slug: "toyota-recife",
     slogan: "Sua próxima conquista nas quatro rodas",
-    primary_color: "#0c5cff",
-    text_on_primary: "#FFFFFF",
-    logo_url: "https://example.com/logo.png",
-    whatsapp: "5581999999999",
+
+    // Contato
     phone_display: "(81) 99999-9999",
+    whatsapp: "5581999999999",
     email: "contato@example.com",
+    address: null,
+    hours: null,
+
+    // Social
     instagram_url: "https://instagram.com/example",
     facebook_url: null,
     youtube_url: null,
-    address_line: "Recife, PE",
-    hours: null,
-    hero_image_url: "https://example.com/hero.jpg",
+
+    // Visual (nested v2)
+    brand_assets: {
+      logo_url: "https://example.com/logo.png",
+      primary_color: "#0c5cff",
+      text_on_primary: "#FFFFFF",
+      hero_image_url: "https://example.com/hero.jpg",
+      about_image_url: "https://example.com/about.jpg",
+      contact_image_url: "https://example.com/contact.jpg",
+      car_placeholders: [],
+    },
+
+    // Conteúdo de página
     home_categories: [
       { label: "0km", image_url: "https://example.com/cat1.jpg" },
       { label: "Seminovos", image_url: "https://example.com/cat2.jpg" },
@@ -74,9 +88,10 @@ function makeVariables(): SiteVariables {
       { car_name: "Recente 2", image_url: "https://example.com/r2.jpg" },
       { car_name: "Recente 3", image_url: "https://example.com/r3.jpg" },
     ],
+
+    // Sobre
     about_text:
       "Somos uma concessionária familiar com paixão por carros. Cada cliente é tratado como parte da nossa história. Da escolha do modelo à assinatura do contrato, queremos que você se sinta em casa. Trabalhamos com financeiras parceiras pra que o sonho do carro novo caiba no seu bolso.",
-    about_image_url: "https://example.com/about.jpg",
     mission:
       "Tornar a compra do próximo carro uma experiência transparente, ágil e humana.",
     vision:
@@ -87,7 +102,8 @@ function makeVariables(): SiteVariables {
       "Procedência conhecida",
       "Atendimento humano sem roteiro",
     ],
-    contact_hero_image_url: "https://example.com/contact.jpg",
+
+    // Estoque v2
     cars: Array.from({ length: 4 }, (_, i) => ({
       slug: `car-${i + 1}`,
       brand: "Toyota",
@@ -106,11 +122,21 @@ function makeVariables(): SiteVariables {
         `https://example.com/g${i + 1}-2.jpg`,
         `https://example.com/g${i + 1}-3.jpg`,
       ],
+      photos: [
+        `https://example.com/g${i + 1}-1.jpg`,
+        `https://example.com/g${i + 1}-2.jpg`,
+        `https://example.com/g${i + 1}-3.jpg`,
+      ],
       datasheet: [["Câmbio", "Automático"]] as Array<[string, string]>,
       featured: i === 0,
+      category: "Sedan" as const,
+      plates_visible: false as const,
     })),
-    generated_by: "claude-sonnet-4-6" as const,
-    generation_version: "v1.0.0",
+
+    // Metadata
+    schema_version: 2,
+    generated_by: "claude-sonnet-4-6",
+    generation_version: "v2.0.0",
   };
 }
 
@@ -461,6 +487,179 @@ describe("LeadSiteEditModal — add car edge cases", () => {
     // Tenta clicar mesmo assim — não deve adicionar
     await user.click(addBtn).catch(() => {});
     expect(screen.getAllByTestId(/lead-site-edit-car-\d+$/).length).toBe(6);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #197 PR-C — v2 shape (address nested, brand_assets nested, cars v2 fields)
+// ---------------------------------------------------------------------------
+
+describe("LeadSiteEditModal — #197 PR-C v2 shape", () => {
+  it("submit edita brand_assets.primary_color e envia objeto brand_assets inteiro", async () => {
+    const user = userEvent.setup();
+    hoisted.updateLeadSiteVariables.mockResolvedValue({
+      ok: true,
+      slug: "j7k2p9-toyota-recife",
+    });
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    const primary = screen.getByLabelText("Cor primária") as HTMLInputElement;
+    await user.clear(primary);
+    await user.type(primary, "#abcdef");
+
+    await user.click(screen.getByTestId("lead-site-edit-submit"));
+    await waitFor(() => {
+      expect(hoisted.updateLeadSiteVariables).toHaveBeenCalledTimes(1);
+    });
+    const [, patch] = hoisted.updateLeadSiteVariables.mock.calls[0]!;
+    const patchObj = patch as { brand_assets?: { primary_color: string } };
+    // Server Action faz shallow merge top-level — patch envia brand_assets inteiro.
+    expect(patchObj.brand_assets).toBeDefined();
+    expect(patchObj.brand_assets!.primary_color).toBe("#abcdef");
+  });
+
+  it("address default null com checkbox 'indisponível' marcado", () => {
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    // makeVariables() retorna address: null → checkbox deve estar marcado.
+    const checkbox = screen.getByTestId(
+      "lead-site-edit-address-disabled",
+    ) as HTMLInputElement;
+    expect(checkbox.checked).toBe(true);
+  });
+
+  it("desmarcar 'indisponível' renderiza 6 campos de endereço", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    const checkbox = screen.getByTestId(
+      "lead-site-edit-address-disabled",
+    ) as HTMLInputElement;
+    await user.click(checkbox);
+    expect(screen.getByLabelText("Rua")).toBeInTheDocument();
+    expect(screen.getByLabelText("Número")).toBeInTheDocument();
+    expect(screen.getByLabelText("Bairro")).toBeInTheDocument();
+    expect(screen.getByLabelText("Cidade")).toBeInTheDocument();
+    expect(screen.getByLabelText("UF")).toBeInTheDocument();
+    expect(screen.getByLabelText("CEP")).toBeInTheDocument();
+  });
+
+  it("cars[].category select tem 6 opções do enum v2", () => {
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    // Carro 0 (índice 0) → "Categoria" → 6 opções.
+    const categorySelects = screen.getAllByLabelText("Categoria");
+    expect(categorySelects.length).toBeGreaterThanOrEqual(4);
+    const firstSelect = categorySelects[0] as HTMLSelectElement;
+    const options = Array.from(firstSelect.options).map((o) => o.value);
+    expect(options).toEqual([
+      "SUV",
+      "Sedan",
+      "Hatch",
+      "Pickup",
+      "Esportivo",
+      "Conversível",
+    ]);
+  });
+
+  it("cars[].doors select tem opção 'não informar' + 2/3/4/5", () => {
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    const doorsSelects = screen.getAllByLabelText("Portas");
+    expect(doorsSelects.length).toBeGreaterThanOrEqual(4);
+    const firstSelect = doorsSelects[0] as HTMLSelectElement;
+    const options = Array.from(firstSelect.options).map((o) => o.value);
+    expect(options).toEqual(["", "2", "3", "4", "5"]);
+  });
+
+  it("cars[].plates_visible NÃO aparece como campo editável (compliance — hidden + readonly)", () => {
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    // Hidden inputs presentes (1 por carro).
+    const hiddens = screen.getAllByTestId(/lead-site-edit-car-\d+-plates-hidden/);
+    expect(hiddens.length).toBeGreaterThanOrEqual(4);
+    for (const h of hiddens) {
+      const input = h as HTMLInputElement;
+      expect(input.type).toBe("hidden");
+      expect(input.value).toBe("false");
+      expect(input.readOnly).toBe(true);
+    }
+  });
+
+  it("VIN inválido (não-17-chars) bloqueia submit com erro de validação", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    const vinInputs = screen.getAllByLabelText("VIN/Chassi");
+    const firstVin = vinInputs[0] as HTMLInputElement;
+    await user.clear(firstVin);
+    await user.type(firstVin, "123"); // 3 chars — não passa regex 17.
+
+    await user.click(screen.getByTestId("lead-site-edit-submit"));
+    await waitFor(() => {
+      expect(firstVin).toHaveAttribute("aria-invalid", "true");
+    });
+    expect(hoisted.updateLeadSiteVariables).not.toHaveBeenCalled();
+  });
+
+  it("VIN vazio é tratado como undefined (optional) — submit flui", async () => {
+    const user = userEvent.setup();
+    hoisted.updateLeadSiteVariables.mockResolvedValue({
+      ok: true,
+      slug: "j7k2p9-toyota-recife",
+    });
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={() => {}}
+      />,
+    );
+    // VIN inputs estão vazios por default em makeVariables (não tem vin).
+    // Vamos editar slogan pra disparar isDirty.
+    const slogan = screen.getByLabelText("Slogan") as HTMLInputElement;
+    await user.clear(slogan);
+    await user.type(slogan, "Outro slogan que dispara dirty fields aqui");
+
+    await user.click(screen.getByTestId("lead-site-edit-submit"));
+    await waitFor(() => {
+      expect(hoisted.updateLeadSiteVariables).toHaveBeenCalledTimes(1);
+    });
   });
 });
 

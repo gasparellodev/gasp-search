@@ -835,16 +835,18 @@ describe("generateLeadSite — AC7 URL sanitization", () => {
     expect(r.ok).toBe(true);
 
     const upsert = service.upsertCalls.find((c) => c.table === "lead_sites")!;
-    const variables = (upsert.payload as { variables: Record<string, string> })
+    const variables = (upsert.payload as { variables: Record<string, unknown> })
       .variables;
 
-    expect(variables.logo_url).not.toMatch(/^javascript:/i);
-    expect(variables.hero_image_url).not.toMatch(/^data:/i);
-    expect(variables.contact_hero_image_url).not.toMatch(/^file:/i);
+    // v2 (#197 PR-C): URLs visuais agora estão em brand_assets.
+    const ba = variables.brand_assets as Record<string, string>;
+    expect(ba.logo_url).not.toMatch(/^javascript:/i);
+    expect(ba.hero_image_url).not.toMatch(/^data:/i);
+    expect(ba.contact_image_url).not.toMatch(/^file:/i);
     // Os 3 viraram fallback (mas todos são URLs https válidas)
-    expect(variables.logo_url).toMatch(/^https?:/);
-    expect(variables.hero_image_url).toMatch(/^https?:/);
-    expect(variables.contact_hero_image_url).toMatch(/^https?:/);
+    expect(ba.logo_url).toMatch(/^https?:/);
+    expect(ba.hero_image_url).toMatch(/^https?:/);
+    expect(ba.contact_image_url).toMatch(/^https?:/);
   });
 });
 
@@ -906,8 +908,9 @@ describe("generateLeadSite — AC8 schema validation", () => {
 
     const upsert = service.upsertCalls.find((c) => c.table === "lead_sites")!;
     const variables = (upsert.payload as { variables: unknown }).variables;
-    const { SiteVariables } = await import("@/types/lead-site");
-    expect(() => SiteVariables.parse(variables)).not.toThrow();
+    // v2 (#197 PR-C): output canônico é SiteVariablesV2.
+    const { SiteVariablesV2 } = await import("@/types/lead-site");
+    expect(() => SiteVariablesV2.parse(variables)).not.toThrow();
   });
 });
 
@@ -1161,26 +1164,42 @@ describe("generateLeadSite — branches defensivas (cobertura)", () => {
 const LEAD_SITE_ID = "33333333-3333-4333-8333-333333333333";
 
 /**
- * Variáveis completas válidas pra `SiteVariables.parse`. Usadas como
- * `current` no merge — qualquer patch shallow precisa reaprovar o schema.
+ * Variáveis completas válidas pra `SiteVariablesV2.parse` (issue #197 PR-C).
+ * Usadas como `current` no merge — qualquer patch shallow precisa reaprovar
+ * o schema. Shape v2 nested (`brand_assets`, `address` nullable, `cars[]`
+ * com v2 fields).
  */
 function makeFullVariables() {
   return {
+    // Identidade
     business_name: "Toyota Recife",
     business_slug: "toyota-recife",
     slogan: "Sua próxima conquista nas quatro rodas",
-    primary_color: "#0c5cff",
-    text_on_primary: "#FFFFFF" as const,
-    logo_url: "https://example.com/logo.png",
-    whatsapp: "5581999999999",
+
+    // Contato
     phone_display: "(81) 99999-9999",
+    whatsapp: "5581999999999",
     email: "contato@example.com",
+    address: null,
+    hours: null,
+
+    // Social
     instagram_url: "https://instagram.com/example",
     facebook_url: null,
     youtube_url: null,
-    address_line: "Recife, PE",
-    hours: null,
-    hero_image_url: "https://example.com/hero.jpg",
+
+    // Visual (nested em brand_assets — v2)
+    brand_assets: {
+      logo_url: "https://example.com/logo.png",
+      primary_color: "#0c5cff",
+      text_on_primary: "#FFFFFF" as const,
+      hero_image_url: "https://example.com/hero.jpg",
+      about_image_url: "https://example.com/about.jpg",
+      contact_image_url: "https://example.com/contact.jpg",
+      car_placeholders: [] as string[],
+    },
+
+    // Conteúdo de página
     home_categories: [
       { label: "0km", image_url: "https://example.com/cat1.jpg" },
       { label: "Seminovos", image_url: "https://example.com/cat2.jpg" },
@@ -1198,9 +1217,10 @@ function makeFullVariables() {
       { car_name: "R2", image_url: "https://example.com/r2.jpg" },
       { car_name: "R3", image_url: "https://example.com/r3.jpg" },
     ],
+
+    // Sobre
     about_text:
       "Somos uma concessionária familiar com paixão por carros. Cada cliente é tratado como parte da nossa história. Da escolha do modelo à assinatura do contrato, queremos que você se sinta em casa. Trabalhamos com financeiras parceiras pra que o sonho do carro novo caiba no seu bolso.",
-    about_image_url: "https://example.com/about.jpg",
     mission:
       "Tornar a compra do próximo carro uma experiência transparente, ágil e humana.",
     vision:
@@ -1211,7 +1231,8 @@ function makeFullVariables() {
       "Procedência conhecida",
       "Atendimento humano sem roteiro",
     ],
-    contact_hero_image_url: "https://example.com/contact.jpg",
+
+    // Estoque v2
     cars: Array.from({ length: 4 }, (_, i) => ({
       slug: `car-${i + 1}`,
       brand: "Toyota",
@@ -1230,11 +1251,21 @@ function makeFullVariables() {
         `https://example.com/g${i + 1}-2.jpg`,
         `https://example.com/g${i + 1}-3.jpg`,
       ],
+      photos: [
+        `https://example.com/g${i + 1}-1.jpg`,
+        `https://example.com/g${i + 1}-2.jpg`,
+        `https://example.com/g${i + 1}-3.jpg`,
+      ],
       datasheet: [["Câmbio", "Automático"]] as Array<[string, string]>,
       featured: i === 0,
+      category: "Sedan" as const,
+      plates_visible: false as const,
     })),
+
+    // Metadata
+    schema_version: 2 as const,
     generated_by: "claude-sonnet-4-6" as const,
-    generation_version: "v1.0.0",
+    generation_version: "v2.0.0",
   };
 }
 
@@ -1283,7 +1314,10 @@ describe("updateLeadSiteVariables — happy path", () => {
     const variables = payload.variables as Record<string, unknown>;
     expect(variables.slogan).toBe("Slogan novo e diferente do original aqui");
     expect(variables.business_name).toBe(current.business_name);
-    expect(variables.primary_color).toBe(current.primary_color);
+    // v2 (#197 PR-C): primary_color vive dentro de brand_assets.
+    expect(
+      (variables.brand_assets as { primary_color: string }).primary_color,
+    ).toBe(current.brand_assets.primary_color);
     expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
 
     expect(cacheMocks.updateTag).toHaveBeenCalledWith(
@@ -1416,7 +1450,16 @@ describe("updateLeadSiteVariables — validation + URL sanitization", () => {
     );
     const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
       // cor com 4 dígitos não passa no regex hex 6 — partial parse falha.
-      primary_color: "#abc",
+      // v2 (#197 PR-C): primary_color vive dentro de brand_assets.
+      brand_assets: {
+        logo_url: "https://example.com/logo.png",
+        primary_color: "#abc",
+        text_on_primary: "#FFFFFF",
+        hero_image_url: "https://example.com/hero.jpg",
+        about_image_url: "https://example.com/about.jpg",
+        contact_image_url: "https://example.com/contact.jpg",
+        car_placeholders: [],
+      },
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toBe("validation");
@@ -1477,8 +1520,17 @@ describe("updateLeadSiteVariables — validation + URL sanitization", () => {
       "@/app/actions/lead-site"
     );
     const r = await updateLeadSiteVariables(LEAD_SITE_ID, {
-      // logo_url é non-nullable; safeUrl null → SiteVariables.parse falha.
-      logo_url: "javascript:alert(1)",
+      // brand_assets.logo_url é non-nullable; safeUrl null → SiteVariablesV2.parse falha.
+      // v2 (#197 PR-C): logo_url vive dentro de brand_assets.
+      brand_assets: {
+        logo_url: "javascript:alert(1)",
+        primary_color: "#0c5cff",
+        text_on_primary: "#FFFFFF",
+        hero_image_url: "https://example.com/hero.jpg",
+        about_image_url: "https://example.com/about.jpg",
+        contact_image_url: "https://example.com/contact.jpg",
+        car_placeholders: [],
+      },
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toBe("validation");
