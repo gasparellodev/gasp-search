@@ -40,6 +40,14 @@ export interface SiteRow {
   status: "draft" | "published" | "sent" | "archived";
   /** Validar via `SiteVariables.safeParse` antes do render. */
   variables: unknown;
+  /**
+   * Momento de assinatura do contrato pelo cliente (issue #199, migration
+   * 0018). `null` até confirmação manual via admin. Habilita o gate
+   * `isIndexable(site)` em `lib/sites/metadata.ts` que controla
+   * `robots.index` nas 6 rotas `/sites/[slug]/*`. Distinto de
+   * `published_at` (publicação técnica) e `sent_at` (envio do preview).
+   */
+  signed_at: string | null;
 }
 
 export async function getSite(slug: string): Promise<SiteRow | null> {
@@ -50,7 +58,7 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
   const supa = createServiceSupabase();
   const { data, error } = await supa
     .from("lead_sites")
-    .select("id, slug, status, variables")
+    .select("id, slug, status, variables, signed_at")
     .eq("slug", slug)
     .maybeSingle();
 

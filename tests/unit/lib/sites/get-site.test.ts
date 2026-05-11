@@ -126,7 +126,9 @@ describe("getSite (lib/sites/get-site.ts)", () => {
 
     await getSite(SLUG);
     expect(handles.from).toHaveBeenCalledWith("lead_sites");
-    expect(handles.select).toHaveBeenCalledWith("id, slug, status, variables");
+    expect(handles.select).toHaveBeenCalledWith(
+      "id, slug, status, variables, signed_at",
+    );
     expect(handles.eq).toHaveBeenCalledWith("slug", SLUG);
   });
 });

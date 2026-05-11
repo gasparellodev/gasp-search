@@ -28,8 +28,9 @@ const SLUG = "j7k2p9-touring-cars";
 function makeRow(
   status: "draft" | "published" | "sent" | "archived",
   variables: SiteVariablesV2 = SITE_FIXTURE,
+  signed_at: string | null = null,
 ) {
-  return { id: SITE_ID, slug: SLUG, status, variables };
+  return { id: SITE_ID, slug: SLUG, status, variables, signed_at };
 }
 
 beforeEach(() => {
@@ -106,7 +107,7 @@ describe("/sites/[slug]/contato — routing", () => {
 });
 
 describe("/sites/[slug]/contato — generateMetadata (#165)", () => {
-  it("happy path: published → title `${business_name} — Contato` + noindex preservado", async () => {
+  it("happy path: published → city-aware title + noindex preservado (signed_at null)", async () => {
     getSiteMock.mockResolvedValue(makeRow("published"));
     const { generateMetadata } = await import(
       "@/app/sites/[slug]/contato/page"
@@ -116,10 +117,16 @@ describe("/sites/[slug]/contato — generateMetadata (#165)", () => {
       params: Promise.resolve({ slug: SLUG }),
     });
 
-    expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Contato`);
+    // #199 city-aware: "Contato <name> — <city>, <state>"
+    expect(meta.title).toBe(
+      `Contato ${SITE_FIXTURE.business_name} — ${SITE_FIXTURE.address!.city}, ${SITE_FIXTURE.address!.state}`,
+    );
     expect(meta.robots).toEqual({ index: false, follow: false });
     expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+    expect(meta.alternates?.canonical).toBe(
+      `http://localhost:3000/sites/${SITE_FIXTURE.business_slug}/contato`,
+    );
   });
 
   it("fallback path: getSite null → APENAS noindex", async () => {

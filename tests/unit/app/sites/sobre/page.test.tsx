@@ -34,8 +34,9 @@ const SLUG = "j7k2p9-touring-cars";
 function makeRow(
   status: "draft" | "published" | "sent" | "archived",
   variables: SiteVariablesV2 = SITE_FIXTURE,
+  signed_at: string | null = null,
 ) {
-  return { id: SITE_ID, slug: SLUG, status, variables };
+  return { id: SITE_ID, slug: SLUG, status, variables, signed_at };
 }
 
 beforeEach(() => {
@@ -103,7 +104,7 @@ describe("/sites/[slug]/sobre — routing", () => {
 });
 
 describe("/sites/[slug]/sobre — generateMetadata (#165)", () => {
-  it("happy path: published → title `${business_name} — Sobre nós` + noindex preservado", async () => {
+  it("happy path: published → city-aware title + noindex preservado (signed_at null)", async () => {
     getSiteMock.mockResolvedValue(makeRow("published"));
     const { generateMetadata } = await import(
       "@/app/sites/[slug]/sobre/page"
@@ -113,10 +114,30 @@ describe("/sites/[slug]/sobre — generateMetadata (#165)", () => {
       params: Promise.resolve({ slug: SLUG }),
     });
 
-    expect(meta.title).toBe(`${SITE_FIXTURE.business_name} — Sobre nós`);
+    // #199 city-aware: "Sobre <name> — Loja em <city>"
+    expect(meta.title).toBe(
+      `Sobre ${SITE_FIXTURE.business_name} — Loja em ${SITE_FIXTURE.address!.city}`,
+    );
+    // signed_at null → noindex preservado.
     expect(meta.robots).toEqual({ index: false, follow: false });
     expect(meta.openGraph?.images).toEqual([{ url: SITE_FIXTURE.brand_assets.logo_url }]);
     expect((meta.twitter as { card: string }).card).toBe("summary_large_image");
+  });
+
+  it("#199 — published + signed_at set → robots index:true", async () => {
+    getSiteMock.mockResolvedValue(makeRow("published", SITE_FIXTURE, "2026-05-10"));
+    const { generateMetadata } = await import(
+      "@/app/sites/[slug]/sobre/page"
+    );
+
+    const meta = await generateMetadata({
+      params: Promise.resolve({ slug: SLUG }),
+    });
+
+    expect(meta.robots).toEqual({ index: true, follow: true });
+    expect(meta.alternates?.canonical).toBe(
+      `http://localhost:3000/sites/${SITE_FIXTURE.business_slug}/sobre`,
+    );
   });
 
   it("fallback path: getSite null → APENAS noindex", async () => {

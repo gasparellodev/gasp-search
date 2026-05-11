@@ -45,6 +45,9 @@ export async function generateMetadata({
   return buildSiteMetadata({
     variables: parsed.data,
     pageLabel: "Contato",
+    site,
+    pathname: "/contato",
+    route: { kind: "contato" },
   });
 }
 
