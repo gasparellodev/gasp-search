@@ -9,14 +9,19 @@ import { cn } from "@/lib/utils";
 
 import { SiteFooter } from "./SiteFooter";
 import { SiteHeader } from "./SiteHeader";
+import { HomeBanksPartners } from "./home/HomeBanksPartners";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
-import { HomeEmphasis } from "./home/HomeEmphasis";
+import { HomeContactFormQuick } from "./home/HomeContactFormQuick";
+import { HomeFAQSection } from "./home/HomeFAQSection";
 import { HomeFinancingWidget } from "./home/HomeFinancingWidget";
-import { HomeForm } from "./home/HomeForm";
+import { HomeGoogleReviewsEmbed } from "./home/HomeGoogleReviewsEmbed";
 import { HomeHero } from "./home/HomeHero";
+import { HomeProcess3Steps } from "./home/HomeProcess3Steps";
 import { HomeRecentArrivals } from "./home/HomeRecentArrivals";
+import { HomeTestimonialsGrid } from "./home/HomeTestimonialsGrid";
 import { HomeTradeinWidget } from "./home/HomeTradeinWidget";
 import { HomeTrustStrip } from "./home/HomeTrustStrip";
+import { HomeWarrantySection } from "./home/HomeWarrantySection";
 import { RoadDivider } from "./RoadDivider";
 import type { ActivePage } from "./site-nav-links";
 
@@ -167,13 +172,30 @@ export function SitePage({
               whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
             />
-            <HomeForm
-              siteId={siteId}
-              slug={slug}
-              primary_color={brand_assets.primary_color}
-              text_on_primary={brand_assets.text_on_primary}
+            {/* H3 (#223) — 7 sections finais da Home V2. Ordem visual: warranty →
+                process → banks → testimonials → faq → google-reviews → contact. */}
+            <HomeWarrantySection
+              businessName={variables.business_name}
+              manifestAboutUrl={manifest?.about_url ?? null}
+              aboutImageUrl={brand_assets.about_image_url}
             />
-            <HomeEmphasis emphasis={variables.emphasis} />
+            <HomeProcess3Steps />
+            <HomeBanksPartners />
+            <HomeTestimonialsGrid
+              testimonials={variables.testimonials}
+              primary_color={brand_assets.primary_color}
+            />
+            <HomeFAQSection />
+            <HomeGoogleReviewsEmbed
+              rating={rating}
+              reviewsCount={reviewsCount}
+              primary_color={brand_assets.primary_color}
+            />
+            <HomeContactFormQuick
+              siteId={siteId}
+              businessName={variables.business_name}
+              slug={slug}
+            />
           </>
         )}
       </main>

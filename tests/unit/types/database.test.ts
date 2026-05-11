@@ -131,7 +131,7 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 11 tabelas esperadas (incluindo generation_throttle do M1.7)", () => {
+  it("Database['public']['Tables'] cobre as 12 tabelas esperadas (incluindo lead_form_submissions do H3 #223)", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
       | "profiles"
@@ -140,6 +140,7 @@ describe("types/database", () => {
       | "leads"
       | "lead_tags"
       | "lead_messages"
+      | "lead_form_submissions"
       | "whatsapp_instances"
       | "campaigns"
       | "campaign_targets"

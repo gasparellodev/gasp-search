@@ -8,6 +8,10 @@
  *  - `model`: modelo de carro de interesse (livre); read-only quando o form
  *    aparece em `CarDetail`.
  *  - `name`/`email`/`phone`: contato.
+ *  - `message` (opt — adicionado #223 / H3): mensagem livre, 10-1000 chars
+ *    quando informado. `<SiteForm variant='home'|'contact'|'car-detail'>` não
+ *    renderiza este input — apenas `<HomeContactFormQuick>` (#223) o expõe.
+ *    Permanece **opcional no schema** pra não quebrar callers V1.
  *  - `lgpd`: consentimento explícito (obrigatório).
  *
  * `phone` aceita qualquer formatação (espaços, parênteses, hífens). A
@@ -36,6 +40,12 @@ export const SiteFormSchema = z.object({
       (val) => val.replace(/\D/g, "").length <= 13,
       "Telefone inválido (máximo 13 dígitos)",
     ),
+  message: z
+    .string()
+    .trim()
+    .min(10, "Mensagem deve ter ao menos 10 caracteres")
+    .max(1000, "Mensagem não pode exceder 1000 caracteres")
+    .optional(),
   lgpd: z.literal(true, {
     error: "É preciso aceitar a Política de Privacidade",
   }),

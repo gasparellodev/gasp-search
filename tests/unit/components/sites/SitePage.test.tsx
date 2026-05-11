@@ -22,7 +22,7 @@ describe("<SitePage />", () => {
     );
   });
 
-  it("compõe a Home V2 (Sprint 4 H1+H2 — issues #221 e #222): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, TradeinWidget, Form, Emphasis", () => {
+  it("compõe a Home V2 (Sprint 4 H1+H2+H3 — issues #221, #222, #223): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, TradeinWidget, Warranty, Process3Steps, BanksPartners, TestimonialsGrid, FAQ, GoogleReviews", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
     expect(screen.getByTestId("home-hero")).toBeInTheDocument();
     expect(screen.getByTestId("home-trust-strip")).toBeInTheDocument();
@@ -30,14 +30,24 @@ describe("<SitePage />", () => {
     expect(screen.getByTestId("home-recent-arrivals")).toBeInTheDocument();
     expect(screen.getByTestId("home-financing-widget")).toBeInTheDocument();
     expect(screen.getByTestId("home-tradein-widget")).toBeInTheDocument();
-    expect(screen.getByTestId("home-form")).toBeInTheDocument();
-    expect(screen.getByTestId("home-emphasis")).toBeInTheDocument();
+    // #223 — 7 sections H3 (substituem home-form + home-emphasis V1):
+    expect(screen.getByTestId("home-warranty-section")).toBeInTheDocument();
+    expect(screen.getByTestId("home-process-3steps")).toBeInTheDocument();
+    expect(screen.getByTestId("home-banks-partners")).toBeInTheDocument();
+    expect(screen.getByTestId("home-testimonials-grid")).toBeInTheDocument();
+    expect(screen.getByTestId("home-faq-section")).toBeInTheDocument();
+    expect(screen.getByTestId("home-google-reviews-embed")).toBeInTheDocument();
+    // home-contact-form-quick é conditional render via env flag — testado em
+    // tests/unit/components/sites/home/HomeContactFormQuick.test.tsx; aqui
+    // o flag fica OFF por default (sem env override) então NÃO renderiza.
   });
 
   it("renderiza <SiteHeader> e <SiteFooter>", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
     expect(screen.getByTestId("site-header")).toBeInTheDocument();
-    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    // Múltiplos `<footer>` no DOM (cards de testimonial usam `<footer>`)
+    // — selecionamos o footer global pelo data-testid do SiteFooter.
+    expect(screen.getByTestId("site-footer")).toBeInTheDocument();
   });
 
   it("Quick search bar renderiza no Hero", () => {

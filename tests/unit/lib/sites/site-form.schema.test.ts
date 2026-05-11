@@ -71,4 +71,43 @@ describe("SiteFormSchema", () => {
     });
     expect(r.success).toBe(true);
   });
+
+  // -----------------------------------------------------------------
+  // Issue #223 — campo `message` opcional (10-1000 chars quando presente)
+  // -----------------------------------------------------------------
+
+  it("aceita payload sem message (campo opcional)", () => {
+    const r = SiteFormSchema.safeParse(validBase);
+    expect(r.success).toBe(true);
+  });
+
+  it("aceita message com 10+ caracteres", () => {
+    const r = SiteFormSchema.safeParse({
+      ...validBase,
+      message: "Tenho interesse no Corolla 2020",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejeita message com menos de 10 caracteres", () => {
+    const r = SiteFormSchema.safeParse({
+      ...validBase,
+      message: "curto",
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path[0] === "message")).toBe(true);
+    }
+  });
+
+  it("rejeita message com mais de 1000 caracteres", () => {
+    const r = SiteFormSchema.safeParse({
+      ...validBase,
+      message: "x".repeat(1001),
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error.issues.some((i) => i.path[0] === "message")).toBe(true);
+    }
+  });
 });

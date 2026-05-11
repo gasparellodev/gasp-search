@@ -15,6 +15,10 @@ const publicEnvSchema = z.object({
     .string()
     .min(1, "NEXT_PUBLIC_SUPABASE_ANON_KEY ausente"),
   NEXT_PUBLIC_WHATSAPP_ENABLED: z.enum(["0", "1"]).default("0"),
+  // Site Generator Phase 7 / Sprint 4 / #H3 — issue #223.
+  // Feature flag pra ligar persistência do `<HomeContactFormQuick>` em
+  // `lead_form_submissions`. Default `"0"` (off) — deploy gradual.
+  NEXT_PUBLIC_SITE_FORMS_ENABLED: z.enum(["0", "1"]).default("0"),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -28,6 +32,7 @@ function load(): PublicEnv {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_WHATSAPP_ENABLED: process.env.NEXT_PUBLIC_WHATSAPP_ENABLED,
+    NEXT_PUBLIC_SITE_FORMS_ENABLED: process.env.NEXT_PUBLIC_SITE_FORMS_ENABLED,
   });
   if (!parsed.success) {
     const issues = parsed.error.issues

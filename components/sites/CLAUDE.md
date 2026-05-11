@@ -83,6 +83,12 @@ em light mode, conflita com tema).
    Convenção universal de image viewer (preserva contraste das fotos do
    carro). Não é "fundo do site" — é overlay transient.
 
+3. **`<HomeContactFormQuick>` dark card** (#223 — Sprint 4 / H3):
+   `bg-foreground text-background`. Lead capture principal da Home é
+   intencionalmente um dark card destacado pra criar âncora visual e
+   sinalizar conversão final. Aprovado por PO no refinement de #223.
+   Não replicar em outros forms (`<SiteForm variant>` mantém bg light).
+
 ## Regras de negócio
 
 1. **Logo do header é `<img>` plain (#218).** É asset pequeno e já
