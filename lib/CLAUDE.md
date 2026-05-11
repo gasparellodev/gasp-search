@@ -40,6 +40,7 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `sites/slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` único globalmente em `lead_sites.slug`. Cliente Supabase recebido por DI. |
 | `sites/errors.ts` | `SlugCollisionError` — erro tipado com `attempts`/`business_name` para o gerador de slug. |
 | `utils/slug.ts` | `slugify(input)` puro — NFKD, lowercase, hífens, fallback `'lead'`. Reusável fora do dominio sites. |
+| `finance.ts` | **Pure helpers — sem I/O.** Site Generator Sprint 0 / #F4 (issue #201). Exporta `calculateInstallment` (Tabela PRICE com edge cases e throws para input inválido), `formatBRL` (BRL pt-BR, default `maximumFractionDigits: 0`, opção `{ fractionDigits }`), `slugifyVehicle` (`{brand}-{model}-{year}` NFKD-normalizado, casa regex `/^[a-z0-9-]+$/` de `SiteCar.slug`). Constantes `DEFAULT_MONTHLY_INTEREST = 0.0199` (1.99% a.m. — média BR CDC seminovos 2026), `DEFAULT_CARD_INSTALLMENT_MONTHS = 48`, `DEFAULT_CARD_DOWN_PCT = 20`. Reusado em `<CarCard>` (#F4), `<HomeFinancingWidget>` (H2 Sprint 4), `<StockGrid>` card (E2 Sprint 5), `<CarDetail>` price-block (D2 Sprint 6). **TODO V2**: `slugifyVehicle` aceita colisão (sem disambig hash) — caller já tem slug único upstream via `car.slug`. |
 
 > A medida que features chegam:
 > - `supabase/server.ts`, `client.ts`, `middleware.ts` (#9)

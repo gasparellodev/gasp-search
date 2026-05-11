@@ -98,6 +98,7 @@ em light mode, conflita com tema).
 | `contact/` | Section da rota `/contato` (`ContactSection` — issue #163). Server-only com `<SiteForm variant="contact">` aninhado. Ver `contact/CLAUDE.md`. |
 | `advertise/` | Section da rota `/anunciar` (`AdvertiseSection` server + `AnnounceForm` client — issue #163). Form de captura de anúncio com schema Zod compartilhado em `lib/sites/announcement.schema.ts`. Ver `advertise/CLAUDE.md`. |
 | `stock/` | Sections de `/estoque` (lista + filtro multi-select via `?categoria=`) e `/estoque/[carSlug]` (detalhe-do-carro com `<dialog>` lightbox nativo) — issue #164. `<StockSection>` + `<StockGrid>` server, `<StockFilter>` + `<CarGallery>` client. Helper puro `car-categories.ts` com classificação heurística (`classifyCar`) e parser CSV multi-select (`parseCategoriaParam`). `<CarDetailSection>` reusa `<SiteForm variant="car-detail" prefillModel>`. Ver `stock/CLAUDE.md`. |
+| `cars/` | **Shared building blocks** de veículos reusados entre páginas (vs `stock/` que é page-level) — issue #201. `<CarCard>` (Server Component) é a anatomia §card-vehicle do DESIGN.md (foto 4:3, eyebrow brand mono uppercase, h3 model+year display, km·fuel·transmission inline, price BRL, installment "Ou 48x de R$ X", botão WhatsApp inline). Consome tokens `var(--auto-*)` (não classes Tailwind genéricas). WhatsApp link extraído do `<Link>` interno (evita nested anchor). Foto via `car.thumbnail_url` canon (v1+v2, não `photos[0]`). Reusado em H2/E2/D2/D3 das Sprints 4-6. Ver `cars/CLAUDE.md`. |
 
 ## Boundary client/server
 
