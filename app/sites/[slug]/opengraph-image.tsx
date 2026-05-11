@@ -24,10 +24,16 @@
  *    escuro como background. Font fetch falha → system font (`-apple-
  *    system`). NÃO crashar request — OG é best-effort SEO surface.
  *
- * 4. **Cache cross-file**. `cacheTag('og:<slug>')` permite invalidação
- *    pelos Server Actions em `app/actions/lead-site.ts` quando o site é
- *    atualizado/publicado/arquivado. Sem isso, preview ficaria stale 1h
- *    após publish.
+ * 4. **Cache via ISR (`revalidate = 3600`) + invalidação transitiva
+ *    via `getSite()`** (issue #247, padrão alinhado com `llms.txt`
+ *    route #246). NÃO usamos `cacheTag` standalone neste arquivo —
+ *    Next 16 exige `cacheTag` DENTRO de `"use cache"` (que não
+ *    podemos usar em Next Metadata files que retornam `Response`:
+ *    o `Response` built-in tem prototype não-plain e crasha o cache
+ *    boundary). A invalidação flui pelo `getSite()` que internamente
+ *    usa `"use cache"` + `cacheTag('site:<slug>')`; os 5 callsites de
+ *    `updateTag('site:<slug>')` em `app/actions/lead-site.ts` expiram
+ *    o cache, e o `revalidate = 3600` regenera a Response.
  *
  * **Layout visual** (per DESIGN.md `auto-showroom`):
  *   - Background: hero_image_url (cover) ou gradient escuro fallback.
@@ -42,7 +48,6 @@
 import "server-only";
 
 import { ImageResponse } from "next/og";
-import { cacheTag } from "next/cache";
 
 import { getSite } from "@/lib/sites/get-site";
 import { isIndexable } from "@/lib/sites/metadata";
@@ -60,8 +65,12 @@ import { sanitizeHex } from "@/lib/sites/sanitize";
 export const runtime = "edge";
 
 /**
- * ISR 1h. `revalidateTag('og:<slug>')` em Server Actions de publish/update
- * (`app/actions/lead-site.ts`) força refresh imediato fora desse ciclo.
+ * ISR 1h via Next Metadata file convention (mesmo padrão do
+ * `llms.txt/route.ts` #246). Invalidação flui transitivamente via
+ * `getSite()` que internamente usa `"use cache"` + `cacheTag('site:<slug>')`;
+ * os 5 callsites de `updateTag('site:<slug>')` em
+ * `app/actions/lead-site.ts` (update/publish/archive/restore/sign) expiram
+ * o cache de `getSite`, e este `revalidate = 3600` regenera a Response.
  */
 export const revalidate = 3600;
 
@@ -98,11 +107,12 @@ interface OgImageParams {
 export default async function Image({ params }: OgImageParams): Promise<Response> {
   const { slug } = await params;
 
-  // Cache key por slug — invalidado via `revalidateTag('og:<slug>')` em
-  // Server Actions de publish/update/archive. Dentro do bloco `'use cache'`
-  // do `getSite` o tag já é `site:<slug>` (diferente — site row vs OG asset).
-  cacheTag(`og:${slug}`);
-
+  // Cache strategy (#247): ISR via `export const revalidate = 3600` +
+  // invalidação transitiva via `getSite()` (que internamente usa
+  // `"use cache"` + `cacheTag('site:<slug>')`). NÃO chamamos `cacheTag`
+  // aqui — Next 16 exige `cacheTag` DENTRO de `"use cache"` e Next
+  // Metadata files que retornam `Response` (built-in, prototype não-plain)
+  // não podem usar `"use cache"`. Padrão alinhado com llms.txt (#246).
   const site = await getSite(slug);
 
   // Gate isIndexable: 404 quando null/draft/archived/sem signed_at.
