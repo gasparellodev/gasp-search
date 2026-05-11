@@ -6,17 +6,30 @@ import { StockGrid } from "@/components/sites/stock/StockGrid";
 import { SITE_FIXTURE } from "../site-fixtures";
 
 const SLUG = "j7k2p9-touring-cars";
+const WHATSAPP = SITE_FIXTURE.whatsapp;
+const BUSINESS = SITE_FIXTURE.business_name;
+
+function renderGrid(cars = SITE_FIXTURE.cars) {
+  return render(
+    <StockGrid
+      cars={cars}
+      slug={SLUG}
+      whatsappPhone={WHATSAPP}
+      businessName={BUSINESS}
+    />,
+  );
+}
 
 describe("<StockGrid />", () => {
   it("renderiza 1 card por carro", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
+    renderGrid();
     const grid = screen.getByTestId("stock-grid");
     const items = within(grid).getAllByRole("listitem");
     expect(items).toHaveLength(SITE_FIXTURE.cars.length);
   });
 
   it("cada card tem `data-testid=car-card-<slug>`", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
+    renderGrid();
     for (const car of SITE_FIXTURE.cars) {
       expect(
         screen.getByTestId(`car-card-${car.slug}`),
@@ -25,9 +38,9 @@ describe("<StockGrid />", () => {
   });
 
   it("href do card é `/sites/<slug>/estoque/<car.slug>`", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
+    renderGrid();
     const car = SITE_FIXTURE.cars[0]!;
-    const link = screen.getByTestId(`car-card-${car.slug}`);
+    const link = screen.getByTestId(`car-card-${car.slug}-link`);
     expect(link).toHaveAttribute(
       "href",
       `/sites/${SLUG}/estoque/${car.slug}`,
@@ -35,7 +48,7 @@ describe("<StockGrid />", () => {
   });
 
   it("renderiza brand, model e year", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
+    renderGrid();
     const car = SITE_FIXTURE.cars[0]!; // Toyota Corolla 2022
     const card = screen.getByTestId(`car-card-${car.slug}`);
     expect(within(card).getByText(/Toyota/)).toBeInTheDocument();
@@ -44,7 +57,7 @@ describe("<StockGrid />", () => {
   });
 
   it("formata price em BRL via Intl.NumberFormat", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
+    renderGrid();
     const car = SITE_FIXTURE.cars[0]!; // price = 119900
     const card = screen.getByTestId(`car-card-${car.slug}`);
     // pt-BR sem decimais → "R$ 119.900"
@@ -55,30 +68,22 @@ describe("<StockGrid />", () => {
     const cars = [
       { ...SITE_FIXTURE.cars[0]!, price: null, slug: "sem-preco" },
     ];
-    render(<StockGrid cars={cars} slug={SLUG} />);
+    renderGrid(cars);
     expect(screen.getByText("Sob consulta")).toBeInTheDocument();
   });
 
-  it("renderiza badge 'Destaque' apenas em cars com `featured: true`", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
-    const featuredCar = SITE_FIXTURE.cars.find((c) => c.featured)!;
-    const nonFeaturedCar = SITE_FIXTURE.cars.find((c) => !c.featured)!;
-
-    const featuredCard = screen.getByTestId(`car-card-${featuredCar.slug}`);
+  it("usa o CarCard compartilhado com raio 8px e WhatsApp inline", () => {
+    renderGrid();
+    const car = SITE_FIXTURE.cars[0]!;
+    const card = screen.getByTestId(`car-card-${car.slug}`);
+    expect(card.className).toContain("rounded-[var(--auto-radius-md,8px)]");
     expect(
-      within(featuredCard).getByTestId("car-card-featured-badge"),
-    ).toBeInTheDocument();
-
-    const nonFeaturedCard = screen.getByTestId(
-      `car-card-${nonFeaturedCar.slug}`,
-    );
-    expect(
-      within(nonFeaturedCard).queryByTestId("car-card-featured-badge"),
-    ).toBeNull();
+      within(card).getByTestId(`car-card-${car.slug}-whatsapp`),
+    ).toHaveAttribute("href", expect.stringContaining("utm_content=stock-card"));
   });
 
   it("imagem com alt brand+model+year", () => {
-    render(<StockGrid cars={SITE_FIXTURE.cars} slug={SLUG} />);
+    renderGrid();
     expect(
       screen.getByAltText("Toyota Corolla 2022"),
     ).toBeInTheDocument();

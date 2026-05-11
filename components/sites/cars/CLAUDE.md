@@ -18,7 +18,10 @@ Diferença vs `components/sites/stock/`:
 ## Como adicionar
 
 - 1 arquivo por componente, PascalCase (`CarCard.tsx`, `CarPriceBlock.tsx`).
-- **Server Component por padrão.** Cards são puros (props in → JSX out).
+- **Shared client/server-safe por padrão quando o card aparecer dentro de
+  surfaces client.** Cards são puros (props in → JSX out), sem hooks e sem I/O.
+  Não usar `server-only` em componentes que precisem ser importados por
+  `StockClientView` ou outro orchestrator client.
 - Tokens **via CSS vars** `var(--auto-*)` — NÃO classes Tailwind genéricas
   (`bg-foreground`). Site público vive sob `[data-theme="auto-showroom"]`
   injetado por `<SitePage>`. Tokens declarados em `app/globals.css`
@@ -48,7 +51,7 @@ Diferença vs `components/sites/stock/`:
 
 | Path | Propósito |
 |---|---|
-| `CarCard.tsx` | Card de veículo padrão (foto 4:3 + eyebrow brand + h3 model/year + km·fuel·transmission + price + installment + botão WhatsApp). Server Component. Props: `{ car, siteSlug, whatsappPhone, businessName }`. Tokens `var(--auto-*)`. Aria-labelledby para h3. WhatsApp link via `buildWhatsAppLink({ template: 'vehicle', component: 'stock-card' })` em footer separado (não-nested). |
+| `CarCard.tsx` | Card de veículo padrão (foto 4:3 + eyebrow brand + h3 model/year + km·fuel·transmission + price + installment + botão WhatsApp). Shared client/server-safe desde #225 porque `<StockClientView>` é client e reutiliza `<StockGrid>`. Props: `{ car, siteSlug, whatsappPhone, businessName }`. Tokens `var(--auto-*)`. Aria-labelledby para h3. WhatsApp link via `buildWhatsAppLink({ template: 'vehicle', component: 'stock-card' })` em footer separado (não-nested). |
 
 ## Dependências
 

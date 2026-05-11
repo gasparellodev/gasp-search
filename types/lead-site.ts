@@ -26,6 +26,10 @@
 
 import { z } from "zod";
 
+export const SITE_STOCK_MIN_CARS = 4;
+export const SITE_STOCK_MAX_CARS = 60;
+export const SITE_COPY_MAX_CARS = 6;
+
 /**
  * URL de imagem aceita pelo Site Generator. Pode ser:
  *   - Absolute URL (`http(s)://...`) — caso clássico (Vercel Blob, Apify, CDNs).
@@ -161,7 +165,7 @@ export const SiteVariables = z.object({
   contact_hero_image_url: imageUrlOrPath,
 
   // Estoque
-  cars: z.array(SiteCar).min(4).max(6),
+  cars: z.array(SiteCar).min(SITE_STOCK_MIN_CARS).max(SITE_STOCK_MAX_CARS),
 
   // Metadata
   generated_by: z.literal("claude-sonnet-4-6"),
@@ -308,7 +312,7 @@ export const SiteVariablesV2 = z.object({
   values: z.array(z.string().min(8).max(80)).min(4).max(8),
 
   // Estoque
-  cars: z.array(SiteCar).min(4).max(6),
+  cars: z.array(SiteCar).min(SITE_STOCK_MIN_CARS).max(SITE_STOCK_MAX_CARS),
 
   // Trust
   testimonials: z.array(Testimonial).max(8).optional(),
@@ -354,6 +358,6 @@ export const SiteCopySchema = z.object({
   mission: z.string().min(40).max(200),
   vision: z.string().min(40).max(200),
   values: z.array(z.string().min(8).max(80)).min(4).max(8),
-  cars: z.array(SiteCopyCar).min(4).max(6),
+  cars: z.array(SiteCopyCar).min(SITE_STOCK_MIN_CARS).max(SITE_COPY_MAX_CARS),
 });
 export type SiteCopy = z.infer<typeof SiteCopySchema>;

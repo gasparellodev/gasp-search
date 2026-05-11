@@ -25,8 +25,8 @@
  *    (business_name, phone comercial, address da loja).
  * 7. **Sem BOM UTF-8** (`﻿`) — alguns parsers AI rejeitam ou
  *    interpretam como caractere visível.
- * 8. **Estoque snapshot limitado a 6 cars** — alinha com max do schema
- *    e mantém payload curto para AI ingestion.
+ * 8. **Estoque snapshot limitado a 6 cars** — independente do teto público
+ *    maior do estoque (#225), mantém payload curto para AI ingestion.
  *
  * **Server-only** porque consome `env` (server-only), mesmo sendo
  * puro. Importadores: `app/sites/[slug]/llms.txt/route.ts`.
@@ -42,9 +42,8 @@ import { formatBRL } from "@/lib/finance";
 import type { Address, SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
 /**
- * Máximo de cars listados no snapshot (alinha com `cars.max(6)` do
- * schema). Defensivo: mesmo se um payload futuro permitir mais, o
- * llms.txt corta aqui para manter payload AI-friendly.
+ * Máximo de cars listados no snapshot. O schema público aceita estoque maior
+ * desde #225; o llms.txt corta aqui para manter payload AI-friendly.
  */
 const MAX_CARS_LISTED = 6;
 

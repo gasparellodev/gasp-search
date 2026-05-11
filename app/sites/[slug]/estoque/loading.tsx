@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  * Loading skeleton da rota `/sites/[slug]/estoque` (issue #202).
  *
  * Anatomia: filter chips + grid 1/2/3 cols com 6 cards 4:3.
+ * Cards usam raio 8px para casar com `<CarCard>` e evitar shift visual.
  */
 export default function EstoqueLoading() {
   const placeholders = Array.from({ length: 6 });
@@ -26,7 +27,7 @@ export default function EstoqueLoading() {
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {placeholders.map((_, idx) => (
             <div key={idx} className="flex flex-col gap-3">
-              <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
+              <Skeleton className="aspect-[4/3] w-full rounded-[var(--auto-radius-md,8px)]" />
               <Skeleton className="h-5 w-2/3" />
               <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-6 w-32" />

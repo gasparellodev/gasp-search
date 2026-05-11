@@ -12,8 +12,9 @@
  *   - `/sites/[slug]/anunciar`      — Formulário anuncia (0.6, monthly)
  *   - `/sites/[slug]/estoque/[carSlug]` — Detail de cada veículo
  *     (0.8, weekly) — extraído de `variables.cars[]` via
- *     `SiteVariablesV2.safeParse`. Como `cars.min(4).max(6)`, no
- *     máximo 6 URLs extras por site. Em parse failure, faz
+ *     `SiteVariablesV2.safeParse`. Desde #225 o schema público aceita
+ *     estoque maior para paginação, então o sitemap pode emitir múltiplas
+ *     dezenas de URLs extras por site. Em parse failure, faz
  *     `console.warn` + skip apenas as URLs de detail (mantém as 5
  *     estáticas) para não quebrar o sitemap inteiro.
  *
@@ -66,7 +67,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         });
       }
 
-      // Car detail URLs — `variables.cars[]` (4-6 por site). `safeParse`
+      // Car detail URLs — `variables.cars[]`. `safeParse`
       // tolera shape v1 ou variables corrompido sem derrubar o sitemap
       // inteiro: warn + skip apenas as URLs de detail deste site.
       const parsed = SiteVariablesV2.safeParse(site.variables);
