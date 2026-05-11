@@ -30,6 +30,7 @@ export function makeLeadSite(overrides: Partial<LeadSite> = {}): LeadSite {
     slug: "a1b2c3-autostar-veiculos",
     status: "draft",
     variables: validSiteVariablesFixture as unknown as LeadSite["variables"],
+    visual_identity: null,
     generation_error: null,
     generated_at: "2026-05-01T12:30:00.000Z",
     published_at: null,

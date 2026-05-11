@@ -386,6 +386,7 @@ export interface Database {
           slug: string;
           status: Database["public"]["Enums"]["lead_site_status"];
           variables: Json;
+          visual_identity: Json | null;
           generation_error: string | null;
           generated_at: string | null;
           published_at: string | null;
@@ -404,6 +405,7 @@ export interface Database {
           slug: string;
           status?: Database["public"]["Enums"]["lead_site_status"];
           variables?: Json;
+          visual_identity?: Json | null;
           generation_error?: string | null;
           generated_at?: string | null;
           published_at?: string | null;
@@ -422,6 +424,7 @@ export interface Database {
           slug?: string;
           status?: Database["public"]["Enums"]["lead_site_status"];
           variables?: Json;
+          visual_identity?: Json | null;
           generation_error?: string | null;
           generated_at?: string | null;
           published_at?: string | null;
