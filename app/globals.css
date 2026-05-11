@@ -282,6 +282,9 @@
   --auto-shadow-whatsapp-floating: 0 10px 25px -5px rgb(37 211 102 / 0.4),
     0 8px 10px -6px rgb(37 211 102 / 0.3);
 
+  /* --- Layers -------------------------------------------------------------- */
+  --z-header: 50;
+
   /* --- Typography families (DESIGN.md §Typography) ------------------------- */
   --auto-font-display: var(--font-geist), -apple-system, BlinkMacSystemFont,
     "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
@@ -289,6 +292,12 @@
     "Helvetica Neue", Arial, sans-serif;
   --auto-font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo,
     Monaco, Consolas, monospace;
+}
+
+@supports not ((backdrop-filter: blur(20px)) or (-webkit-backdrop-filter: blur(20px))) {
+  [data-theme="auto-showroom"] .site-header-glass[data-scrolled="true"] {
+    background-color: var(--auto-surface);
+  }
 }
 
 /* Auto Showroom dark — paleta neutra escura (DESIGN.md §Colors). Triggera

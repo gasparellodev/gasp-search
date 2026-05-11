@@ -85,9 +85,10 @@ em light mode, conflita com tema).
 
 ## Regras de negócio
 
-1. **Logo é `<Image>` de `next/image` com `unoptimized`.** O CDN dos
-   logos (Cloudflare R2 / Supabase Storage) não está no whitelist de
-   `next.config.js` — `unoptimized` evita 502 em build.
+1. **Logo do header é `<img>` plain (#218).** É asset pequeno e já
+   sanitizado/pre-signed no pipeline; `SiteHeader` precisa de `onError`
+   client-side para fallback textual. Imagens de seção/card continuam
+   usando `next/image` com `unoptimized` quando vêm de CDN externo.
 2. **Links internos via `next/link`.** `<a>` cru só pra externos
    (sociais, WhatsApp, mailto).
 3. **Links externos** sempre com `target="_blank"` e
@@ -110,9 +111,9 @@ em light mode, conflita com tema).
 
 | Path | Propósito |
 |---|---|
-| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 → M2.4 — issues #160 + #162 + #163 + #217).** Wrapper público de `/sites/[slug]` e sub-rotas. Recebe `{ variables, siteId, slug, activePage?, children?, manifest? }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Sem `children`: compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) + `<SiteFooter>` (default M2.3). Com `children`: rendeza-os entre Header e Footer (M2.4 — `/sobre`, `/contato`, `/anunciar`). `activePage` (default `'home'`) propaga pro `<SiteHeader>` para destacar o link ativo no nav. **#217 (Sprint 2 / #A3):** `manifest?: VisualIdentityManifest \| null` (vindo de `site.visual_identity` parseado em `getSite()`) resolve `heroImageUrl = manifest?.hero_url ?? brand_assets.hero_image_url` e propaga pra `<HomeHero hero_image_url>`. Sub-rotas (sobre/contato) NÃO recebem o override pelo SitePage — elas passam o override diretamente pro `<AboutSection manifestAboutUrl>` / `<ContactSection manifestContactUrl>` (mesmo manifest, fields diferentes). |
-| `SiteHeader.tsx` | Server Component. Logo + nav desktop com 4 links + variant ativo (`Pick<SiteVariables, 'business_name'\|'logo_url'\|'primary_color'\|'text_on_primary'>` + `slug` + `activePage`). Mobile delega ao `<MobileNav>`. **Logo policy** (decisão 2026-05-09): renderiza `<Image>` quando `logo_url` é truthy; cai em texto estilizado (`<span>` com `business_name`) quando vazio/`null`. Permite leads sem logo real renderizando logotype textual sem tocar JSX. |
-| `MobileNav.tsx` | **Client Component.** Hambúrguer + menu dropdown com estado `open`. ESC fecha + foco volta ao botão. |
+| `SitePage.tsx` | **Server Component (M2.1 stub → M2.3 → M2.4 → G1 — issues #160 + #162 + #163 + #217 + #218).** Wrapper público de `/sites/[slug]` e sub-rotas. Recebe `{ variables, siteId, slug, activePage?, children?, manifest? }`. Injeta CSS vars `--site-primary` / `--site-text-on-primary` (sanitizadas via `sanitizeHex`) + `data-site-id` para E2E. Sem `children`: compõe `<SiteHeader>` + 5 seções da Home (`HomeHero`, `HomeCategories`, `HomeForm`, `HomeEmphasis`, `HomeRecentSales`) + `<SiteFooter>` (default M2.3). Com `children`: renderiza-os entre Header e Footer (M2.4 — `/sobre`, `/contato`, `/anunciar`). **#218:** injeta `<div data-site-header-sentinel>` no topo do `<main>` para o glass-sticky header observar scroll sem listeners agressivos. **#217 (Sprint 2 / #A3):** `manifest?: VisualIdentityManifest \| null` (vindo de `site.visual_identity` parseado em `getSite()`) resolve `heroImageUrl = manifest?.hero_url ?? brand_assets.hero_image_url` e propaga pra `<HomeHero hero_image_url>`. Sub-rotas (sobre/contato) NÃO recebem o override pelo SitePage — elas passam o override diretamente pro `<AboutSection manifestAboutUrl>` / `<ContactSection manifestContactUrl>` (mesmo manifest, fields diferentes). |
+| `SiteHeader.tsx` | **Client Component (#218 / Sprint 3 G1).** Header glass-sticky 64px mobile / 80px desktop. Usa `usePathname()` para `aria-current`, `IntersectionObserver` no sentinel do `<SitePage>` para `data-scrolled`, fallback scroll passive/RAF, logo com `<img>` plain + fallback textual em erro, 5 links internos (`Home`, `Estoque`, `Sobre`, `Contato`, `Anunciar`) e CTA WhatsApp via `buildWhatsAppLink({ template: 'general', component: 'header' })`. Consome tokens `var(--auto-*)` e cor ativa via `sanitizeHex(brand_assets.*)`. |
+| `MobileNav.tsx` | **Client Component.** Radix Dialog fullscreen mobile com focus trap, ESC, body scroll lock, close button, fechamento ao clicar na área vazia, links que fecham o menu e popstate/back-button que fecha o menu. Recebe links e WhatsApp href do `<SiteHeader>`. |
 | `SiteFooter.tsx` | Server Component. 3 colunas: marca/sociais, contato, newsletter (visual). Ícones sociais omitidos individualmente quando URL é `null`. Copyright com ano corrente. |
 | `SiteForm.tsx` | **Client Component.** Form de captura com 3 variantes (`'home'`/`'contact'`/`'car-detail'`). `react-hook-form` + `zodResolver`. `model` read-only quando `variant='car-detail'` com `prefillModel`. LGPD checkbox obrigatório. Aceita `title?: string` para override do `<h2>` default (usado por `<HomeForm>` em #162). |
 | `social-icons.tsx` | SVGs inline de Instagram/Facebook/YouTube/WhatsApp — `lucide-react@^1.14` removeu os ícones de marca por trademark. Pure server-renderable. |
@@ -128,10 +129,10 @@ em light mode, conflita com tema).
 ## Boundary client/server
 
 ```
-┌─ SiteHeader (server) ────────────────┐
-│  logo + nav desktop (server-render)  │
+┌─ SiteHeader (client) ────────────────┐
+│  glass state + pathname active nav   │
 │  ┌─ MobileNav (client) ─────────┐    │
-│  │  hambúrguer + menu state     │    │
+│  │  Radix fullscreen menu       │    │
 │  └──────────────────────────────┘    │
 └──────────────────────────────────────┘
 
@@ -152,9 +153,13 @@ client/server fica explícita no import de `@/app/actions/site-form`.
 - `react-hook-form@^7` + `@hookform/resolvers@^5` (form state e Zod adapter).
 - `zod@^4` (schema do form em `lib/sites/site-form.schema.ts`).
 - `sonner@^2` (toast de feedback do submit).
-- `lucide-react@^1.14` (ícones genéricos: `Menu`, `X`, `ArrowRight`,
-  `Loader2`). Brand icons em `social-icons.tsx`.
+- `lucide-react@^1.14` (ícones genéricos: `Menu`, `X`,
+  `MessageCircle`, `ArrowRight`, `Loader2`). Brand icons em
+  `social-icons.tsx`.
 - `next/link`, `next/image`.
+- `radix-ui` Dialog primitive — focus trap/body scroll lock do
+  `<MobileNav>`.
+- `@/lib/whatsapp` — CTA header/mobile com template `general`.
 - `@/lib/sites/sanitize` — defesa em profundidade pra cores hex.
 
 ## Quando atualizar este `CLAUDE.md`

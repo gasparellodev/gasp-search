@@ -99,6 +99,11 @@ export function SitePage({
     >
       <SiteHeader variables={variables} slug={slug} activePage={activePage} />
       <main>
+        <div
+          data-site-header-sentinel
+          aria-hidden="true"
+          className="h-px w-px"
+        />
         {children ?? (
           <>
             <HomeHero
