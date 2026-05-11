@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { paginate, parseStockPage, STOCK_PAGE_SIZE } from "@/lib/stock/pagination";
+import {
+  parseStockSortKey,
+  sortCars,
+  type StockSortKey,
+} from "@/lib/stock/sort";
 import {
   applyStockFilters,
   buildStockFilterFacets,
@@ -14,20 +19,26 @@ import {
 } from "@/lib/sites/stock-search-params";
 import type { SiteCar } from "@/types/lead-site";
 
+import { StockEmptyState } from "./StockEmptyState";
 import { StockFilterDrawer } from "./StockFilterDrawer";
 import { StockFilterSidebar } from "./StockFilterSidebar";
 import { StockGrid } from "./StockGrid";
+import { StockPagination } from "./StockPagination";
 import { StockSearchBar } from "./StockSearchBar";
 
 interface StockClientViewProps {
   cars: ReadonlyArray<SiteCar>;
   slug: string;
+  whatsappPhone: string;
+  businessName: string;
   initialFilters: ParsedStockFilters;
 }
 
 export function StockClientView({
   cars,
   slug,
+  whatsappPhone,
+  businessName,
   initialFilters,
 }: StockClientViewProps) {
   const router = useRouter();
@@ -37,12 +48,16 @@ export function StockClientView({
   const skipNextReplaceRef = useRef(true);
 
   const facets = useMemo(() => buildStockFilterFacets(cars), [cars]);
+  const sort = parseStockSortKey(filters.passthrough.sort);
+  const currentPage = parseStockPage(filters.passthrough.page);
   const filtered = useMemo(
-    () =>
-      applyStockFilters(cars, filters).toSorted(
-        (a, b) => Number(b.featured) - Number(a.featured),
-      ),
+    () => applyStockFilters(cars, filters),
     [cars, filters],
+  );
+  const sorted = useMemo(() => sortCars(filtered, sort), [filtered, sort]);
+  const paginated = useMemo(
+    () => paginate(sorted, currentPage, STOCK_PAGE_SIZE),
+    [currentPage, sorted],
   );
 
   useEffect(() => {
@@ -61,22 +76,38 @@ export function StockClientView({
     return () => window.clearTimeout(timeout);
   }, [filters, router, slug, startTransition]);
 
-  const sort = filters.passthrough.sort ?? "featured";
   const activeFilterCount = countActiveStockFilters(filters);
 
   function updateFilters(next: ParsedStockFilters) {
-    setFilters(next);
+    setFilters(resetPage(next));
   }
 
   function updateSearch(search: string) {
-    setFilters((current) => ({ ...current, search }));
+    setFilters((current) => resetPage({ ...current, search }));
   }
 
-  function updateSort(sortValue: string) {
-    setFilters((current) => ({
-      ...current,
-      passthrough: { ...current.passthrough, sort: sortValue },
-    }));
+  function updateSort(sortValue: StockSortKey) {
+    setFilters((current) => {
+      const passthrough = withoutPage(current.passthrough);
+      if (sortValue === "most_recent") {
+        delete passthrough.sort;
+      } else {
+        passthrough.sort = sortValue;
+      }
+      return { ...current, passthrough };
+    });
+  }
+
+  function updatePage(page: number) {
+    setFilters((current) => {
+      const passthrough = { ...current.passthrough };
+      if (page <= 1) {
+        delete passthrough.page;
+      } else {
+        passthrough.page = String(page);
+      }
+      return { ...current, passthrough };
+    });
   }
 
   function clearFilters() {
@@ -112,7 +143,22 @@ export function StockClientView({
           {filtered.length === 0 ? (
             <StockEmptyState slug={slug} onClear={clearFilters} />
           ) : (
-            <StockGrid cars={filtered} slug={slug} />
+            <>
+              <StockGrid
+                cars={paginated.items}
+                slug={slug}
+                whatsappPhone={whatsappPhone}
+                businessName={businessName}
+              />
+              <StockPagination
+                page={paginated.page}
+                totalPages={paginated.totalPages}
+                pageSize={paginated.perPage}
+                hasPreviousPage={paginated.hasPreviousPage}
+                hasNextPage={paginated.hasNextPage}
+                onPageChange={updatePage}
+              />
+            </>
           )}
         </div>
       </div>
@@ -128,40 +174,12 @@ export function StockClientView({
   );
 }
 
-function StockEmptyState({
-  slug,
-  onClear,
-}: {
-  slug: string;
-  onClear: () => void;
-}) {
-  return (
-    <div
-      data-testid="stock-empty"
-      className="mx-auto flex max-w-md flex-col items-center gap-6 px-6 py-20 text-center"
-    >
-      <div className="flex size-24 items-center justify-center rounded-full bg-[var(--auto-muted,#f5f5f5)] text-3xl">
-        0
-      </div>
-      <div className="flex flex-col gap-2">
-        <h2 className="text-2xl font-semibold tracking-normal text-foreground">
-          Nenhum carro encontrado
-        </h2>
-        <p className="text-base text-foreground/70 md:text-lg">
-          Tente remover algum filtro ou veja o estoque completo.
-        </p>
-      </div>
-      <Link
-        href={`/sites/${slug}/estoque`}
-        onClick={onClear}
-        style={{
-          backgroundColor: "var(--site-primary)",
-          color: "var(--site-text-on-primary)",
-        }}
-        className="inline-flex h-12 items-center justify-center rounded-[var(--auto-radius-md,8px)] px-6 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
-      >
-        Ver estoque completo
-      </Link>
-    </div>
-  );
+function resetPage(filters: ParsedStockFilters): ParsedStockFilters {
+  return { ...filters, passthrough: withoutPage(filters.passthrough) };
+}
+
+function withoutPage(passthrough: Record<string, string>): Record<string, string> {
+  const next = { ...passthrough };
+  delete next.page;
+  return next;
 }

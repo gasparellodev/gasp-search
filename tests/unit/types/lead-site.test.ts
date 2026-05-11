@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  SITE_STOCK_MAX_CARS,
   type SiteCar,
   type SiteCopy,
   type SiteCopyCar,
@@ -566,13 +567,14 @@ describe("AC2 — Estoque: cars (array length)", () => {
     expect(SiteVariablesSchema.safeParse(vars).success).toBe(true);
   });
 
-  it("aceita 6 carros (max)", () => {
+  it("aceita mais de 12 carros para suportar estoque paginado", () => {
     const vars = cloneVars();
-    const extra1 = JSON.parse(JSON.stringify(vars.cars[0])) as SiteCar;
-    extra1.slug = "extra-1";
-    const extra2 = JSON.parse(JSON.stringify(vars.cars[0])) as SiteCar;
-    extra2.slug = "extra-2";
-    vars.cars = [...vars.cars, extra1, extra2];
+    const extras: SiteCar[] = Array.from({ length: 9 }, (_, i) => {
+      const copy = JSON.parse(JSON.stringify(vars.cars[0])) as SiteCar;
+      copy.slug = `extra-${i}`;
+      return copy;
+    });
+    vars.cars = [...vars.cars, ...extras];
     expect(SiteVariablesSchema.safeParse(vars).success).toBe(true);
   });
 
@@ -582,14 +584,17 @@ describe("AC2 — Estoque: cars (array length)", () => {
     expectFailureAtPath(SiteVariablesSchema, vars, "cars");
   });
 
-  it("rejeita 7 carros (max 6)", () => {
+  it("rejeita carros acima do teto público", () => {
     const vars = cloneVars();
-    const extras: SiteCar[] = Array.from({ length: 3 }, (_, i) => {
-      const copy = JSON.parse(JSON.stringify(vars.cars[0])) as SiteCar;
-      copy.slug = `extra-${i}`;
-      return copy;
-    });
-    vars.cars = [...vars.cars, ...extras];
+    const extras: SiteCar[] = Array.from(
+      { length: SITE_STOCK_MAX_CARS + 1 },
+      (_, i) => {
+        const copy = JSON.parse(JSON.stringify(vars.cars[0])) as SiteCar;
+        copy.slug = `extra-${i}`;
+        return copy;
+      },
+    );
+    vars.cars = extras;
     expectFailureAtPath(SiteVariablesSchema, vars, "cars");
   });
 
@@ -1006,7 +1011,7 @@ describe("AC3 — SiteCopySchema é subset textual de SiteVariables", () => {
     expectFailureAtPath(SiteCopySchema, copy, "slogan");
   });
 
-  it("aplica mesmas constraints de cars (4..6)", () => {
+  it("mantém SiteCopy limitado ao lote inicial de carros (4..6)", () => {
     const copy = cloneCopy();
     copy.cars = copy.cars.slice(0, 3) as typeof copy.cars;
     expectFailureAtPath(SiteCopySchema, copy, "cars");

@@ -3,11 +3,12 @@ import { axe, toHaveNoViolations } from "jest-axe";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 import { StockSection } from "@/components/sites/stock/StockSection";
-import type { SiteVariablesV2 } from "@/types/lead-site";
+import { parseStockFilters } from "@/lib/sites/stock-search-params";
+import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
 import { SITE_FIXTURE } from "../site-fixtures";
 
@@ -61,6 +62,44 @@ describe("<StockSection /> — sem filtro", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: /Estoque/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("<StockSection /> — sort e paginação", () => {
+  it("?sort=price_asc ordena por menor preço", () => {
+    render(
+      <StockSection
+        variables={SITE_FIXTURE}
+        initialFilters={parseStockFilters({ sort: "price_asc" })}
+        slug={SLUG}
+      />,
+    );
+
+    const grid = screen.getByTestId("stock-grid");
+    const links = within(grid).getAllByTestId(/car-card-.+-link/);
+    expect(links[0]).toHaveAttribute(
+      "href",
+      `/sites/${SLUG}/estoque/hyundai-hb20-2019`,
+    );
+  });
+
+  it("?page=2 renderiza o segundo slice do estoque", () => {
+    const variables: SiteVariablesV2 = {
+      ...SITE_FIXTURE,
+      cars: makeManyCars(13),
+    };
+
+    render(
+      <StockSection
+        variables={variables}
+        initialFilters={parseStockFilters({ page: "2", sort: "price_asc" })}
+        slug={SLUG}
+      />,
+    );
+
+    expect(screen.getByText("Página 2 de 2")).toBeInTheDocument();
+    expect(screen.getByTestId("car-card-car-13")).toBeInTheDocument();
+    expect(screen.queryByTestId("car-card-car-1")).toBeNull();
   });
 });
 
@@ -126,7 +165,7 @@ describe("<StockSection /> — com filtro", () => {
 });
 
 describe("<StockSection /> — empty state", () => {
-  it("0 matches → mensagem PT-BR + link 'Ver todos'", () => {
+  it("0 matches → mensagem PT-BR + link para limpar filtros", () => {
     // Construir SiteVariables com cars que NUNCA classificam como esportivo
     const variables: SiteVariablesV2 = {
       ...SITE_FIXTURE,
@@ -146,7 +185,7 @@ describe("<StockSection /> — empty state", () => {
       screen.getByText(/Nenhum carro encontrado/i),
     ).toBeInTheDocument();
 
-    const link = screen.getByRole("link", { name: /Ver estoque completo/i });
+    const link = screen.getByRole("link", { name: /Limpar filtros/i });
     expect(link).toHaveAttribute("href", `/sites/${SLUG}/estoque`);
   });
 
@@ -197,3 +236,16 @@ describe("<StockSection /> — a11y runtime", () => {
     expect(results).toHaveNoViolations();
   }, 15_000);
 });
+
+function makeManyCars(count: number): SiteCar[] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...SITE_FIXTURE.cars[0]!,
+    slug: `car-${index + 1}`,
+    brand: "Marca",
+    model: `Modelo ${index + 1}`,
+    year: 2024,
+    price: 50_000 + index,
+    km: 10_000 + index,
+    featured: false,
+  }));
+}

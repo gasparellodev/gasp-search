@@ -93,7 +93,8 @@ export function buildAddressFromLead(lead: Lead): AddressType | null {
  *  - `thumbnail_url`/`gallery_urls` mantidos (backward-compat — `SiteCar`
  *    ainda exige).
  *
- * Cars[] continua min(4) max(6) do schema; copy emite 4–6 entries.
+ * O gerador continua emitindo 4–6 entries via SiteCopy; o schema público
+ * aceita estoque maior desde #225 para páginas paginadas.
  */
 function buildCars(
   copy: SiteCopyOutput,

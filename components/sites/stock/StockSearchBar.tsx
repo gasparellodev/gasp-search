@@ -2,14 +2,18 @@
 
 import { Filter, Search } from "lucide-react";
 
+import type { StockSortKey } from "@/lib/stock/sort";
+
+import { StockSortDropdown } from "./StockSortDropdown";
+
 interface StockSearchBarProps {
   search: string;
-  sort: string;
+  sort: StockSortKey;
   activeFilterCount: number;
   resultCount: number;
   totalCount: number;
   onSearchChange: (value: string) => void;
-  onSortChange: (value: string) => void;
+  onSortChange: (value: StockSortKey) => void;
   onOpenFilters: () => void;
 }
 
@@ -48,20 +52,7 @@ export function StockSearchBar({
           <p className="hidden min-w-max text-sm text-[var(--auto-muted-foreground,#737373)] sm:block">
             {resultCount} de {totalCount} carros
           </p>
-          <label htmlFor="stock-sort" className="sr-only">
-            Ordenar estoque
-          </label>
-          <select
-            id="stock-sort"
-            value={sort}
-            onChange={(event) => onSortChange(event.target.value)}
-            className="h-11 min-w-[150px] rounded-[var(--auto-radius-md,8px)] border border-[var(--auto-border,#e5e5e5)] bg-[var(--auto-surface,#fff)] px-3 text-sm text-[var(--auto-foreground,#0a0a0a)] outline-none transition focus:border-[var(--auto-primary,#0a0a0a)] focus:ring-2 focus:ring-[var(--auto-primary,#0a0a0a)]/20"
-          >
-            <option value="featured">Destaques</option>
-            <option value="price">Menor preço</option>
-            <option value="year">Mais novos</option>
-            <option value="km">Menor km</option>
-          </select>
+          <StockSortDropdown value={sort} onValueChange={onSortChange} />
           <button
             type="button"
             aria-label={

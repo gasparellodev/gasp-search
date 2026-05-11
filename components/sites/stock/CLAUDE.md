@@ -6,9 +6,10 @@ Componentes que renderizam:
 
 - **Lista de estoque** (`/sites/<slug>/estoque`) — `<StockSection>` orquestra
   `<StockHeroMini>` (server) + `<StockClientView>` (client). O client view
-  mantém filtro em memória, sincroniza URL com debounce 300ms, renderiza
-  `<StockSearchBar>`, `<StockFilterSidebar>` desktop, `<StockFilterDrawer>`
-  mobile (Vaul) e `<StockGrid>` compartilhável.
+  mantém filtro em memória, sincroniza URL com debounce 300ms, aplica
+  `sortCars` + `paginate`, renderiza `<StockSearchBar>`,
+  `<StockFilterSidebar>` desktop, `<StockFilterDrawer>` mobile (Vaul),
+  `<StockGrid>` com `<CarCard>` compartilhado, empty state e paginação.
 - **Detalhe do carro** (`/sites/<slug>/estoque/<carSlug>`) —
   `<CarDetailSection>` com `<CarGallery>` (lightbox `<dialog>` nativo),
   badges, datasheet `<dl>`, descrição com `whitespace-pre-line` e
@@ -23,12 +24,12 @@ existente (variant `'car-detail'`).
 ┌─ StockSection (server) ────────────────────┐
 │  StockHeroMini + StockClientView(key=qs)   │
 │  ┌─ StockClientView (client) ────┐         │
-│  │  applyStockFilters in-memory  │         │
+│  │  filter + sort + paginate     │         │
 │  │  router.replace debounce 300ms│         │
 │  │  Sidebar desktop / Drawer mob │         │
 │  └───────────────────────────────┘         │
 │  ┌─ StockGrid (shared) ──────────┐         │
-│  │  pure render N <Link> cards   │         │
+│  │  render N shared <CarCard>    │         │
 │  └───────────────────────────────┘         │
 └────────────────────────────────────────────┘
 
@@ -70,12 +71,16 @@ existente (variant `'car-detail'`).
    match por keyword em `brand+model` normalizado (NFKD lowercase). Ordem
    importa — `picape > esportivo > suv > sedan > hatch`. Carros que não
    batem retornam `null` e ficam **fora** quando há filtro ativo.
-3. **Featured-first preservado**: `StockClientView` aplica filtros em memória e
-   ordena imutavelmente via `.toSorted((a,b) => Number(b.featured) -
-   Number(a.featured))`. Sort customizado fica para #225; por ora `sort` é
-   passthrough de URL/UI.
-4. **Empty state**: 0 matches → mensagem PT-BR + Link para
-   `/sites/<slug>/estoque` (sem `?categoria`).
+3. **Sort #225**: `StockClientView` aplica filtros em memória e ordena via
+   `lib/stock/sort.ts`. Opções públicas: `most_recent` (destaque primeiro,
+   depois ano), `price_asc`, `price_desc`, `installment_asc`, `km_asc`.
+   `sort=most_recent` é default e pode ser omitido da URL.
+4. **Paginação #225**: `page` vem de `filters.passthrough.page` e passa por
+   `parseStockPage`; o slice usa `paginate(items, page, STOCK_PAGE_SIZE)` com
+   `STOCK_PAGE_SIZE=12`. Desktop mostra botões numerados prev/next; mobile
+   mostra CTA "Carregar mais 12" para avançar página.
+5. **Empty state**: 0 matches → SVG ilustrativo + mensagem PT-BR + Link
+   "Limpar filtros" para `/sites/<slug>/estoque` (sem querystring).
 5. **BRL price**: `Intl.NumberFormat('pt-BR', { style: 'currency',
    currency: 'BRL', maximumFractionDigits: 0 })`. Quando `price === null`
    → "Sob consulta".
@@ -94,13 +99,16 @@ existente (variant `'car-detail'`).
 |---|---|
 | `StockSection.tsx` | Server. Renderiza `<StockHeroMini>` + `<StockClientView>`, passando `initialFilters` parseado pela rota. Mantém compat legado `categoriaFilter` para testes/links antigos. |
 | `StockHeroMini.tsx` | Server. Mini hero 30dvh com `<h1>Nosso Estoque</h1>`, contagem `${cars.length} carros disponíveis` e `<AICitableHero page="estoque">` imediatamente após o h1. |
-| `StockClientView.tsx` | **Client.** Orquestra estado de filtros, URL sync com `router.replace` debounced 300ms, featured-first, empty state, sidebar desktop e drawer mobile. Remonta por `key=serializeStockFilters(filters)` no server para browser back refletir URL sem `setState` em effect. |
-| `StockSearchBar.tsx` | **Client.** Barra sticky `top-[var(--site-header-h)]` com search input, sort dropdown passthrough e botão mobile de filtros com badge. Layer `--z-stock-search: 40`. |
+| `StockClientView.tsx` | **Client.** Orquestra estado de filtros, URL sync com `router.replace` debounced 300ms, `applyStockFilters` + `sortCars` + `paginate`, empty state, sidebar desktop, drawer mobile e paginação. Remonta por `key=serializeStockFilters(filters)` no server para browser back refletir URL sem `setState` em effect. |
+| `StockSearchBar.tsx` | **Client.** Barra sticky `top-[var(--site-header-h)]` com search input, `<StockSortDropdown>` Radix e botão mobile de filtros com badge. Layer `--z-stock-search: 40`. |
+| `StockSortDropdown.tsx` | **Client.** Radix `<Select>` com as 5 opções públicas de sort vindas de `STOCK_SORT_OPTIONS`. |
 | `StockFilterSidebar.tsx` | **Client.** Sidebar desktop col 3/12 com 10 accordion sections; Marca/Modelo abertas por default. |
 | `StockFilterDrawer.tsx` | **Client.** Vaul bottom sheet mobile, `max-h-[90dvh]`, layer `--z-stock-drawer: 60`, título Dialog e botão fechar. |
 | `StockFilterControls.tsx` | **Client.** Renderer compartilhado das 10 sections (checkboxes + inputs number HTML5 para ranges). |
 | `StockFilter.tsx` | **Legacy client (#164).** Chip multi-select de `?categoria=` mantido temporariamente para compat, mas a rota #224 usa Sidebar/Drawer. |
-| `StockGrid.tsx` | Shared Client/Server-safe. Grid 1/2/3 cols, cards com `data-testid="car-card-<slug>"`. BRL + KM via `Intl`. Badge "Destaque" condicional. |
+| `StockGrid.tsx` | Shared Client/Server-safe. Grid 1/2/3 cols que reutiliza `<CarCard>` para cada veículo, preservando `data-testid="car-card-<slug>"`, raio 8px e WhatsApp inline. |
+| `StockPagination.tsx` | **Client.** Navegação de páginas do estoque: prev/next + números no desktop, botão "Carregar mais 12" no mobile. |
+| `StockEmptyState.tsx` | **Client.** Empty state desenhado com SVG, copy PT-BR e CTA "Limpar filtros". |
 | `CarDetailSection.tsx` | Server. Hero (galeria + info + CTA WhatsApp + descrição) + datasheet `<dl>` + `<SiteForm variant="car-detail">`. **#214 (GEO):** injeta `<AICitableHero page="detalhe" currentCar={...}>` após o `<h1>` model/year; `Pick<SiteVariablesV2, ...>` extendido com `address`+`cars` pra alimentar a frase factual. **#220:** a barra mobile fixed vive fora deste section, no caller da rota, para receber `car` já resolvido sem transformar o section em client. |
 | `CarGallery.tsx` | **Client.** Imagem principal + thumbs + `<dialog>` lightbox. `dialogRef` + ESC + restauração de foco. |
 | `car-categories.ts` | Pure helpers — `classifyCar(car)`, `parseCategoriaParam(raw)`, type `CarCategorySlug`. |
@@ -110,11 +118,13 @@ existente (variant `'car-detail'`).
 | Path | Cobertura |
 |---|---|
 | `tests/unit/components/sites/stock/car-categories.test.ts` | Heurística + parsing CSV + tokens inválidos. |
-| `tests/unit/components/sites/stock/StockGrid.test.tsx` | Render, BRL, badge, hrefs, alt textual. |
+| `tests/unit/components/sites/stock/StockGrid.test.tsx` | Render, reuso do `<CarCard>`, hrefs, BRL, WhatsApp inline, raio 8px e alt textual. |
 | `tests/unit/components/sites/stock/StockFilter.test.tsx` | Toggle, ordem URL determinística, a11y. |
-| `tests/unit/components/sites/stock/StockSection.test.tsx` | Filter cases, empty state, featured-first, axe-core runtime. |
+| `tests/unit/components/sites/stock/StockSection.test.tsx` | Filter cases, empty state, sort, paginação e axe-core runtime. |
 | `tests/unit/components/sites/stock/StockHeroMini.test.tsx` | H1, contagem e passagem AI-citable após h1. |
-| `tests/unit/components/sites/stock/StockSearchBar.test.tsx` | Busca, sort passthrough, botão mobile e callbacks. |
+| `tests/unit/components/sites/stock/StockSearchBar.test.tsx` | Busca, sort Radix, botão mobile e callbacks. |
+| `tests/unit/components/sites/stock/StockSortDropdown.test.tsx` | 5 opções públicas e callback de seleção. |
+| `tests/unit/components/sites/stock/StockPagination.test.tsx` | Desktop numbered, limites prev/next e load-more mobile. |
 | `tests/unit/components/sites/stock/StockFilterSidebar.test.tsx` | 10 sections, default expanded, badges, callbacks e axe. |
 | `tests/unit/components/sites/stock/StockFilterDrawer.test.tsx` | Vaul aberto, DialogTitle, max-height, fechar e axe. |
 | `tests/unit/components/sites/stock/CarGallery.test.tsx` | Trigger → dialog open, close, thumb active. |

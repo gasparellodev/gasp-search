@@ -37,6 +37,8 @@ export function StockSection({
         key={serializeStockFilters(filters)}
         cars={variables.cars}
         slug={slug}
+        whatsappPhone={variables.whatsapp}
+        businessName={variables.business_name}
         initialFilters={filters}
       />
     </>

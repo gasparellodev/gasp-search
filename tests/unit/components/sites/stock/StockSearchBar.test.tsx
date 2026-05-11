@@ -10,7 +10,7 @@ describe("<StockSearchBar />", () => {
     render(
       <StockSearchBar
         search="Corolla"
-        sort="price"
+        sort="price_asc"
         activeFilterCount={3}
         resultCount={2}
         totalCount={4}
@@ -23,7 +23,9 @@ describe("<StockSearchBar />", () => {
     expect(screen.getByLabelText("Buscar por marca ou modelo")).toHaveValue(
       "Corolla",
     );
-    expect(screen.getByLabelText("Ordenar estoque")).toHaveValue("price");
+    expect(
+      screen.getByRole("combobox", { name: "Ordenar estoque" }),
+    ).toHaveTextContent("Menor preço");
     expect(screen.getByRole("button", { name: /Filtros 3/i })).toBeVisible();
     expect(screen.getByText("2 de 4 carros")).toBeInTheDocument();
   });
@@ -39,7 +41,7 @@ describe("<StockSearchBar />", () => {
       return (
         <StockSearchBar
           search={search}
-          sort="featured"
+          sort="most_recent"
           activeFilterCount={0}
           resultCount={4}
           totalCount={4}
@@ -56,11 +58,12 @@ describe("<StockSearchBar />", () => {
     render(<Harness />);
 
     await user.type(screen.getByLabelText("Buscar por marca ou modelo"), "hb");
-    await user.selectOptions(screen.getByLabelText("Ordenar estoque"), "year");
+    await user.click(screen.getByRole("combobox", { name: "Ordenar estoque" }));
+    await user.click(screen.getByRole("option", { name: "Menor km" }));
     await user.click(screen.getByRole("button", { name: /Filtros/i }));
 
     expect(onSearchChange).toHaveBeenLastCalledWith("hb");
-    expect(onSortChange).toHaveBeenCalledWith("year");
+    expect(onSortChange).toHaveBeenCalledWith("km_asc");
     expect(onOpenFilters).toHaveBeenCalledTimes(1);
   });
 });
