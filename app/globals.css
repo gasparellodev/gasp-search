@@ -284,6 +284,8 @@
 
   /* --- Layers -------------------------------------------------------------- */
   --z-header: 50;
+  --z-stock-search: 40;
+  --z-stock-drawer: 60;
   --z-floating-cta: 50;
   --z-installment-bar: 45;
 

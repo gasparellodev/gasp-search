@@ -18,6 +18,7 @@ tests/e2e/sites/
 ├── navigation.spec.ts    # AC4 — clicks no SiteHeader
 ├── header-glass.spec.ts   # #218 — glass-sticky + MobileNav fullscreen
 ├── floating-whatsapp.spec.ts # #220 — CTA flutuante + barra mobile detail
+├── stock-filter.spec.ts # #224 — filtros URL/shareable + drawer mobile
 └── status-routing.spec.ts# AC5 — draft/archived → 404
 ```
 

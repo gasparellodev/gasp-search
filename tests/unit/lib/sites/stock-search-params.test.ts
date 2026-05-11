@@ -8,9 +8,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyStockFilters,
   parseQuickSearch,
+  parseStockFilters,
   serializeQuickSearch,
+  serializeStockFilters,
 } from "@/lib/sites/stock-search-params";
+
+import { SITE_FIXTURE } from "../../components/sites/site-fixtures";
 
 describe("serializeQuickSearch", () => {
   it("emite todos os 3 campos quando preenchidos", () => {
@@ -136,5 +141,134 @@ describe("parseQuickSearch", () => {
     const qs = serializeQuickSearch(input);
     const parsed = parseQuickSearch(new URLSearchParams(qs));
     expect(parsed).toEqual(input);
+  });
+});
+
+describe("parseStockFilters / serializeStockFilters", () => {
+  it("parseia os 10 grupos de filtros com short keys canônicas", () => {
+    const parsed = parseStockFilters(
+      new URLSearchParams(
+        "q=corolla&m=Toyota,Honda&model=Corolla&c=suv&pmin=50000&pmax=120000&imin=900&imax=2500&ymin=2019&ymax=2023&kmmin=10000&kmmax=70000&tr=Autom%C3%A1tico,CVT&fl=Flex&cor=Prata,Branco&page=2&sort=price",
+      ),
+    );
+
+    expect(parsed).toMatchObject({
+      search: "corolla",
+      marca: ["Toyota", "Honda"],
+      modelo: ["Corolla"],
+      categoria: ["suv"],
+      precoMin: 50000,
+      precoMax: 120000,
+      parcelaMin: 900,
+      parcelaMax: 2500,
+      anoMin: 2019,
+      anoMax: 2023,
+      kmMin: 10000,
+      kmMax: 70000,
+      cambio: ["Automático", "CVT"],
+      combustivel: ["Flex"],
+      cor: ["prata", "branco"],
+      passthrough: { page: "2", sort: "price" },
+    });
+  });
+
+  it("serializa em ordem estável e preserva passthrough desconhecido", () => {
+    const qs = serializeStockFilters({
+      search: "corolla",
+      marca: ["Toyota"],
+      modelo: ["Corolla"],
+      categoria: ["sedan"],
+      precoMin: 50000,
+      precoMax: 120000,
+      parcelaMin: null,
+      parcelaMax: null,
+      anoMin: 2020,
+      anoMax: 2023,
+      kmMin: null,
+      kmMax: 60000,
+      cambio: ["CVT"],
+      combustivel: ["Flex"],
+      cor: ["prata"],
+      passthrough: { sort: "price", page: "2" },
+    });
+
+    expect(qs).toBe(
+      "sort=price&page=2&q=corolla&m=Toyota&model=Corolla&c=sedan&pmin=50000&pmax=120000&ymin=2020&ymax=2023&kmmax=60000&tr=CVT&fl=Flex&cor=prata",
+    );
+  });
+
+  it("round-trip mantém filtros válidos e compatibilidade com serializeQuickSearch", () => {
+    const quick = serializeQuickSearch({
+      brand: "Toyota",
+      model: "Corolla",
+      priceMax: 120000,
+    });
+    const parsed = parseStockFilters(new URLSearchParams(quick));
+
+    expect(parsed.marca).toEqual(["Toyota"]);
+    expect(parsed.modelo).toEqual(["Corolla"]);
+    expect(parsed.precoMax).toBe(120000);
+    expect(serializeStockFilters(parsed)).toBe(
+      "m=Toyota&model=Corolla&pmax=120000",
+    );
+  });
+
+  it("ignora valores inválidos sem derrubar o parser", () => {
+    expect(
+      parseStockFilters({
+        c: "suv,invalida",
+        pmin: "-1",
+        pmax: "abc",
+        ymin: "99",
+        tr: "Automático,Invalido",
+      }),
+    ).toMatchObject({
+      categoria: ["suv"],
+      precoMin: null,
+      precoMax: null,
+      anoMin: null,
+      cambio: ["Automático"],
+    });
+  });
+});
+
+describe("applyStockFilters", () => {
+  it("filtra em memória por busca textual brand/model", () => {
+    const filtered = applyStockFilters(SITE_FIXTURE.cars, {
+      ...parseStockFilters({ q: "t-cross" }),
+    });
+    expect(filtered.map((car) => car.slug)).toEqual(["vw-tcross-2020"]);
+  });
+
+  it("combina categoria heurística, preço, ano, km, câmbio, combustível e cor", () => {
+    const filtered = applyStockFilters(
+      SITE_FIXTURE.cars,
+      parseStockFilters({
+        c: "sedan",
+        pmax: "120000",
+        ymin: "2021",
+        kmmax: "50000",
+        tr: "CVT,Automático",
+        fl: "Flex",
+        cor: "prata,branco",
+      }),
+    );
+
+    expect(filtered.map((car) => car.slug)).toEqual([
+      "toyota-corolla-2022",
+      "honda-civic-2021",
+    ]);
+  });
+
+  it("exclui preço null quando há filtro de preço ou parcela", () => {
+    const [car] = SITE_FIXTURE.cars;
+    const withoutPrice = { ...car!, price: null };
+
+    expect(
+      applyStockFilters([withoutPrice], parseStockFilters({ pmax: "100000" })),
+    ).toHaveLength(0);
+    expect(
+      applyStockFilters([withoutPrice], parseStockFilters({ imax: "2000" })),
+    ).toHaveLength(0);
   });
 });
