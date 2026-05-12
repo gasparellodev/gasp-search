@@ -31,7 +31,8 @@ persistir (tabela `lead_announcements` será criada em follow-up).
    HTML. Form values só viajam pro Server Action; nunca tocam DOM
    como markup. Sem `dangerouslySetInnerHTML`.
 2. **LGPD obrigatório**: checkbox `lgpd_consent` é
-   `z.literal(true)`. Submit bloqueado quando `false`.
+   `z.literal(true)`. Submit bloqueado quando `false`. Link de
+   privacidade aponta para `/sites/<slug>/lgpd` (#234).
 3. **Stub V1**: `submitAnnouncement` valida e retorna `{ ok: true }`
    sem persistir. Quando a persistência chegar (tabela
    `lead_announcements`), preservar a discriminated union
@@ -47,7 +48,7 @@ persistir (tabela `lead_announcements` será criada em follow-up).
 | Path | Propósito |
 |---|---|
 | `AdvertiseSection.tsx` | **Server Component.** Wrapper com header (`<h1>` "Anuncie seu carro aqui" + descrição) + `<AnnounceForm>`. Sanitiza cores antes de propagar. |
-| `AnnounceForm.tsx` | **Client Component.** `react-hook-form` + `zodResolver(AnnouncementSchema)`. Submit chama Server Action `submitAnnouncement`. LGPD checkbox obrigatório. Toast `sonner` em sucesso/erro. |
+| `AnnounceForm.tsx` | **Client Component.** `react-hook-form` + `zodResolver(AnnouncementSchema)`. Submit chama Server Action `submitAnnouncement`. LGPD checkbox obrigatório com link interno `/sites/<slug>/lgpd`. Toast `sonner` em sucesso/erro. |
 
 ## Boundary client/server
 

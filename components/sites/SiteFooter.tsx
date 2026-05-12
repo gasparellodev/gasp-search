@@ -230,14 +230,12 @@ export function SiteFooter({ variables }: SiteFooterProps) {
                 </Link>
               </li>
               <li>
-                <a
-                  href="https://gasplab.com/lgpd"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  href={`/sites/${variables.business_slug}/lgpd`}
                   className="transition hover:text-foreground"
                 >
                   Política de privacidade LGPD
-                </a>
+                </Link>
               </li>
             </ul>
           </nav>

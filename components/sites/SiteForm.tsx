@@ -226,7 +226,7 @@ export function SiteForm({
               que entrem em contato comigo para apresentar serviços. Seu nome,
               e-mail e telefone serão usados de acordo com a nossa{" "}
               <Link
-                href={`/sites/${slug}/privacidade`}
+                href={`/sites/${slug}/lgpd`}
                 className="underline underline-offset-2 hover:text-foreground"
               >
                 Política de Privacidade

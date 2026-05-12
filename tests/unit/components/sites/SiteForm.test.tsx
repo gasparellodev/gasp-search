@@ -160,12 +160,12 @@ describe("<SiteForm />", () => {
     });
   });
 
-  it("Política de Privacidade é Link com href apontando para /sites/<slug>/privacidade", () => {
+  it("Política de Privacidade é Link com href apontando para /sites/<slug>/lgpd", () => {
     render(<SiteForm {...baseProps} variant="home" />);
     const link = screen.getByRole("link", { name: /política de privacidade/i });
     expect(link).toHaveAttribute(
       "href",
-      `/sites/${baseProps.slug}/privacidade`,
+      `/sites/${baseProps.slug}/lgpd`,
     );
   });
 

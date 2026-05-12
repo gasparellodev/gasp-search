@@ -315,9 +315,7 @@ exports[`<SiteFooter /> > mantém snapshot estrutural do footer global 1`] = `
           <li>
             <a
               class="transition hover:text-foreground"
-              href="https://gasplab.com/lgpd"
-              rel="noopener noreferrer"
-              target="_blank"
+              href="/sites/touring-cars/lgpd"
             >
               Política de privacidade LGPD
             </a>

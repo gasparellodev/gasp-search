@@ -300,6 +300,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      consent_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          ip: string | null;
+          user_agent: string | null;
+          timestamp: string;
+          consent_text: string;
+          version: string;
+          action: "accept_all" | "accept_selected" | "reject";
+          categories: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          ip?: string | null;
+          user_agent?: string | null;
+          timestamp: string;
+          consent_text: string;
+          version: string;
+          action: "accept_all" | "accept_selected" | "reject";
+          categories: Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          ip?: string | null;
+          user_agent?: string | null;
+          timestamp?: string;
+          consent_text?: string;
+          version?: string;
+          action?: "accept_all" | "accept_selected" | "reject";
+          categories?: Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       whatsapp_instances: {
         Row: {
           id: string;

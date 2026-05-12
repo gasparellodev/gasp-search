@@ -40,7 +40,7 @@ describe("<SiteFooter />", () => {
     );
     expect(
       within(footer).getByRole("link", { name: "Política de privacidade LGPD" }),
-    ).toHaveAttribute("href", "https://gasplab.com/lgpd");
+    ).toHaveAttribute("href", "/sites/touring-cars/lgpd");
   });
 
   it("renderiza NAP completo em <address> semântico", () => {

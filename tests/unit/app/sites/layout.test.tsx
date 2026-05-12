@@ -44,6 +44,18 @@ beforeEach(() => {
 });
 
 describe("AutoShowroomLayout — schemas injection (#211)", () => {
+  it("injeta CookieBanner global quando o site é renderizável", async () => {
+    getSiteMock.mockResolvedValue(makeRow("published"));
+    const { default: Layout } = await import("@/app/sites/[slug]/layout");
+    const tree = await Layout({
+      children: null,
+      params: Promise.resolve({ slug: SLUG }),
+    });
+    const html = renderToStaticMarkup(tree);
+
+    expect(html).toContain('data-testid="cookie-banner"');
+  });
+
   it("injeta `@graph` JSON-LD quando status='published' + variables válido", async () => {
     getSiteMock.mockResolvedValue(makeRow("published"));
     const { default: Layout } = await import("@/app/sites/[slug]/layout");
