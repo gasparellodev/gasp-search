@@ -256,7 +256,7 @@ describe("POST /api/ai/generate-message", () => {
     expect(third.status).toBe(200);
   });
 
-  it("retorna header Retry-After: 1 quando rate-limited (padroniza com /api/whatsapp/send)", async () => {
+  it("retorna header Retry-After: 1 + code 'rate_limited' quando rate-limited (padroniza com /api/whatsapp/send)", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-07T12:00:00Z"));
     supabaseMocks.getUser.mockResolvedValue({
@@ -278,6 +278,11 @@ describe("POST /api/ai/generate-message", () => {
     expect(second.status).toBe(429);
     expect(second.headers.get("Retry-After")).toBe("1");
     expect(second.headers.get("Content-Type")).toContain("application/json");
+    const payload = (await second.json()) as { error: string; code: string };
+    expect(payload.code).toBe("rate_limited");
+    // Mensagem PT-BR é exibida diretamente em toast pelo componente
+    // `components/ai/message-generator.tsx`; preservar a string amigável.
+    expect(payload.error).toMatch(/Muitas tentativas/);
   });
 
   it("purga entradas stale do Map de rate-limit após RATE_LIMIT_MS * 10 ms (cleanup on-access)", async () => {

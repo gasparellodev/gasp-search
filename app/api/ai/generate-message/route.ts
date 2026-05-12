@@ -111,13 +111,19 @@ export async function POST(request: Request) {
   }
 
   if (!checkRateLimit(user.id)) {
-    return new Response(JSON.stringify({ error: "rate_limited" }), {
-      status: 429,
-      headers: {
-        "Retry-After": "1",
-        "Content-Type": "application/json",
+    // Body preserva a mensagem PT-BR pra UX (o componente
+    // `components/ai/message-generator.tsx` exibe `error` direto em toast)
+    // e segue a convenção de /api/whatsapp/send. `code` dá a máquina um
+    // identificador estável. Header Retry-After: 1 padroniza com
+    // /api/whatsapp/send. V2: migrate to Postgres `ai_usage_counters`
+    // table — see #132 follow-up.
+    return NextResponse.json(
+      {
+        error: "Muitas tentativas. Aguarde um segundo.",
+        code: "rate_limited",
       },
-    });
+      { status: 429, headers: { "Retry-After": "1" } },
+    );
   }
 
   try {
