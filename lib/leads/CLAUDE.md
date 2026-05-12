@@ -37,6 +37,7 @@ utilities de domínio que vivem fora do request handler.
 | `tags-crud.ts` | `createTag`, `updateTag`, `deleteTag` + `DuplicateTagError` |
 | `crud.ts` | `getLead`, `createLead`, `updateLead`, `deleteLead` — CRUD com flatten de tags |
 | `list-by-stage.ts` | `listLeadsByStage({ supabase })` — leads agrupados em board do `/pipeline` |
+| `stage-presentation.ts` | **Client-safe (sem `import "server-only"`).** Fonte canônica de `STAGE_LABEL` (PT-BR), `STAGE_VARIANT` (Badge variant) e `STAGE_ACCENT` (Tailwind `border-l-*`) por `LeadStage`. Consumido por `components/pipeline/board.tsx`, `components/leads/leads-table.tsx`, `components/leads/lead-detail-drawer.tsx`, `components/leads/filters-bar.tsx`, `components/dashboard/dashboard-view.tsx` e `app/(app)/leads/[id]/page.tsx`. Esta é a única exceção à regra "lib/leads é server-only" — é apresentação pura e precisa rodar no Client. Ao adicionar um estágio novo em `LEAD_STAGES`, atualize os 3 maps aqui (o `Record<LeadStage, …>` força via tipo). |
 
 ## Dependências
 

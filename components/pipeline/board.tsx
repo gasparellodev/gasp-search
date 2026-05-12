@@ -22,6 +22,7 @@ import {
   LEAD_STAGES,
   type LeadStage,
 } from "@/lib/validators/leads";
+import { STAGE_ACCENT, STAGE_LABEL } from "@/lib/leads/stage-presentation";
 import type {
   PipelineBoard as Board,
   PipelineCard,
@@ -37,24 +38,6 @@ interface PipelineBoardProps {
     fn: (args: { leadId: string; toStage: LeadStage | string }) => void,
   ) => void;
 }
-
-const STAGE_LABEL: Record<LeadStage, string> = {
-  new: "Novo",
-  contacted: "Contatado",
-  in_conversation: "Em conversa",
-  qualified: "Qualificado",
-  closed_won: "Ganho",
-  closed_lost: "Perdido",
-};
-
-const STAGE_ACCENT: Record<LeadStage, string> = {
-  new: "border-l-sky-400",
-  contacted: "border-l-amber-400",
-  in_conversation: "border-l-violet-400",
-  qualified: "border-l-emerald-400",
-  closed_won: "border-l-emerald-600",
-  closed_lost: "border-l-rose-500",
-};
 
 export function PipelineBoard({
   board,
