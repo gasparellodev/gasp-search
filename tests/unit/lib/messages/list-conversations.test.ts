@@ -105,24 +105,71 @@ describe("listConversations", () => {
     });
   });
 
-  it("ignora messages cujo lead não está mais acessível (RLS / deletado)", async () => {
+  it("thread de lead removido não aparece em listConversations (após cascade DELETE)", async () => {
+    // Pós-#133 / migration 0023: lead_messages.lead_id tem ON DELETE CASCADE.
+    // Deletar um lead remove suas mensagens automaticamente no DB; o helper
+    // não precisa mais filtrar orphans defensivamente.
+    //
+    // Mock simula o estado pós-cascade: o SELECT de lead_messages já não
+    // retorna nada do lead deletado (o DB removeu via cascade). Apenas leads
+    // vivos aparecem.
     const { client } = makeSupabase({
       messagesResult: {
         data: [
           {
-            lead_id: "ghost",
-            content: "x",
-            created_at: "now",
+            lead_id: "lead-vivo",
+            content: "ainda aqui",
+            created_at: "2026-05-09T12:00:00Z",
             direction: "outbound",
             status: "sent",
+          },
+          // Note: nenhuma row de 'lead-deletado' — cascade já apagou no DB.
+        ],
+        error: null,
+      },
+      leadsResult: {
+        data: [
+          { id: "lead-vivo", name: "Vivo", phone: null, whatsapp: null },
+        ],
+        error: null,
+      },
+    });
+    const result = await listConversations(client);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.leadId).toBe("lead-vivo");
+    expect(result.find((r) => r.leadId === "lead-deletado")).toBeUndefined();
+  });
+
+  it("se a invariante quebrar (race entre selects), expõe thread como 'Lead removido' em vez de filtrar silenciosamente", async () => {
+    // Defesa em profundidade pós-#133. A invariante DB (cascade FK) deveria
+    // tornar este caso impossível, mas em runtime concorrente é possível um
+    // delete acontecer ENTRE os dois selects do helper. Antes, `.filter(x =>
+    // x !== null)` simplesmente escondia a thread. Agora a thread aparece
+    // com placeholder para não silenciar histórico.
+    const { client } = makeSupabase({
+      messagesResult: {
+        data: [
+          {
+            lead_id: "race-deleted",
+            content: "msg que sobrou no SELECT",
+            created_at: "2026-05-09T12:00:00Z",
+            direction: "inbound",
+            status: "delivered",
           },
         ],
         error: null,
       },
+      // leads SELECT roda depois e não acha o lead — cenário de race.
       leadsResult: { data: [], error: null },
     });
     const result = await listConversations(client);
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      leadId: "race-deleted",
+      leadName: "Lead removido",
+      leadPhone: null,
+      lastContent: "msg que sobrou no SELECT",
+    });
   });
 
   it("propaga erro do select de mensagens", async () => {
