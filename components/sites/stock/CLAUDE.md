@@ -33,12 +33,13 @@ existente (variant `'car-detail'`).
 │  └───────────────────────────────┘         │
 └────────────────────────────────────────────┘
 
-┌─ CarDetailSection (server) ────────────────┐
-│  hero header + badges + WhatsApp CTA       │
-│  ┌─ CarGallery (client) ─────────┐         │
-│  │  <dialog> lightbox + thumbs   │         │
-│  └───────────────────────────────┘         │
-│  <dl> datasheet + <SiteForm/>              │
+┌─ CarDetailSection (server, D1 #226) ───────┐
+│  DetailBreadcrumb + WhatsApp CTA           │
+│  ┌─ DetailGalleryCinema (client) ─┐        │
+│  │  scroll-snap + Radix lightbox  │        │
+│  └────────────────────────────────┘        │
+│  DetailInfoBlock + DetailSpecGrid          │
+│  <SiteForm/>                               │
 └────────────────────────────────────────────┘
 ```
 
@@ -56,8 +57,9 @@ existente (variant `'car-detail'`).
   o `car` em si é separado).
 - **Sem dangerouslySetInnerHTML**. `car.description` em `<p
   whitespace-pre-line>` (preserva quebras `\n`).
-- **Sem libs de lightbox externas.** `<dialog>` HTML nativo cobre focus
-  trap, ESC, backdrop. Polyfill (Safari < 15.4) fica para V2.
+- **Detail D1 (#226)** usa scroll-snap CSS + JS mínimo para galeria
+  cinema e Radix Dialog para lightbox (focus trap/body scroll lock/ESC).
+  Não adicionar Embla ou biblioteca de lightbox externa no D1.
 - **URLs externas**: sempre `target="_blank" rel="noopener noreferrer"`.
 
 ## Regras de negócio específicas
@@ -87,11 +89,17 @@ existente (variant `'car-detail'`).
 6. **WhatsApp CTA** em `<CarDetailSection>`: `https://wa.me/<digits>?text=
    <encoded>` com `aria-label` descritivo. Mensagem template "Olá, tenho
    interesse no <brand> <model> <year>".
-7. **`<dialog>` lightbox**: `dialogRef.current?.showModal()` abre,
-   `.close()` fecha. Listener no evento `close` restaura foco no trigger.
+7. **Lightbox D1 (#226)**: Radix Dialog, `ArrowLeft/ArrowRight`,
+   `Home/End`, ESC nativo do Radix e retorno de foco ao trigger. Layer
+   `--z-lightbox: 90`, acima de cookie banner/floating UI.
 8. **`<SiteForm variant="car-detail" prefillModel="<brand> <model>">`**
    inline no fim do detalhe. Reusa o componente já existente em
    `components/sites/SiteForm.tsx` — campo `model` fica read-only.
+9. **Spec grid D1 (#226)**: composição híbrida. Renderiza top-level
+   (`brand`, `model`, `year`, `km`, `fuel`, `transmission`, `color`),
+   `doors`/`category` quando presentes e apenas datasheet com labels
+   case-insensitive `motor`, `cilindradas`, `final.*placa`. Omitir
+   ausentes; não emitir placeholder `—`.
 
 ## Arquivos
 
@@ -109,8 +117,12 @@ existente (variant `'car-detail'`).
 | `StockGrid.tsx` | Shared Client/Server-safe. Grid 1/2/3 cols que reutiliza `<CarCard>` para cada veículo, preservando `data-testid="car-card-<slug>"`, raio 8px e WhatsApp inline. |
 | `StockPagination.tsx` | **Client.** Navegação de páginas do estoque: prev/next + números no desktop, botão "Carregar mais 12" no mobile. |
 | `StockEmptyState.tsx` | **Client.** Empty state desenhado com SVG, copy PT-BR e CTA "Limpar filtros". |
-| `CarDetailSection.tsx` | Server. Hero (galeria + info + CTA WhatsApp + descrição) + datasheet `<dl>` + `<SiteForm variant="car-detail">`. **#214 (GEO):** injeta `<AICitableHero page="detalhe" currentCar={...}>` após o `<h1>` model/year; `Pick<SiteVariablesV2, ...>` extendido com `address`+`cars` pra alimentar a frase factual. **#220:** a barra mobile fixed vive fora deste section, no caller da rota, para receber `car` já resolvido sem transformar o section em client. |
+| `CarDetailSection.tsx` | Server. Orquestra D1 (#226): `<DetailBreadcrumb>`, `<DetailGalleryCinema>`, `<DetailInfoBlock>`, CTA WhatsApp, `<DetailSpecGrid>` e `<SiteForm variant="car-detail">`. **#220:** a barra mobile fixed vive fora deste section, no caller da rota, para receber `car` já resolvido sem transformar o section em client. |
 | `CarGallery.tsx` | **Client.** Imagem principal + thumbs + `<dialog>` lightbox. `dialogRef` + ESC + restauração de foco. |
+| `DetailBreadcrumb.tsx` | Server. Compõe `<Breadcrumb>` shared visual: Estoque → Marca filtrada (`?m=`) → Modelo Ano. BreadcrumbList JSON-LD segue no `SiteSchema` parent da rota. |
+| `DetailGalleryCinema.tsx` | **Client.** Galeria cinema full-height (`70dvh`) com scroll-snap horizontal, `<Image priority>` na primeira foto, `sizes="(max-width: 768px) 100vw, 70vw"`, alt `${brand} ${model} ${year} - foto ${index+1}`, contador `aria-live` e lightbox Radix com teclado. |
+| `DetailInfoBlock.tsx` | Server. Renderiza H1 model/year, `<AICitableHero page="detalhe">` imediatamente após o H1, badges, preço atual e descrição com `whitespace-pre-line` sem HTML. |
+| `DetailSpecGrid.tsx` | Server. Grid híbrido top-level + datasheet allowlist para ficha técnica D1. |
 | `car-categories.ts` | Pure helpers — `classifyCar(car)`, `parseCategoriaParam(raw)`, type `CarCategorySlug`. |
 
 ## Testes
@@ -129,8 +141,13 @@ existente (variant `'car-detail'`).
 | `tests/unit/components/sites/stock/StockFilterDrawer.test.tsx` | Vaul aberto, DialogTitle, max-height, fechar e axe. |
 | `tests/unit/components/sites/stock/CarGallery.test.tsx` | Trigger → dialog open, close, thumb active. |
 | `tests/unit/components/sites/stock/CarDetailSection.test.tsx` | WhatsApp CTA, datasheet, description XSS, prefillModel, axe-core. |
+| `tests/unit/components/sites/stock/DetailBreadcrumb.test.tsx` | Breadcrumb visual shared, links de estoque/marca e página atual. |
+| `tests/unit/components/sites/stock/DetailGalleryCinema.test.tsx` | Scroll-snap, alt text, contador `aria-live`, lightbox Radix, teclado e axe aberto/fechado. |
+| `tests/unit/components/sites/stock/DetailInfoBlock.test.tsx` | H1, AI-citable, badges, descrição escapada e axe. |
+| `tests/unit/components/sites/stock/DetailSpecGrid.test.tsx` | Grid híbrido, allowlist de datasheet e omissão de opcionais ausentes. |
 | `tests/unit/app/sites/estoque/page.test.tsx` | Status routing + searchParams handling. |
 | `tests/unit/app/sites/estoque/carDetailPage.test.tsx` | Status routing + `cars.find` 404 + metadata. |
+| `tests/e2e/sites/detail-d1.spec.ts` | D1 afetado: breadcrumb, galeria/info/spec e lightbox preservando scroll. |
 
 ## Dependências
 

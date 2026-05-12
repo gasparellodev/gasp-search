@@ -60,7 +60,7 @@ describe("<CarDetailSection /> — header", () => {
     expect(h1).toHaveTextContent(String(car.year));
   });
 
-  it("renderiza link 'Voltar ao estoque' apontando pra /estoque", () => {
+  it("renderiza breadcrumb apontando para estoque e marca filtrada", () => {
     const car = SITE_FIXTURE.cars[0]!;
     render(
       <CarDetailSection
@@ -70,13 +70,23 @@ describe("<CarDetailSection /> — header", () => {
         slug={SLUG}
       />,
     );
-    const back = screen.getByRole("link", { name: /Voltar ao estoque/i });
-    expect(back).toHaveAttribute("href", `/sites/${SLUG}/estoque`);
+    expect(screen.getByRole("link", { name: "Estoque" })).toHaveAttribute(
+      "href",
+      `/sites/${SLUG}/estoque`,
+    );
+    expect(screen.getByRole("link", { name: car.brand })).toHaveAttribute(
+      "href",
+      `/sites/${SLUG}/estoque?m=Toyota`,
+    );
+    expect(screen.getByText(`${car.model} ${car.year}`)).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 });
 
 describe("<CarDetailSection /> — galeria", () => {
-  it("renderiza <CarGallery> com a primeira imagem da galleria", () => {
+  it("renderiza <DetailGalleryCinema> com a primeira imagem da galeria", () => {
     const car = SITE_FIXTURE.cars[0]!;
     render(
       <CarDetailSection
@@ -86,9 +96,9 @@ describe("<CarDetailSection /> — galeria", () => {
         slug={SLUG}
       />,
     );
-    expect(screen.getByTestId("car-gallery")).toBeInTheDocument();
+    expect(screen.getByTestId("detail-gallery-cinema")).toBeInTheDocument();
     expect(
-      screen.getByAltText(/Toyota Corolla 2022 — imagem 1 de/i),
+      screen.getByAltText("Toyota Corolla 2022 - foto 1"),
     ).toBeInTheDocument();
   });
 });
@@ -104,7 +114,8 @@ describe("<CarDetailSection /> — info", () => {
         slug={SLUG}
       />,
     );
-    const badges = screen.getByTestId("car-detail-badges");
+    const badges = screen.getByTestId("detail-info-badges");
+    expect(within(badges).getByText(/Toyota/)).toBeInTheDocument();
     expect(within(badges).getByText(/35\.000 km/)).toBeInTheDocument();
     expect(within(badges).getByText(/CVT/)).toBeInTheDocument();
     expect(within(badges).getByText(/Flex/)).toBeInTheDocument();
@@ -212,7 +223,7 @@ describe("<CarDetailSection /> — descrição (XSS)", () => {
         slug={SLUG}
       />,
     );
-    const desc = screen.getByTestId("car-detail-description");
+    const desc = screen.getByTestId("detail-info-description");
     expect(desc).toHaveClass("whitespace-pre-line");
     expect(desc.textContent).toContain("Linha 1.");
     expect(desc.textContent).toContain("Linha 2.");
@@ -256,7 +267,7 @@ describe("<CarDetailSection /> — datasheet", () => {
         slug={SLUG}
       />,
     );
-    const dl = screen.getByTestId("car-detail-datasheet");
+    const dl = screen.getByTestId("detail-spec-grid");
     expect(within(dl).getByText("Motor")).toBeInTheDocument();
     expect(within(dl).getByText("2.0 16v")).toBeInTheDocument();
     expect(within(dl).getByText("Câmbio")).toBeInTheDocument();
@@ -264,7 +275,7 @@ describe("<CarDetailSection /> — datasheet", () => {
     expect(within(dl).getByText("Combustível")).toBeInTheDocument();
   });
 
-  it("não renderiza ficha técnica quando datasheet vazio", () => {
+  it("mantém ficha técnica top-level quando datasheet está vazio", () => {
     const car = { ...SITE_FIXTURE.cars[0]!, datasheet: [] };
     render(
       <CarDetailSection
@@ -274,7 +285,10 @@ describe("<CarDetailSection /> — datasheet", () => {
         slug={SLUG}
       />,
     );
-    expect(screen.queryByTestId("car-detail-datasheet")).toBeNull();
+    const grid = screen.getByTestId("detail-spec-grid");
+    expect(within(grid).getByText("Marca")).toBeInTheDocument();
+    expect(within(grid).getByText("Toyota")).toBeInTheDocument();
+    expect(screen.getAllByTestId("detail-spec-item")).toHaveLength(8);
   });
 });
 

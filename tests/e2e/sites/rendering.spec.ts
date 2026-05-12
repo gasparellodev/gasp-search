@@ -116,7 +116,7 @@ test.describe("sites rendering — 6 rotas", () => {
     await expectNoindexMeta(page);
   });
 
-  test("Detalhe carro `/sites/[slug]/estoque/[carSlug]` renderiza gallery + datasheet + noindex", async ({
+  test("Detalhe carro `/sites/[slug]/estoque/[carSlug]` renderiza D1 + noindex", async ({
     page,
   }) => {
     const res = await page.goto(
@@ -126,8 +126,8 @@ test.describe("sites rendering — 6 rotas", () => {
     await expect(
       page.getByRole("heading", { level: 1 }).first(),
     ).toBeVisible();
-    await expect(page.getByTestId("car-gallery")).toBeVisible();
-    await expect(page.getByTestId("car-detail-datasheet")).toBeVisible();
+    await expect(page.getByTestId("detail-gallery-cinema")).toBeVisible();
+    await expect(page.getByTestId("detail-spec-grid")).toBeVisible();
     await expectNoindexMeta(page);
   });
 });

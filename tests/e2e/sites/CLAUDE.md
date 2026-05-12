@@ -20,6 +20,7 @@ tests/e2e/sites/
 ├── floating-whatsapp.spec.ts # #220 — CTA flutuante + barra mobile detail
 ├── cookie-consent.spec.ts # #234 — banner LGPD + persistência localStorage
 ├── stock-filter.spec.ts # #224 — filtros URL/shareable + drawer mobile
+├── detail-d1.spec.ts     # #226 — breadcrumb, galeria cinema/lightbox, info e spec grid
 └── status-routing.spec.ts# AC5 — draft/archived → 404
 ```
 

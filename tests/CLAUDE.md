@@ -150,6 +150,10 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
   reativo no mesmo tab e modal Radix.
 - `tests/unit/lib/lgpd/consent-audit.test.ts` cobre `logConsent()` (#234)
   com mock de service-role e sem vazar erro de banco ao cliente.
+- `tests/unit/components/sites/stock/Detail*.test.tsx` +
+  `tests/e2e/sites/detail-d1.spec.ts` cobrem Detail D1 (#226):
+  breadcrumb visual shared, galeria cinema scroll-snap, lightbox Radix
+  com teclado/focus return, info block e spec grid híbrido.
 
 ### Quando usar mock factory vs inline `vi.mock`
 
