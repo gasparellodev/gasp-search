@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/api/errors";
+import {
+  getFunnelStats,
+  getSourceBreakdown,
+} from "@/lib/dashboard/insights";
 import { getDashboardSummary } from "@/lib/dashboard/summary";
 import { createServerSupabase } from "@/lib/supabase/server";
 
@@ -13,10 +17,15 @@ export async function GET() {
   }
 
   try {
-    const summary = await getDashboardSummary({ supabase });
-    return NextResponse.json(summary, {
-      headers: { "cache-control": "no-store" },
-    });
+    const [summary, sourceBreakdown, funnel] = await Promise.all([
+      getDashboardSummary({ supabase }),
+      getSourceBreakdown({ supabase }),
+      getFunnelStats({ supabase }),
+    ]);
+    return NextResponse.json(
+      { ...summary, sourceBreakdown, funnel },
+      { headers: { "cache-control": "no-store" } },
+    );
   } catch (error) {
     return apiErrorResponse(
       error,

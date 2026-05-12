@@ -24,6 +24,33 @@ const summary = {
       finishedAt: "2026-05-07T12:01:00Z",
     },
   ],
+  sourceBreakdown: [
+    {
+      source: "google_maps",
+      total: 80,
+      closedWon: 15,
+      conversionRate: 0.1875,
+    },
+    {
+      source: "instagram",
+      total: 30,
+      closedWon: 6,
+      conversionRate: 0.2,
+    },
+    {
+      source: "website_contact",
+      total: 18,
+      closedWon: 0,
+      conversionRate: 0,
+    },
+  ],
+  funnel: [
+    { stage: "new", count: 40, dropRate: null },
+    { stage: "contacted", count: 25, dropRate: 0.375 },
+    { stage: "in_conversation", count: 18, dropRate: 0.28 },
+    { stage: "qualified", count: 12, dropRate: 0.333 },
+    { stage: "closed_won", count: 21, dropRate: -0.75 },
+  ],
 };
 
 function mockFetchOnce(body: unknown) {
@@ -49,11 +76,13 @@ describe("DashboardView", () => {
 
     expect(await screen.findByText("128")).toBeInTheDocument();
     expect(screen.getByText("19")).toBeInTheDocument();
-    expect(screen.getByText("Em conversa")).toBeInTheDocument();
-    expect(screen.getByText("18")).toBeInTheDocument();
-    expect(screen.getByText("Google Maps")).toBeInTheDocument();
+    expect(screen.getAllByText("Em conversa").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("18").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Google Maps").length).toBeGreaterThan(0);
     expect(screen.getByText("Concluída")).toBeInTheDocument();
     expect(screen.getByText("32 leads")).toBeInTheDocument();
+    expect(screen.getByText("Atribuição por fonte")).toBeInTheDocument();
+    expect(screen.getByText("Funil de conversão")).toBeInTheDocument();
   });
 
   it("atualiza dados ao voltar o foco da janela", async () => {
@@ -118,6 +147,14 @@ describe("DashboardView", () => {
           closed_lost: 0,
         },
         recentSearches: [],
+        sourceBreakdown: [],
+        funnel: [
+          { stage: "new", count: 0, dropRate: null },
+          { stage: "contacted", count: 0, dropRate: null },
+          { stage: "in_conversation", count: 0, dropRate: null },
+          { stage: "qualified", count: 0, dropRate: null },
+          { stage: "closed_won", count: 0, dropRate: null },
+        ],
       }),
     );
 
