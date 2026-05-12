@@ -22,6 +22,7 @@ tests/e2e/sites/
 ├── stock-filter.spec.ts # #224 — filtros URL/shareable + drawer mobile
 ├── detail-d1.spec.ts     # #226 — breadcrumb, galeria cinema/lightbox, info e spec grid
 ├── detail-d3.spec.ts     # #228 — Tradein widget + Similar vehicles + FAQ contextual + ordem visual
+├── about-anchor.spec.ts  # #229 — deep-link `/sobre#garantia` com offset do header sticky
 └── status-routing.spec.ts# AC5 — draft/archived → 404
 ```
 

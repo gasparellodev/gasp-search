@@ -105,7 +105,7 @@ Fonte canônica do design: §8 do spec mestre em
 | Path | Propósito |
 |---|---|
 | `[slug]/page.tsx` | Rota raiz `/sites/<slug>`. `getSite(slug)` (de `lib/sites/get-site.ts`) cacheado + status routing + Zod validation + `<SitePage>` (renderiza Home composition). |
-| `[slug]/sobre/page.tsx` | Rota `/sites/<slug>/sobre` (#163). Reutiliza `getSite` + `<SitePage activePage="sobre">` com `<AboutSection>` injetado via children. |
+| `[slug]/sobre/page.tsx` | Rota `/sites/<slug>/sobre` (#163, redesign #229). Reutiliza `getSite` + `<SitePage activePage="sobre">`, preserva BreadcrumbList e compõe `AboutHeroEditorial`, `AboutMissionVision`, `AboutWarrantyDeepdive` (`#garantia`), `HomeGoogleReviewsEmbed` e `HomeContactFormQuick` via children. |
 | `[slug]/contato/page.tsx` | Rota `/sites/<slug>/contato` (#163). Reutiliza `getSite` + `<SitePage activePage="contato">` com `<ContactSection>` injetado via children. |
 | `[slug]/anunciar/page.tsx` | Rota `/sites/<slug>/anunciar` (#163). Reutiliza `getSite` + `<SitePage activePage="anunciar">` com `<AdvertiseSection>` (server) + `<AnnounceForm>` (client) injetados via children. |
 | `[slug]/estoque/page.tsx` | Rota `/sites/<slug>/estoque` (#164, refactor #224/#225). Reutiliza `getSite` + `<SitePage activePage="estoque">` com `<StockSection>` injetado. Recebe `searchParams` completo e chama `parseStockFilters` para short keys canônicas (`m`, `model`, `c`, `pmin`...) + passthrough (`sort`, `page`) antes de passar `initialFilters` ao client orchestrator. `loading.tsx` da rota usa skeleton de 6 cards com raio 8px para casar com `<CarCard>`. |

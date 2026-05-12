@@ -6,7 +6,7 @@
  *   - `null` (slug missing) → `notFound()`.
  *   - `draft` / `archived` → `notFound()`.
  *   - `published` / `sent` → renderiza `<SitePage activePage="sobre">`
- *     com `<AboutSection>` injetado entre Header e Footer.
+ *     com sections About + Home H3 reutilizadas entre Header e Footer.
  *
  * `getSite` vem de `lib/sites/get-site.ts` (extraído em #163) e mantém
  * `'use cache' + cacheTag('site:<slug>') + cacheLife({revalidate:3600,
@@ -28,7 +28,11 @@ import "server-only";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
-import { AboutSection } from "@/components/sites/about/AboutSection";
+import { AboutHeroEditorial } from "@/components/sites/about/AboutHeroEditorial";
+import { AboutMissionVision } from "@/components/sites/about/AboutMissionVision";
+import { AboutWarrantyDeepdive } from "@/components/sites/about/AboutWarrantyDeepdive";
+import { HomeContactFormQuick } from "@/components/sites/home/HomeContactFormQuick";
+import { HomeGoogleReviewsEmbed } from "@/components/sites/home/HomeGoogleReviewsEmbed";
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { env } from "@/lib/env";
 import { buildBreadcrumbSchema } from "@/lib/sites/schema";
@@ -98,11 +102,25 @@ export default async function SobrePage({ params }: PageProps) {
       slug={site.slug}
       activePage="sobre"
       manifest={site.visual_identity}
+      rating={site.lead_rating}
+      reviewsCount={site.lead_reviews_count}
     >
       <SiteSchema schemas={breadcrumbSchema} />
-      <AboutSection
+      <AboutHeroEditorial
         variables={parsed.data}
         manifestAboutUrl={site.visual_identity?.about_url ?? null}
+      />
+      <AboutMissionVision variables={parsed.data} />
+      <AboutWarrantyDeepdive />
+      <HomeGoogleReviewsEmbed
+        rating={site.lead_rating}
+        reviewsCount={site.lead_reviews_count}
+        primary_color={parsed.data.brand_assets.primary_color}
+      />
+      <HomeContactFormQuick
+        siteId={site.id}
+        businessName={parsed.data.business_name}
+        slug={site.slug}
       />
     </SitePage>
   );

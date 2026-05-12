@@ -1,9 +1,9 @@
-# `components/sites/about/` — Section da rota `/sobre` (Phase 7)
+# `components/sites/about/` — Sections da rota `/sobre` (Phase 7)
 
 ## Propósito
 
 Sub-componentes que compõem a página Sobre do site público
-(`/sites/<slug>/sobre`) — issue #163. Cada arquivo é uma seção
+(`/sites/<slug>/sobre`) — issue #163, redesenhada em #229. Cada arquivo é uma seção
 isolada com responsabilidade estreita, consumida pela rota raiz
 `/sites/[slug]/sobre/page.tsx` que injeta a section dentro do
 `<SitePage>` via children.
@@ -11,7 +11,7 @@ isolada com responsabilidade estreita, consumida pela rota raiz
 ## Como adicionar
 
 - 1 arquivo por seção, em PascalCase com prefixo `About` (ex:
-  `AboutSection.tsx`, `AboutTeam.tsx` — quando virem).
+  `AboutHeroEditorial.tsx`, `AboutTeam.tsx` — quando virem).
 - **Sempre Server Component.** `import "server-only";` na linha 1.
 - **Props com subset explícito** (`Pick<SiteVariables, ...>` ou
   interface dedicada). Não passar `variables` inteiro.
@@ -39,12 +39,20 @@ isolada com responsabilidade estreita, consumida pela rota raiz
 
 | Path | Propósito |
 |---|---|
-| `AboutSection.tsx` | Section principal: hero (image + h1 + about_text dividido em parágrafos) + 3 cards (Missão, Visão, Valores). Recebe `Pick<SiteVariables, 'about_text'\|'brand_assets'\|'mission'\|'vision'\|'values'\|'business_name'>` + opcional `manifestAboutUrl?: string \| null` (#217). Pattern de URL: `manifestAboutUrl ?? variables.brand_assets.about_image_url`. Caller (`/sobre/page.tsx`) deriva via `site.visual_identity?.about_url ?? null`. |
+| `AboutHeroEditorial.tsx` | Hero editorial da página Sobre (#229): `data-testid="about-hero-editorial"`, `min-h-[50dvh] md:min-h-[60dvh]`, `<h1>` único "Sobre a {business_name}", tagline (`slogan` → cidade → fallback) e primeiro parágrafo de `about_text`. Foto via `manifestAboutUrl ?? brand_assets.about_image_url ?? /assets/about/porsche-model.png`. |
+| `AboutMissionVision.tsx` | Grid 1 coluna mobile / 3 colunas desktop com `<article>` Missão, Visão e Valores. Lê `variables.mission`, `variables.vision` e `variables.values` direto, sem fallback hardcoded. Preserva testids `about-mission`, `about-vision`, `about-values`. |
+| `AboutWarrantyDeepdive.tsx` | Section `id="garantia"` com `data-testid="about-warranty-deepdive"` e `scroll-mt-20` para deep-link abaixo do header sticky. Renderiza 3 cards de processo do canon `lib/sites/warranty-process.ts`. |
+
+`/sobre/page.tsx` também reutiliza diretamente `HomeGoogleReviewsEmbed` e
+`HomeContactFormQuick` de `components/sites/home/`; os testids `home-*`
+permanecem porque o reuso é por composição, não por rename.
 
 ## Boundary client/server
 
 ```
-AboutSection (server) ─── pure server
+AboutHeroEditorial (server) ─── pure server
+AboutMissionVision (server) ─── pure server
+AboutWarrantyDeepdive (server) ─── pure server
 ```
 
 Tudo é Server Component. Não há ilha interativa nesta seção.
@@ -52,6 +60,8 @@ Tudo é Server Component. Não há ilha interativa nesta seção.
 ## Dependências
 
 - `next/image`.
+- `lucide-react` — ícones do deep-dive de garantia.
+- `@/lib/sites/warranty-process` — canon dos 3 cards de garantia.
 - `@/types/lead-site.SiteVariables` — tipos do payload (subset via
   `Pick`).
 
