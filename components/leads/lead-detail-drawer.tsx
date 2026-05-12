@@ -10,6 +10,9 @@
  * `<LeadSiteCardClient />` como slot pra tab "Site".
  */
 
+import Link from "next/link";
+import { MessageCircle } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -21,6 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { LeadTabs } from "@/components/leads/lead-tabs";
+import { publicEnv } from "@/lib/env-public";
 import type { LeadListItem, LeadTagSummary } from "@/lib/leads/list-leads";
 
 import { LeadSiteCardClient } from "./lead-site-card-client";
@@ -57,12 +61,30 @@ interface DrawerBodyProps {
 }
 
 function DrawerBody({ lead, tags }: DrawerBodyProps) {
+  const whatsappEnabled = publicEnv.NEXT_PUBLIC_WHATSAPP_ENABLED === "1";
+  const showWhatsappLink = whatsappEnabled && Boolean(lead.phone);
   return (
     <>
       <SheetHeader className="border-b px-4 py-5 sm:px-6">
-        <SheetTitle className="break-words text-xl font-semibold">
-          {lead.name}
-        </SheetTitle>
+        <div className="flex items-start justify-between gap-3">
+          <SheetTitle className="break-words text-xl font-semibold">
+            {lead.name}
+          </SheetTitle>
+          {showWhatsappLink ? (
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              aria-label={`Abrir conversa de ${lead.name}`}
+              title="Abrir conversa"
+              className="shrink-0"
+            >
+              <Link href={`/messages/${lead.id}`}>
+                <MessageCircle className="size-4" aria-hidden="true" />
+              </Link>
+            </Button>
+          ) : null}
+        </div>
         <SheetDescription className="text-muted-foreground text-xs">
           Editar nome, telefone, stage, score, notas e tags. Mudanças
           persistem imediatamente via PATCH.

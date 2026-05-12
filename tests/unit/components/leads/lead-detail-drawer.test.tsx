@@ -316,4 +316,36 @@ describe("LeadDetailDrawer", () => {
       expect(screen.getByTestId("drawer-instance-banner")).toBeInTheDocument();
     });
   });
+
+  describe("ícone secundário 'abrir conversa' (#137)", () => {
+    afterEach(() => {
+      whatsappFlag.current = "0";
+    });
+
+    it("aparece quando WhatsApp habilitado E lead tem phone — link para /messages/[id]", () => {
+      whatsappFlag.current = "1";
+      render(<LeadDetailDrawer {...defaultProps} />);
+      const link = screen.getByRole("link", {
+        name: /abrir conversa de barbearia x/i,
+      });
+      expect(link).toHaveAttribute("href", "/messages/lead-1");
+    });
+
+    it("não aparece quando WhatsApp desabilitado mesmo com phone", () => {
+      whatsappFlag.current = "0";
+      render(<LeadDetailDrawer {...defaultProps} />);
+      expect(
+        screen.queryByRole("link", { name: /abrir conversa/i }),
+      ).toBeNull();
+    });
+
+    it("não aparece quando lead não tem phone (mesmo com flag='1')", () => {
+      whatsappFlag.current = "1";
+      const leadSemPhone = { ...baseLead, phone: null };
+      render(<LeadDetailDrawer {...defaultProps} lead={leadSemPhone} />);
+      expect(
+        screen.queryByRole("link", { name: /abrir conversa/i }),
+      ).toBeNull();
+    });
+  });
 });

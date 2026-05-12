@@ -24,8 +24,9 @@
  */
 
 import { useState, useTransition, type ReactNode } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Loader2, Plus } from "lucide-react";
+import { Check, ChevronDown, Loader2, MessageCircle, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { MessageGenerator } from "@/components/ai/message-generator";
@@ -205,9 +206,27 @@ function LeadTabsInner({
                 {compactPresentation(snapshot) || "Lead sem categoria"}
               </p>
             </div>
-            <Badge variant={STAGE_VARIANT[snapshot.stage]}>
-              {STAGE_LABEL[snapshot.stage]}
-            </Badge>
+            <div className="flex items-center gap-2">
+              {whatsappEnabled && snapshot.phone ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Abrir conversa de ${snapshot.name}`}
+                  title="Abrir conversa"
+                >
+                  <Link href={`/messages/${snapshot.id}`}>
+                    <MessageCircle
+                      className="size-4"
+                      aria-hidden="true"
+                    />
+                  </Link>
+                </Button>
+              ) : null}
+              <Badge variant={STAGE_VARIANT[snapshot.stage]}>
+                {STAGE_LABEL[snapshot.stage]}
+              </Badge>
+            </div>
           </div>
         </header>
       ) : null}

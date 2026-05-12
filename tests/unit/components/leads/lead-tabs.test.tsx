@@ -179,6 +179,42 @@ describe("LeadTabs (componente unificado de tabs do lead)", () => {
       expect(header!.textContent).toContain("Novo");
     });
 
+    it("mostra ícone 'abrir conversa' no hero quando WhatsApp habilitado E lead tem phone (#137)", () => {
+      whatsappFlag.current = "1";
+      try {
+        render(<LeadTabs lead={baseLead} mode="standalone" tags={allTags} />);
+        const link = screen.getByRole("link", {
+          name: /abrir conversa de barbearia x/i,
+        });
+        expect(link).toHaveAttribute("href", "/messages/lead-1");
+      } finally {
+        whatsappFlag.current = "0";
+      }
+    });
+
+    it("não mostra ícone 'abrir conversa' quando WhatsApp desabilitado", () => {
+      whatsappFlag.current = "0";
+      render(<LeadTabs lead={baseLead} mode="standalone" tags={allTags} />);
+      expect(
+        screen.queryByRole("link", { name: /abrir conversa/i }),
+      ).toBeNull();
+    });
+
+    it("não mostra ícone 'abrir conversa' quando lead.phone é null mesmo com flag '1'", () => {
+      whatsappFlag.current = "1";
+      try {
+        const leadSemPhone = { ...baseLead, phone: null };
+        render(
+          <LeadTabs lead={leadSemPhone} mode="standalone" tags={allTags} />,
+        );
+        expect(
+          screen.queryByRole("link", { name: /abrir conversa/i }),
+        ).toBeNull();
+      } finally {
+        whatsappFlag.current = "0";
+      }
+    });
+
     it("renderiza slot siteCard apenas no modo standalone na tab Site", async () => {
       render(
         <LeadTabs

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { CheckCircle2, Clock, MinusCircle, TriangleAlert } from "lucide-react";
 import {
   Card,
@@ -83,7 +84,12 @@ export function TargetStatusTable({ targets }: Props) {
               targets.map((t) => (
                 <TableRow key={t.lead_id}>
                   <TableCell className="font-medium">
-                    {t.lead_name ?? t.lead_id.slice(0, 8)}
+                    <Link
+                      href={`/leads/${t.lead_id}`}
+                      className="hover:underline"
+                    >
+                      {t.lead_name ?? t.lead_id.slice(0, 8)}
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <StatusCell status={t.status} />

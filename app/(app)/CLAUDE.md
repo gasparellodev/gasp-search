@@ -51,7 +51,7 @@ Route group das páginas autenticadas. Layout aqui faz auth check e monta o shel
 | `pipeline/loading.tsx` | Server | Skeleton de rota do Kanban |
 | `settings/page.tsx` | Server | Placeholder + `<InstanceCard />` (WhatsApp) condicional |
 | `messages/page.tsx` | Server | Inbox WhatsApp Web style — `<ConversationList />` + placeholder de seleção. Redireciona se feature flag desligada. |
-| `messages/[leadId]/page.tsx` | Server | Thread específica — list + thread + composer + banner. |
+| `messages/[leadId]/page.tsx` | Server | Thread específica — list + thread + composer + banner. Header tem cross-link `<Link href="/leads/[id]">` no nome do lead + `<Badge>` com `STAGE_LABEL`/`STAGE_VARIANT` (issue #137). |
 | `campaigns/page.tsx` | Server | Lista de campanhas (até 50 mais recentes). Redireciona se feature flag desligada. |
 | `campaigns/new/page.tsx` | Server | Form de criação. Lê `?leads=id1,id2` e busca os leads selecionados. |
 | `campaigns/[id]/page.tsx` | Server | Detalhe + `<CampaignProgress />` (Realtime) + `<TargetStatusTable />`. |
