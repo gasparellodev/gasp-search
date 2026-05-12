@@ -69,6 +69,12 @@ const serverEnvSchema = z
     EVOLUTION_API_KEY: z.string().min(1).optional(),
     EVOLUTION_WEBHOOK_SECRET: z.string().optional(),
     NEXT_PUBLIC_WHATSAPP_ENABLED: z.enum(["0", "1"]).default("0"),
+    // Phase 6 / #134 — rate-limit por usuário em POST /api/campaigns.
+    // Hard cap de campanhas criadas por hora (window 1h via `created_at`).
+    // Server-only: nunca expor no bundle do cliente. Default 5/h é
+    // conservador o suficiente para uso humano e protege budget Anthropic
+    // + quotas WhatsApp contra flooding acidental ou malicioso.
+    MAX_CAMPAIGNS_PER_HOUR: z.coerce.number().int().positive().default(5),
     // Test-only seed (Phase 7 #166). Apenas relevante em dev/test.
     // Em produção a rota `/api/__test__/seed-lead-site` retorna 404
     // independentemente desses valores.
