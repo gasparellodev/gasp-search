@@ -22,6 +22,7 @@ privadas ou helpers que leem secrets.
 |---|---|
 | `use-floating-cta-visibility.ts` | Observa `body[data-modal-open]` via `MutationObserver` e retorna se CTAs flutuantes podem renderizar. |
 | `use-car-context.ts` | Normaliza o contexto serializado do carro no detalhe público: labels de preço/parcela e link WhatsApp `vehicle`. |
+| `use-consent.ts` | Hook SSR-safe para consentimento granular LGPD. Exporta `useConsent(category)` para `analytics`/`marketing` e `useConsentDecision()` para o banner. Usa `localStorage` key `gasp_consent_v1`, evento `storage` e evento custom `gasp-consent-change` para updates no mesmo tab. |
 
 ## Dependências
 

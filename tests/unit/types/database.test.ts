@@ -131,7 +131,7 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 12 tabelas esperadas (incluindo lead_form_submissions do H3 #223)", () => {
+  it("Database['public']['Tables'] cobre as 13 tabelas esperadas (incluindo consent_logs do P3 #234)", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
       | "profiles"
@@ -141,12 +141,50 @@ describe("types/database", () => {
       | "lead_tags"
       | "lead_messages"
       | "lead_form_submissions"
+      | "consent_logs"
       | "whatsapp_instances"
       | "campaigns"
       | "campaign_targets"
       | "lead_sites"
       | "generation_throttle"
     >();
+  });
+
+  it("Tables<'consent_logs'> modela auditoria LGPD granular", () => {
+    type ConsentLogRow = Tables<"consent_logs">;
+    expectTypeOf<ConsentLogRow["id"]>().toBeString();
+    expectTypeOf<ConsentLogRow["user_id"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConsentLogRow["ip"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConsentLogRow["user_agent"]>().toEqualTypeOf<string | null>();
+    expectTypeOf<ConsentLogRow["timestamp"]>().toBeString();
+    expectTypeOf<ConsentLogRow["consent_text"]>().toBeString();
+    expectTypeOf<ConsentLogRow["version"]>().toBeString();
+    expectTypeOf<ConsentLogRow["action"]>().toEqualTypeOf<
+      "accept_all" | "accept_selected" | "reject"
+    >();
+    expectTypeOf<ConsentLogRow["categories"]>().toEqualTypeOf<
+      import("@/types/database").Json
+    >();
+    expectTypeOf<ConsentLogRow["created_at"]>().toBeString();
+  });
+
+  it("TablesInsert<'consent_logs'> exige campos de decisão e permite visitante anônimo", () => {
+    type ConsentLogInsert = TablesInsert<"consent_logs">;
+    const sample: ConsentLogInsert = {
+      user_id: null,
+      ip: null,
+      user_agent: null,
+      timestamp: "2026-05-12T00:00:00.000Z",
+      consent_text: "copy",
+      version: "v1",
+      action: "reject",
+      categories: {
+        necessary: true,
+        analytics: false,
+        marketing: false,
+      },
+    };
+    expect(sample).toBeDefined();
   });
 
   it("Tables<'lead_sites'> tem todas as 17 colunas tipadas (AC8 #153 + archived_at #169 + signed_at #199 + visual_identity #215)", () => {

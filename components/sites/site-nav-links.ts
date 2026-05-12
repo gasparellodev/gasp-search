@@ -11,7 +11,8 @@ export type ActivePage =
   | "sobre"
   | "estoque"
   | "contato"
-  | "anunciar";
+  | "anunciar"
+  | "lgpd";
 
 export interface SiteNavLink {
   id: ActivePage;

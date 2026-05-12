@@ -2,6 +2,7 @@ import "server-only";
 
 import type { ReactNode } from "react";
 
+import { CookieBanner } from "@/components/sites/CookieBanner";
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { WhatsAppFloatingCTA } from "@/components/sites/WhatsAppFloatingCTA";
 import { getSite } from "@/lib/sites/get-site";
@@ -71,6 +72,7 @@ export default async function AutoShowroomLayout({
       {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
       {variables && <WhatsAppFloatingCTA variables={variables} slug={slug} />}
+      {variables && <CookieBanner />}
     </div>
   );
 }

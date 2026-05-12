@@ -144,6 +144,12 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
 - `tests/unit/lib/seo/indexnow.test.ts` cobre `notifyIndexNow` (#232):
   dedupe, chunks de 10 URLs, POST para os 4 endpoints, warning em falhas
   e no-op quando `INDEXNOW_KEY` não está configurada.
+- `tests/unit/components/sites/CookieBanner.test.tsx` +
+  `tests/unit/lib/hooks/use-consent.test.tsx` cobrem consentimento LGPD
+  granular (#234): opt-in default, persistência `localStorage`, evento
+  reativo no mesmo tab e modal Radix.
+- `tests/unit/lib/lgpd/consent-audit.test.ts` cobre `logConsent()` (#234)
+  com mock de service-role e sem vazar erro de banco ao cliente.
 
 ### Quando usar mock factory vs inline `vi.mock`
 

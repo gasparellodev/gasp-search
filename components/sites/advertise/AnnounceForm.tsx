@@ -249,7 +249,7 @@ export function AnnounceForm({
           entrem em contato comigo. Seus dados serão usados de acordo com a
           nossa{" "}
           <Link
-            href={`/sites/${slug}/privacidade`}
+            href={`/sites/${slug}/lgpd`}
             className="underline underline-offset-2 hover:text-foreground"
           >
             Política de Privacidade
