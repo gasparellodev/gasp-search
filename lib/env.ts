@@ -51,6 +51,15 @@ const serverEnvSchema = z
       .max(10)
       .default(2),
     BRL_RATE: z.coerce.number().positive().default(5.0),
+    INDEXNOW_KEY: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z
+        .string()
+        .trim()
+        .min(8, "INDEXNOW_KEY deve ter pelo menos 8 caracteres")
+        .regex(/^[A-Za-z0-9_-]+$/, "INDEXNOW_KEY deve ser alfanumérica")
+        .optional(),
+    ),
     EVOLUTION_API_URL: z
       .url("EVOLUTION_API_URL deve ser uma URL válida")
       .refine((u) => /^https?:\/\//.test(u), {

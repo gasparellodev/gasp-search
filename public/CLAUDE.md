@@ -32,4 +32,5 @@ Assets estáticos servidos diretamente pelo Next: favicon, ícones, logos, image
 | `assets/payment/` | SVGs monocromáticos 40×40 usados pelo `PaymentStrip` dos sites públicos. |
 | `assets/{about,contact,emphasis,hero,logos,sale,stock,sw4-details}/` | Assets estáticos do site demo/concessionária usados pelas rotas públicas. |
 | `fonts/geist-600.woff2` | Geist SemiBold 600 local usado pelo OG image dinâmico dos sites públicos; evita dependência de GitHub raw/CDN em social preview. |
+| `<INDEXNOW_KEY>.txt` | **Manual, não gerado neste PR.** Arquivo de verificação IndexNow (#232): quando `INDEXNOW_KEY` for configurada em produção, publicar `public/<INDEXNOW_KEY>.txt` contendo exatamente a key. |
 | `*.svg` raiz | Defaults do create-next-app mantidos enquanto ainda referenciados pelo app/template. |

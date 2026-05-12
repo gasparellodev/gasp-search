@@ -199,6 +199,22 @@ gh secret set ANTHROPIC_API_KEY
 
 Implementar issue **#42** (pin de actions por SHA + bloco `permissions: contents: read`) **antes** de adicionar secrets sensíveis ao repo público.
 
+### 6. Configurar IndexNow (Phase 7 #232)
+
+`INDEXNOW_KEY` é opcional. Enquanto ausente, `notifyIndexNow()` registra warning e não faz POST.
+
+Para habilitar em produção:
+
+```bash
+# 1. Gere uma key alfanumérica longa.
+# 2. Defina INDEXNOW_KEY=<key> no ambiente server.
+# 3. Crie public/<key>.txt contendo exatamente a mesma key.
+# 4. Faça deploy; signLeadSite() notificará IndexNow/Bing/Yandex/Naver
+#    quando signed_at mudar de null para valor.
+```
+
+Não usar uma key real de produção em branch/PR público antes de decidir se o token deve ser versionado no repo ou injetado no build pipeline.
+
 ---
 
 ## Próximos passos sugeridos (ordem recomendada)

@@ -19,6 +19,9 @@ const navigationMocks = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
   }),
+  permanentRedirect: vi.fn((url: string) => {
+    throw new Error(`NEXT_REDIRECT:${url}`);
+  }),
 }));
 
 vi.mock("@/lib/sites/get-site", () => ({
@@ -27,6 +30,7 @@ vi.mock("@/lib/sites/get-site", () => ({
 
 vi.mock("next/navigation", () => ({
   notFound: navigationMocks.notFound,
+  permanentRedirect: navigationMocks.permanentRedirect,
   useRouter: () => ({ push: vi.fn() }),
 }));
 
@@ -105,6 +109,34 @@ describe("/sites/[slug]/estoque/[carSlug] — routing", () => {
         params: Promise.resolve({ slug: SLUG, carSlug: "carro-fantasma" }),
       }),
     ).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("slug legado <brand>-<model>-<year> → permanentRedirect para slug novo salvo no payload", async () => {
+    const variables = {
+      ...SITE_FIXTURE,
+      cars: SITE_FIXTURE.cars.map((car, index) =>
+        index === 0
+          ? { ...car, slug: "toyota-corolla-2022-a1b2" }
+          : car,
+      ),
+    };
+    getSiteMock.mockResolvedValue(makeRow("published", variables));
+    const { default: Page } = await import(
+      "@/app/sites/[slug]/estoque/[carSlug]/page"
+    );
+
+    await expect(
+      Page({
+        params: Promise.resolve({
+          slug: SLUG,
+          carSlug: "toyota-corolla-2022",
+        }),
+      }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+    expect(navigationMocks.permanentRedirect).toHaveBeenCalledWith(
+      `/sites/${SLUG}/estoque/toyota-corolla-2022-a1b2`,
+    );
+    expect(navigationMocks.notFound).not.toHaveBeenCalled();
   });
 
   it("status='published' + carSlug válido → renderiza", async () => {

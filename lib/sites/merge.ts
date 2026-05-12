@@ -5,6 +5,7 @@ import {
   GENERATION_VERSION,
   type generateCopy,
 } from "@/lib/sites/generate-copy";
+import { slugifyVehicle } from "@/lib/sites/slug";
 import { slugify } from "@/lib/utils/slug";
 import type { Database } from "@/types/database";
 import type { Address as AddressType, SiteCar } from "@/types/lead-site";
@@ -105,16 +106,20 @@ function buildCars(
     carUrls[i] ?? carUrls[0] ?? FALLBACK_IMAGE_URL;
 
   return copy.cars.map((c, idx) => {
+    const brand = businessName.split(" ")[0] ?? "Carro";
+    const model = `Modelo ${idx + 1}`;
+    const year = new Date().getFullYear() - (idx % 3);
+    const deterministicId = `${idx + 1}${idx + 1}${idx + 1}${idx + 1}`;
     const galleryAndPhotos = [
       safeCarAt(idx % Math.max(1, carUrls.length)),
       safeCarAt((idx + 1) % Math.max(1, carUrls.length)),
       safeCarAt((idx + 2) % Math.max(1, carUrls.length)),
     ];
     return {
-      slug: `car-${idx + 1}`,
-      brand: businessName.split(" ")[0] ?? "Carro",
-      model: `Modelo ${idx + 1}`,
-      year: new Date().getFullYear() - (idx % 3),
+      slug: slugifyVehicle({ brand, model, year, id: deterministicId }),
+      brand,
+      model,
+      year,
       km: idx * 12_000,
       price: null,
       transmission: "Automático" as const,

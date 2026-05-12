@@ -368,6 +368,18 @@ describe("mergeSiteVariables — shape v2", () => {
     }
   });
 
+  it("cars[] novos recebem slug SEO-friendly com sufixo id4", () => {
+    const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy());
+    const parsed = SiteVariablesV2.parse(merged);
+
+    expect(parsed.cars[0]?.slug).toMatch(
+      /^auto-modelo-1-\d{4}-[a-f0-9]{4}$/,
+    );
+    expect(parsed.cars[1]?.slug).toMatch(
+      /^auto-modelo-2-\d{4}-[a-f0-9]{4}$/,
+    );
+  });
+
   it("home_categories sempre length 3, recent_sales sempre length 3", () => {
     const merged = mergeSiteVariables(makeLead(), makeAssets(), makeCopy());
     const parsed = SiteVariablesV2.parse(merged);

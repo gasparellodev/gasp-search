@@ -61,6 +61,10 @@ const viMocks = vi.hoisted(() => ({
   deleteExistingAssets: vi.fn(),
 }));
 
+const seoMocks = vi.hoisted(() => ({
+  notifyIndexNow: vi.fn(),
+}));
+
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: supabaseMocks.serverClient,
 }));
@@ -73,9 +77,15 @@ vi.mock("@/lib/sites/brand-assets", () => ({
   extractBrandAssets: siteMocks.extractBrandAssets,
 }));
 
-vi.mock("@/lib/sites/slug", () => ({
-  generateUniqueSlug: siteMocks.generateUniqueSlug,
-}));
+vi.mock("@/lib/sites/slug", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/sites/slug")>(
+    "@/lib/sites/slug",
+  );
+  return {
+    ...actual,
+    generateUniqueSlug: siteMocks.generateUniqueSlug,
+  };
+});
 
 vi.mock("@/lib/sites/generate-copy", async () => {
   // Manter constantes reais (GENERATION_VERSION, GENERATION_MODEL).
@@ -95,6 +105,10 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/evolution/send", () => ({
   sendWhatsAppMessage: evolutionMocks.sendWhatsAppMessage,
+}));
+
+vi.mock("@/lib/seo/indexnow", () => ({
+  notifyIndexNow: seoMocks.notifyIndexNow,
 }));
 
 // Mocks pra regenerateVisualIdentity (#216). Importa actual pra preservar
@@ -388,6 +402,7 @@ beforeEach(() => {
   viMocks.generateImage.mockReset();
   viMocks.uploadAssetToStorage.mockReset();
   viMocks.deleteExistingAssets.mockReset();
+  seoMocks.notifyIndexNow.mockReset();
   infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
   warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
   errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1708,6 +1723,190 @@ describe("updateLeadSiteVariables — db_error", () => {
     });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toBe("db_error");
+  });
+});
+
+// ===========================================================================
+// signLeadSite (#232) — signed_at flip + IndexNow
+// ===========================================================================
+
+describe("signLeadSite — auth + guards", () => {
+  it("retorna auth quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { signLeadSite } = await import("@/app/actions/lead-site");
+    const r = await signLeadSite(LEAD_SITE_ID);
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+  });
+
+  it("retorna not_found quando RLS não encontra o site", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { signLeadSite } = await import("@/app/actions/lead-site");
+    const r = await signLeadSite(LEAD_SITE_ID);
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+  });
+
+  it("retorna invalid_status para draft/archived", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "draft-slug",
+            status: "draft",
+            signed_at: null,
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { signLeadSite } = await import("@/app/actions/lead-site");
+    const r = await signLeadSite(LEAD_SITE_ID);
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+  });
+});
+
+describe("signLeadSite — IndexNow trigger", () => {
+  it("quando signed_at muda null → valor, atualiza DB, invalida cache e notifica URLs públicas", async () => {
+    const variables = makeFullVariables();
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc123-toyota-recife",
+            status: "published",
+            signed_at: null,
+            variables,
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+    seoMocks.notifyIndexNow.mockResolvedValue(undefined);
+
+    const { signLeadSite } = await import("@/app/actions/lead-site");
+    const r = await signLeadSite(LEAD_SITE_ID);
+
+    expect(r).toEqual({ ok: true, signed: true });
+    const updateCall = service.updateCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(updateCall).toBeTruthy();
+    expect(updateCall!.payload).toEqual({
+      signed_at: expect.any(String),
+      updated_at: expect.any(String),
+    });
+    expect(updateCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith(
+      "site:abc123-toyota-recife",
+    );
+    expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
+      `/leads/${VALID_LEAD_ID}`,
+    );
+    expect(seoMocks.notifyIndexNow).toHaveBeenCalledWith([
+      "http://localhost:3000/sites/abc123-toyota-recife",
+      "http://localhost:3000/sites/abc123-toyota-recife/estoque",
+      "http://localhost:3000/sites/abc123-toyota-recife/sobre",
+      "http://localhost:3000/sites/abc123-toyota-recife/contato",
+      "http://localhost:3000/sites/abc123-toyota-recife/anunciar",
+      ...variables.cars.map(
+        (car) =>
+          `http://localhost:3000/sites/abc123-toyota-recife/estoque/${car.slug}`,
+      ),
+    ]);
+  });
+
+  it("quando signed_at já existe, não atualiza nem notifica IndexNow", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc123-toyota-recife",
+            status: "published",
+            signed_at: "2026-05-10T00:00:00.000Z",
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { signLeadSite } = await import("@/app/actions/lead-site");
+    const r = await signLeadSite(LEAD_SITE_ID);
+
+    expect(r).toEqual({ ok: true, signed: false });
+    expect(service.updateCalls).toHaveLength(0);
+    expect(seoMocks.notifyIndexNow).not.toHaveBeenCalled();
+  });
+
+  it("falha do IndexNow não bloqueia a assinatura", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "abc123-toyota-recife",
+            status: "sent",
+            signed_at: null,
+            variables: makeFullVariables(),
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+    seoMocks.notifyIndexNow.mockRejectedValue(new Error("IndexNow down"));
+
+    const { signLeadSite } = await import("@/app/actions/lead-site");
+    const r = await signLeadSite(LEAD_SITE_ID);
+
+    expect(r).toEqual({ ok: true, signed: true });
+    expect(errorSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining("IndexNow down"),
+    );
   });
 });
 

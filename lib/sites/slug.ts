@@ -25,6 +25,27 @@ const MAX_ATTEMPTS = 5;
 
 const generatePrefix = customAlphabet(SAFE_ALPHABET, PREFIX_LENGTH);
 
+export interface SlugifyVehicleInput {
+  brand: string;
+  model: string;
+  year: number;
+  id: string;
+}
+
+/**
+ * Gera slug de detalhe de veículo no formato
+ * `{brand}-{model}-{year}-{idShort4}`.
+ *
+ * `idShort4` usa os 4 primeiros caracteres do id fornecido. Colisão é
+ * aceita no MVP conforme refinamento da #232; payloads antigos continuam
+ * válidos porque a rota ainda faz lookup por `car.slug` persistido.
+ */
+export function slugifyVehicle(input: SlugifyVehicleInput): string {
+  const base = slugify(`${input.brand} ${input.model} ${input.year}`);
+  const idShort4 = slugify(input.id).replace(/-/g, "").slice(0, 4);
+  return `${base}-${idShort4 || "0000"}`;
+}
+
 /**
  * Gera um slug global único pra um `lead_site`, no formato
  * `<nanoid8>-<base>` (ex: `j7k2p9q4-toyota-do-recife`).
