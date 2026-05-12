@@ -89,7 +89,7 @@ jobs:
         run: npm test -- --coverage
       - if: steps.check.outputs.ready == 'true'
         # actions/upload-artifact@v4
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: coverage-${{ github.run_id }}
           path: coverage/
@@ -154,7 +154,7 @@ jobs:
           TEST_SEED_USER_ID: ${{ secrets.TEST_SEED_USER_ID }}
       - if: steps.check.outputs.ready == 'true' && always()
         # actions/upload-artifact@v4
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: playwright-report-${{ github.run_id }}
           path: playwright-report/
