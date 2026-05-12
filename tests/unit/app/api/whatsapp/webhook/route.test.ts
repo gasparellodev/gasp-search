@@ -319,9 +319,74 @@ describe("POST /api/whatsapp/webhook", () => {
       leads: { select: { data: [] } },
     });
     serviceMocks.createServiceSupabase.mockReturnValue(client);
-    const { POST } = await import("@/app/api/whatsapp/webhook/route");
-    const res = await POST(makeReq(body, sigHeader(body)));
-    expect(res.status).toBe(200);
-    expect(calls.find((c) => c.table === "lead_messages")).toBeUndefined();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { POST } = await import("@/app/api/whatsapp/webhook/route");
+      const res = await POST(makeReq(body, sigHeader(body)));
+      expect(res.status).toBe(200);
+      expect(calls.find((c) => c.table === "lead_messages")).toBeUndefined();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("message.upsert: inbound sem match emite log estruturado com remoteJid + instance", async () => {
+    // #133: até agora um inbound vindo de número que não bate com nenhum
+    // lead era dropado em silêncio. Para auditoria precisamos de log
+    // estruturado com `remoteJid`, `instance` e `reason: 'no_matching_lead'`.
+    const body = makeBody({
+      event: "messages.upsert",
+      instance: "user_aabbccdd",
+      data: {
+        key: {
+          id: "evo-1",
+          remoteJid: "5599999999999@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "spam" },
+      },
+    });
+    const { client } = makeServiceClient({
+      whatsapp_instances: {
+        select: { data: { user_id: "u1", status: "connected" } },
+      },
+      leads: { select: { data: [] } },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { POST } = await import("@/app/api/whatsapp/webhook/route");
+      const res = await POST(makeReq(body, sigHeader(body)));
+      expect(res.status).toBe(200);
+      // Procura um console.warn cujo argumento (string JSON) contém todos os
+      // campos esperados. Aceita JSON ou objeto direto.
+      const matched = warnSpy.mock.calls.some((args) => {
+        const first = args[0];
+        let parsed: unknown = first;
+        if (typeof first === "string") {
+          try {
+            parsed = JSON.parse(first);
+          } catch {
+            return false;
+          }
+        }
+        if (!parsed || typeof parsed !== "object") return false;
+        const p = parsed as Record<string, unknown>;
+        return (
+          p.route === "POST /api/whatsapp/webhook" &&
+          p.event === "inbound_dropped" &&
+          p.reason === "no_matching_lead" &&
+          // O remoteJid pode vir cru ("5599999999999@s.whatsapp.net") ou
+          // normalizado ("5599999999999"). Aceitamos os dois — o importante
+          // é que o número apareça pra correlacionar com Evolution logs.
+          typeof p.remoteJid === "string" &&
+          (p.remoteJid as string).includes("5599999999999") &&
+          p.instance === "user_aabbccdd"
+        );
+      });
+      expect(matched).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

@@ -77,19 +77,26 @@ export async function listConversations(
     });
   }
 
-  return grouped
-    .map((g) => {
-      const meta = leadMap.get(g.leadId);
-      if (!meta) return null;
-      return {
-        leadId: g.leadId,
-        leadName: meta.name,
-        leadPhone: meta.phone,
-        lastContent: g.lastContent,
-        lastCreatedAt: g.lastCreatedAt,
-        lastDirection: g.lastDirection,
-        lastStatus: g.lastStatus,
-      };
-    })
-    .filter((x): x is ConversationItem => x !== null);
+  // Pós-#133 / migration 0023: `lead_messages.lead_id` é `ON DELETE CASCADE`.
+  // Mensagens de leads removidos não existem mais no DB — o helper não precisa
+  // mais filtrar orphans defensivamente. RLS é simétrica entre `leads` e
+  // `lead_messages` (`user_id = auth.uid()` em ambas), então se o user vê a
+  // mensagem ele necessariamente vê o lead.
+  //
+  // Se em algum cenário extremo o leadMap não tiver a row (ex.: race entre os
+  // dois SELECTs num delete concorrente), preferimos surfacear via placeholder
+  // a esconder histórico em silêncio — o silenciamento era exatamente o bug
+  // do #133.
+  return grouped.map((g) => {
+    const meta = leadMap.get(g.leadId);
+    return {
+      leadId: g.leadId,
+      leadName: meta?.name ?? "Lead removido",
+      leadPhone: meta?.phone ?? null,
+      lastContent: g.lastContent,
+      lastCreatedAt: g.lastCreatedAt,
+      lastDirection: g.lastDirection,
+      lastStatus: g.lastStatus,
+    };
+  });
 }
