@@ -183,7 +183,6 @@ function LeadTabsInner({
   const showSiteTab = siteCard !== undefined;
 
   const isStandalone = mode === "standalone";
-  const padding = isStandalone ? "px-0 py-5" : "px-4 py-4 sm:px-6";
   const triggerWrapClass = isStandalone
     ? "flex w-full flex-wrap gap-1 sm:flex-nowrap"
     : "mx-4 mt-4 flex w-[calc(100%-2rem)] flex-wrap gap-1 sm:mx-6 sm:w-[calc(100%-3rem)] sm:flex-nowrap";
@@ -288,10 +287,7 @@ function LeadTabsInner({
         {whatsappEnabled ? (
           <TabsContent
             value="conversation"
-            className={cn(
-              "min-h-0 flex-1 flex flex-col",
-              isStandalone ? "" : "",
-            )}
+            className="min-h-0 flex-1 flex flex-col"
             data-testid="conversation-tab-content"
           >
             <InstanceBanner />
@@ -315,10 +311,6 @@ function LeadTabsInner({
           </TabsContent>
         ) : null}
       </Tabs>
-
-      <p data-testid="lead-tabs-padding-hint" hidden>
-        {padding}
-      </p>
     </div>
   );
 }
