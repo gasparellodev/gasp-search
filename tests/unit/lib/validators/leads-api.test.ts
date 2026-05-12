@@ -149,3 +149,125 @@ describe("updateLeadSchema", () => {
     expect(updateLeadSchema.safeParse({ score: 200 }).success).toBe(false);
   });
 });
+
+// SSRF guard em `website` — bloqueia hosts privados/reservados e schemes
+// não-http(s) (issue #138). Defense-in-depth contra exfiltração de
+// metadata endpoints internos (AWS 169.254.169.254, link-local) e
+// invocação de schemes perigosos (javascript:, data:, file:).
+describe("createLeadSchema — website SSRF guard", () => {
+  const base = { name: "Lead X", source: "google_maps" as const };
+
+  function expectWebsite(value: string, ok: boolean): void {
+    const result = createLeadSchema.safeParse({ ...base, website: value });
+    expect(result.success).toBe(ok);
+  }
+
+  it("aceita https://example.com", () => {
+    expectWebsite("https://example.com", true);
+  });
+
+  it("aceita http://example.com", () => {
+    expectWebsite("http://example.com", true);
+  });
+
+  it("aceita null/undefined/'' (campo opcional)", () => {
+    expect(createLeadSchema.safeParse({ ...base }).success).toBe(true);
+    expect(
+      createLeadSchema.safeParse({ ...base, website: null }).success,
+    ).toBe(true);
+    expect(
+      createLeadSchema.safeParse({ ...base, website: "" }).success,
+    ).toBe(true);
+  });
+
+  it("rejeita http://10.0.0.1 (RFC1918 privado)", () => {
+    expectWebsite("http://10.0.0.1", false);
+  });
+
+  it("rejeita http://localhost", () => {
+    expectWebsite("http://localhost", false);
+  });
+
+  it("rejeita http://127.0.0.1 (loopback IPv4)", () => {
+    expectWebsite("http://127.0.0.1", false);
+  });
+
+  it("rejeita http://[::1] (loopback IPv6)", () => {
+    expectWebsite("http://[::1]", false);
+  });
+
+  it("rejeita http://169.254.169.254 (AWS metadata / link-local)", () => {
+    expectWebsite("http://169.254.169.254", false);
+  });
+
+  it("rejeita http://192.168.1.1 (RFC1918)", () => {
+    expectWebsite("http://192.168.1.1", false);
+  });
+
+  it("rejeita http://172.16.0.1 (RFC1918 172.16/12)", () => {
+    expectWebsite("http://172.16.0.1", false);
+  });
+
+  it("rejeita http://172.31.255.255 (limite superior 172.16/12)", () => {
+    expectWebsite("http://172.31.255.255", false);
+  });
+
+  it("aceita http://172.32.0.1 (fora do range RFC1918 172.16/12)", () => {
+    expectWebsite("http://172.32.0.1", true);
+  });
+
+  it("rejeita ftp://example.com (apenas http/s permitido)", () => {
+    expectWebsite("ftp://example.com", false);
+  });
+
+  it("rejeita javascript:alert(1)", () => {
+    expectWebsite("javascript:alert(1)", false);
+  });
+
+  it("rejeita data:text/html,<script>", () => {
+    expectWebsite("data:text/html,<script>", false);
+  });
+
+  it("rejeita string que não é URL", () => {
+    expectWebsite("not a url", false);
+  });
+
+  it("rejeita 0.0.0.0 (any-host reservado)", () => {
+    expectWebsite("http://0.0.0.0", false);
+  });
+
+  it("rejeita CGNAT 100.64.0.0/10", () => {
+    expectWebsite("http://100.64.0.1", false);
+  });
+
+  // O construtor URL normaliza notações IPv4 alternativas (hex, octal,
+  // decimal único) para a forma dotted-decimal. Garantimos que o guard
+  // captura todas elas — vetor clássico de bypass de regex naive.
+  it("rejeita IPv4 em notação hex (0x7f.0.0.1 → 127.0.0.1)", () => {
+    expectWebsite("http://0x7f.0.0.1", false);
+  });
+
+  it("rejeita IPv4 em notação decimal única (2130706433 → 127.0.0.1)", () => {
+    expectWebsite("http://2130706433", false);
+  });
+
+  it("rejeita IPv4 em notação octal (0177.0.0.1 → 127.0.0.1)", () => {
+    expectWebsite("http://0177.0.0.1", false);
+  });
+});
+
+describe("updateLeadSchema — website SSRF guard", () => {
+  it("rejeita updateLead com website apontando para host privado", () => {
+    const result = updateLeadSchema.safeParse({
+      website: "http://127.0.0.1",
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("aceita updateLead com website público válido", () => {
+    const result = updateLeadSchema.safeParse({
+      website: "https://acme.com",
+    });
+    expect(result.success).toBe(true);
+  });
+});
