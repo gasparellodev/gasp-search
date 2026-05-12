@@ -50,8 +50,8 @@ interface SitePageProps {
    * usa `manifest.hero_url` como hero image — fallback gracioso pra
    * `variables.brand_assets.hero_image_url` quando `null`. Sub-rotas
    * (`/sobre`, `/contato`) NÃO usam este prop diretamente: elas passam
-   * o override pra `<AboutSection manifestAboutUrl>` / `<ContactSection
-   * manifestContactUrl>` separadamente.
+   * o override pra `<AboutHeroEditorial manifestAboutUrl>` /
+   * `<ContactSection manifestContactUrl>` separadamente.
    */
   manifest?: VisualIdentityManifest | null;
   /**
