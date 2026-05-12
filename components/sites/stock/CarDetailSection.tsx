@@ -5,10 +5,13 @@ import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 import { SiteForm } from "../SiteForm";
 
 import { DetailBreadcrumb } from "./DetailBreadcrumb";
+import { DetailFaqVehicle } from "./DetailFaqVehicle";
 import { DetailGalleryCinema } from "./DetailGalleryCinema";
 import { DetailInfoBlock } from "./DetailInfoBlock";
 import { DetailPriceBlock } from "./DetailPriceBlock";
+import { DetailSimilarVehicles } from "./DetailSimilarVehicles";
 import { DetailSpecGrid } from "./DetailSpecGrid";
+import { DetailTradeinWidget } from "./DetailTradeinWidget";
 
 type CarDetailVariables = Pick<
   SiteVariablesV2,
@@ -20,6 +23,21 @@ type CarDetailVariables = Pick<
   | "address"
   | "cars"
 >;
+
+/**
+ * Layout do detalhe (atualizado em D3 / issue #228):
+ *   Breadcrumb
+ *   Gallery + (InfoBlock + PriceBlock)
+ *   SpecGrid
+ *   DetailTradeinWidget (D3)
+ *   DetailSimilarVehicles (D3)
+ *   DetailFaqVehicle (D3)
+ *   SiteForm
+ *
+ * D3 entra entre `SpecGrid` e `SiteForm` pra colocar levers
+ * cross-conversion (tradein) e objection-handling (FAQ) ANTES do form
+ * principal — o form é a "última chance" de conversão.
+ */
 
 interface CarDetailSectionProps {
   variables: CarDetailVariables;
@@ -88,6 +106,20 @@ export function CarDetailSection({
         </div>
 
         <DetailSpecGrid car={car} />
+
+        <DetailTradeinWidget slug={slug} currentCarSlug={car.slug} />
+
+        <DetailSimilarVehicles
+          current={car}
+          cars={variables.cars}
+          slug={slug}
+          whatsappPhone={variables.whatsapp}
+          businessName={variables.business_name}
+        />
+
+        <DetailFaqVehicle
+          car={{ brand: car.brand, model: car.model, year: car.year }}
+        />
 
         <div className="mt-16 md:mt-20">
           <SiteForm

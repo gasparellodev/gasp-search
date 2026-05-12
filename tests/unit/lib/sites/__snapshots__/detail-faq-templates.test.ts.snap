@@ -1,0 +1,26 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildDetailFaqItems — interpolação > snapshot — defesa contra drift de copy (PT-BR) 1`] = `
+[
+  {
+    "answer": "Sim — avaliamos seu carro como entrada sem compromisso. Você pode mandar fotos e dados pelo WhatsApp ou trazer o veículo até a loja. A avaliação fica válida por 7 dias.",
+    "question": "Esse Toyota Corolla XEi 2022 aceita troca?",
+  },
+  {
+    "answer": "Todos os carros do estoque, incluindo o Corolla XEi 2022, saem com garantia mecânica de 3 meses cobrindo motor, câmbio e diferencial. A garantia é da própria loja — sem letras miúdas.",
+    "question": "Qual a garantia oferecida no Toyota Corolla XEi?",
+  },
+  {
+    "answer": "Sim. Trabalhamos com os principais bancos parceiros (Bradesco, Itaú, Santander, BV, Pan, Safra e Sicoob), buscando a melhor taxa pra cada perfil. A simulação leva 5 minutos e a aprovação pode sair no mesmo dia.",
+    "question": "Posso financiar esse Corolla XEi 2022?",
+  },
+  {
+    "answer": "Cuidamos de todo o processo de transferência: DUT, IPVA, multas e taxas. Você recebe o Corolla XEi com a documentação 100% no seu nome, sem precisar ir ao Detran.",
+    "question": "Como funciona a transferência do Toyota Corolla XEi?",
+  },
+  {
+    "answer": "Sim. Mediante sinal e combinação direta com a equipe, reservamos o Corolla XEi 2022 por até 48h pra você ter tempo de visitar e testar.",
+    "question": "Posso reservar esse veículo antes de visitar a loja?",
+  },
+]
+`;
