@@ -25,9 +25,11 @@ import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 import { env } from "@/lib/env";
 import { buildBreadcrumbSchema } from "@/lib/sites/schema";
+import { createAnnouncementFormSignature } from "@/lib/sites/announcement-security";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams?: Promise<{ car_target_slug?: string }>;
 }
 
 const NOINDEX_FALLBACK: Metadata = {
@@ -54,8 +56,9 @@ export async function generateMetadata({
   });
 }
 
-export default async function AnunciarPage({ params }: PageProps) {
+export default async function AnunciarPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const query = await searchParams;
   const site = await getSite(slug);
 
   if (!site) notFound();
@@ -79,6 +82,12 @@ export default async function AnunciarPage({ params }: PageProps) {
     { name: "Início", item: siteUrl },
     { name: "Anunciar", item: `${siteUrl}/anunciar` },
   ]);
+  const targetSlug = query?.car_target_slug;
+  const targetCar =
+    targetSlug && typeof targetSlug === "string"
+      ? (parsed.data.cars.find((car) => car.slug === targetSlug) ?? null)
+      : null;
+  const resolvedTargetSlug = targetCar && targetSlug ? targetSlug : null;
 
   return (
     <SitePage
@@ -94,6 +103,12 @@ export default async function AnunciarPage({ params }: PageProps) {
         primary_color={parsed.data.brand_assets.primary_color}
         text_on_primary={parsed.data.brand_assets.text_on_primary}
         business_name={parsed.data.business_name}
+        targetCar={targetCar}
+        targetCarSlug={resolvedTargetSlug}
+        formSignature={createAnnouncementFormSignature({
+          siteId: site.id,
+          targetSlug: resolvedTargetSlug,
+        })}
       />
     </SitePage>
   );

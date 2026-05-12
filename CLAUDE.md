@@ -98,6 +98,7 @@ Ver `.env.local.example` para a lista canônica. Todas validadas via Zod em `lib
 | `REDIS_URL` | server-only (default `redis://localhost:6380`) — Phase 6 #122. Conexão BullMQ + ioredis para fila durável `campaign-targets`. Aceita `rediss://` (TLS/auth) em V2 prod. |
 | `INDEXNOW_KEY` | server-only, opcional — Phase 7 #232. Quando preenchida, `signLeadSite()` dispara IndexNow para URLs públicas assinadas; exige `public/<INDEXNOW_KEY>.txt` publicado manualmente. |
 | `GOOGLE_MAPS_STATIC_API_KEY` | server-only, opcional — Phase 7 #230. Quando ausente, `/sites/<slug>/contato` renderiza placeholder de mapa + link externo para Google Maps usando endereço textual. |
+| `SITE_FORM_HMAC_SECRET` | server-only, opcional — Phase 7 #231. Quando preenchida, assina o contexto dos forms públicos de anúncio e os tokens de upload de fotos (`tradein-photos`); mínimo 16 caracteres. |
 
 ## Onde está o quê
 

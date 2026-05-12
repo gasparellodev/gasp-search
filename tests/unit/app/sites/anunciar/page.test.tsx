@@ -8,6 +8,7 @@ import type { SiteVariablesV2 } from "@/types/lead-site";
 import { SITE_FIXTURE } from "../../../components/sites/site-fixtures";
 
 const getSiteMock = vi.hoisted(() => vi.fn());
+const advertiseSectionMock = vi.hoisted(() => vi.fn(() => null));
 const navigationMocks = vi.hoisted(() => ({
   notFound: vi.fn(() => {
     throw new Error("NEXT_NOT_FOUND");
@@ -16,6 +17,10 @@ const navigationMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/sites/get-site", () => ({
   getSite: getSiteMock,
+}));
+
+vi.mock("@/components/sites/advertise/AdvertiseSection", () => ({
+  AdvertiseSection: advertiseSectionMock,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -43,6 +48,23 @@ function makeRow(
 beforeEach(() => {
   vi.clearAllMocks();
 });
+
+function findElementByType(node: unknown, type: unknown): { props?: Record<string, unknown> } | null {
+  if (!node || typeof node !== "object") return null;
+  const current = node as {
+    type?: unknown;
+    props?: { children?: unknown };
+  };
+  if (current.type === type) return current as { props?: Record<string, unknown> };
+  const children = current.props?.children;
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const found = findElementByType(child, type);
+      if (found) return found;
+    }
+  }
+  return findElementByType(children, type);
+}
 
 describe("/sites/[slug]/anunciar — routing", () => {
   it("getSite null → notFound", async () => {
@@ -96,6 +118,27 @@ describe("/sites/[slug]/anunciar — routing", () => {
       params: Promise.resolve({ slug: SLUG }),
     });
     expect(result).toBeDefined();
+  });
+
+  it("resolve car_target_slug válido e passa targetCar para AdvertiseSection", async () => {
+    getSiteMock.mockResolvedValue(makeRow("published"));
+    const { default: Page } = await import(
+      "@/app/sites/[slug]/anunciar/page"
+    );
+    const result = await Page({
+      params: Promise.resolve({ slug: SLUG }),
+      searchParams: Promise.resolve({ car_target_slug: SITE_FIXTURE.cars[0]!.slug }),
+    });
+
+    const advertiseElement = findElementByType(result, advertiseSectionMock);
+    expect(advertiseElement?.props?.targetCar).toMatchObject({
+      slug: SITE_FIXTURE.cars[0]!.slug,
+      brand: SITE_FIXTURE.cars[0]!.brand,
+      model: SITE_FIXTURE.cars[0]!.model,
+    });
+    expect(advertiseElement?.props?.targetCarSlug).toBe(
+      SITE_FIXTURE.cars[0]!.slug,
+    );
   });
 
   it("variables inválido → notFound", async () => {

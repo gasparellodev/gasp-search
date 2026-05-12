@@ -12,6 +12,7 @@
  *   - `preco`: preço pretendido (≥ 0; opcional).
  *   - `nome`/`telefone`/`email`: contato.
  *   - `mensagem`: descrição livre (opcional, max 1000).
+ *   - `car_target_slug`: slug opcional do carro alvo da troca.
  *   - `lgpd_consent`: consentimento explícito (`literal(true)`).
  *
  * `telefone` aceita formatação livre (espaços, parênteses, hífens). A
@@ -62,6 +63,7 @@ export const AnnouncementSchema = z.object({
     ),
   email: z.string().trim().email("E-mail inválido").max(160),
   mensagem: z.string().trim().max(1000).optional(),
+  car_target_slug: z.string().trim().max(160).optional(),
   lgpd_consent: z.literal(true, {
     error: "É preciso aceitar a Política de Privacidade",
   }),

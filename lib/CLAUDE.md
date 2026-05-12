@@ -25,7 +25,7 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | Path | Propósito |
 |---|---|
 | `utils.ts` | `cn()` = `twMerge(clsx(...))`, default helper de classe |
-| `env.ts` | **Server-only.** Zod validator de todas as envs (públicas e server). Lança no boot se algo faltar/inválido. Importa `server-only`. `INDEXNOW_KEY` é opcional e string vazia vira `undefined` para builds sem IndexNow. |
+| `env.ts` | **Server-only.** Zod validator de todas as envs (públicas e server). Lança no boot se algo faltar/inválido. Importa `server-only`. `INDEXNOW_KEY`, `GOOGLE_MAPS_STATIC_API_KEY` e `SITE_FORM_HMAC_SECRET` são opcionais e string vazia vira `undefined` para builds/previews sem esses recursos. |
 | `env-public.ts` | Validator das envs `NEXT_PUBLIC_*` apenas. Safe para Client Components. Lê `process.env.NEXT_PUBLIC_*` por chave (Next inlina). |
 | `api/errors.ts` | Helper de erro para API routes com log estruturado (`requestId`, `route`, `userId`) e resposta amigável sem stack. |
 | `validators/search.ts` | Schemas Zod para entradas das buscas Apify |

@@ -150,6 +150,12 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
   reativo no mesmo tab e modal Radix.
 - `tests/unit/lib/lgpd/consent-audit.test.ts` cobre `logConsent()` (#234)
   com mock de service-role e sem vazar erro de banco ao cliente.
+- `tests/unit/components/sites/advertise/*` +
+  `tests/unit/app/actions/site-announcement.test.ts` +
+  `tests/unit/lib/sites/tradein-upload.test.ts` cobrem Anunciar #231:
+  stepper 4 passos, bloqueio mínimo de 2 fotos, aviso de placa, LGPD,
+  compressão/upload assinado, honeypot, same-origin, rate limit e magic
+  bytes do upload.
 - `tests/unit/components/sites/stock/Detail*.test.tsx` +
   `tests/e2e/sites/detail-d1.spec.ts` cobrem Detail D1 (#226):
   breadcrumb visual shared, galeria cinema scroll-snap, lightbox Radix

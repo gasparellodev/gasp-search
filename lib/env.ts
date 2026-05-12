@@ -53,6 +53,10 @@ const serverEnvSchema = z
     BRL_RATE: z.coerce.number().positive().default(5.0),
     GOOGLE_MAPS_STATIC_API_KEY: z
       .preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional()),
+    SITE_FORM_HMAC_SECRET: z.preprocess(
+      (v) => (v === "" ? undefined : v),
+      z.string().min(16, "SITE_FORM_HMAC_SECRET deve ter pelo menos 16 caracteres").optional(),
+    ),
     INDEXNOW_KEY: z.preprocess(
       (v) => (v === "" ? undefined : v),
       z

@@ -198,6 +198,32 @@ describe("lib/env (server)", () => {
     expect(env.GOOGLE_MAPS_STATIC_API_KEY).toBe("maps-key-123");
   });
 
+  it("trata SITE_FORM_HMAC_SECRET vazia como undefined", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      SITE_FORM_HMAC_SECRET: "",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.SITE_FORM_HMAC_SECRET).toBeUndefined();
+  });
+
+  it("aceita SITE_FORM_HMAC_SECRET opcional quando preenchida", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      SITE_FORM_HMAC_SECRET: "site-form-secret-123",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.SITE_FORM_HMAC_SECRET).toBe("site-form-secret-123");
+  });
+
+  it("rejeita SITE_FORM_HMAC_SECRET curto quando preenchido", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      SITE_FORM_HMAC_SECRET: "short",
+    });
+    await expect(import("@/lib/env")).rejects.toThrow(/SITE_FORM_HMAC_SECRET/);
+  });
+
   it("rejeita INDEXNOW_KEY com caracteres inválidos", async () => {
     Object.assign(process.env, {
       ...VALID_ENV,
