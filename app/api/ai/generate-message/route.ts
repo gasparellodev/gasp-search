@@ -9,7 +9,16 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { generateMessageSchema } from "@/lib/validators/ai";
 
 const RATE_LIMIT_MS = 1_000;
-const lastRequestByUser = new Map<string, number>();
+// TTL maior que a janela de throttle evita vazar memória em runtime longo:
+// entradas que já passaram do limite há muito tempo são purgadas no próximo
+// acesso. Em multi-instance (cold-start) cada processo tem seu Map; isso é
+// best-effort por desenho. V2: migrate to Postgres `ai_usage_counters` table —
+// see #132 follow-up.
+const RATE_LIMIT_TTL_MS = RATE_LIMIT_MS * 10;
+const lastRequestByUser = new Map<
+  string,
+  { ts: number; expiresAt: number }
+>();
 
 const LEAD_FOR_MESSAGE_SELECT = [
   "name",
@@ -39,14 +48,36 @@ function validationIssues(error: ZodError) {
   }));
 }
 
+function purgeStaleRateLimitEntries(now: number) {
+  for (const [userId, entry] of lastRequestByUser) {
+    if (entry.ts < now - RATE_LIMIT_TTL_MS) {
+      lastRequestByUser.delete(userId);
+    }
+  }
+}
+
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
+  purgeStaleRateLimitEntries(now);
   const last = lastRequestByUser.get(userId);
-  if (last !== undefined && now - last < RATE_LIMIT_MS) {
+  if (last !== undefined && now - last.ts < RATE_LIMIT_MS) {
     return false;
   }
-  lastRequestByUser.set(userId, now);
+  lastRequestByUser.set(userId, {
+    ts: now,
+    expiresAt: now + RATE_LIMIT_TTL_MS,
+  });
   return true;
+}
+
+// Helpers test-only — não usar em produção. Permitem inspecionar o Map e
+// resetar o estado entre testes sem expor a referência interna.
+export function _rateLimitMapSize(): number {
+  return lastRequestByUser.size;
+}
+
+export function _resetRateLimit(): void {
+  lastRequestByUser.clear();
 }
 
 export async function POST(request: Request) {
@@ -80,10 +111,13 @@ export async function POST(request: Request) {
   }
 
   if (!checkRateLimit(user.id)) {
-    return NextResponse.json(
-      { error: "Muitas tentativas. Aguarde um segundo." },
-      { status: 429 },
-    );
+    return new Response(JSON.stringify({ error: "rate_limited" }), {
+      status: 429,
+      headers: {
+        "Retry-After": "1",
+        "Content-Type": "application/json",
+      },
+    });
   }
 
   try {

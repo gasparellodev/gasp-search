@@ -256,6 +256,74 @@ describe("POST /api/ai/generate-message", () => {
     expect(third.status).toBe(200);
   });
 
+  it("retorna header Retry-After: 1 quando rate-limited (padroniza com /api/whatsapp/send)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-07T12:00:00Z"));
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    aiMocks.generateMessage.mockResolvedValue("Mensagem");
+
+    const { POST } = await importRoute();
+    const body = {
+      leadId: LEAD_ID,
+      channel: "whatsapp",
+      tone: "direto",
+    };
+    const first = await POST(makePostRequest(body));
+    const second = await POST(makePostRequest(body));
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(429);
+    expect(second.headers.get("Retry-After")).toBe("1");
+    expect(second.headers.get("Content-Type")).toContain("application/json");
+  });
+
+  it("purga entradas stale do Map de rate-limit após RATE_LIMIT_MS * 10 ms (cleanup on-access)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-07T12:00:00Z"));
+    aiMocks.generateMessage.mockResolvedValue("Mensagem");
+    const body = {
+      leadId: LEAD_ID,
+      channel: "whatsapp",
+      tone: "direto",
+    };
+
+    const route = await importRoute();
+    const { POST, _resetRateLimit, _rateLimitMapSize } = route;
+    _resetRateLimit();
+
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    const r1 = await POST(makePostRequest(body));
+    expect(r1.status).toBe(200);
+
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "user-2" } },
+      error: null,
+    });
+    const r2 = await POST(makePostRequest(body));
+    expect(r2.status).toBe(200);
+
+    expect(_rateLimitMapSize()).toBe(2);
+
+    // RATE_LIMIT_MS * 10 = 10_000ms; precisamos passar deste threshold.
+    vi.setSystemTime(new Date("2026-05-07T12:00:10.001Z"));
+
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "user-3" } },
+      error: null,
+    });
+    const r3 = await POST(makePostRequest(body));
+    expect(r3.status).toBe(200);
+
+    // user-1 e user-2 foram purgados; apenas user-3 permanece.
+    expect(_rateLimitMapSize()).toBe(1);
+  });
+
   it("retorna 502 quando geração ou persistência falha", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "user-1" } },
