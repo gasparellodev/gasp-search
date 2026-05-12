@@ -34,7 +34,11 @@ function makeSupabase(opts: {
                 campaignStatusCallIdx++;
                 return { data: { status }, error: null };
               }
-              if (cols === "sent_count" || cols === "failed_count") {
+              if (
+                cols === "sent_count" ||
+                cols === "failed_count" ||
+                cols === "sent_count, failed_count"
+              ) {
                 return { data: { ...counters }, error: null };
               }
               return opts.campaign ?? { data: null, error: null };
@@ -484,6 +488,185 @@ describe("processCampaign", () => {
         }),
       }),
     );
+  });
+
+  // -------------------------------------------------------------------------
+  // #131 — terminal status sentinela. Trava a decisão "Opção 1": status
+  // sempre `completed` quando rodou até o fim (não cancelado). UI usa
+  // `failed_count` para distinguir partial-success de 100% falha.
+  // -------------------------------------------------------------------------
+
+  it("#131: campanha com 100% falha termina com status 'completed' (sentinela)", async () => {
+    // 2 targets, ambos falham no send → counter chega a failed=2.
+    // Critério: terminal status DEVE ser 'completed' (não 'failed'/'errored').
+    const lead = {
+      id: "lead-1",
+      name: "X",
+      city: null,
+      state: null,
+      category: null,
+      source: "google_maps",
+      country: null,
+      phone: null,
+      email: null,
+      website: null,
+      instagram_handle: null,
+      whatsapp: null,
+      has_website: null,
+      rating: null,
+      reviews_count: null,
+      followers_count: null,
+      stage: "new",
+      score: 0,
+      notes: null,
+    };
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "message",
+          mode: "template",
+          template_text: "x",
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running", "running", "running"],
+      targets: {
+        data: [
+          { lead_id: "lead-1", status: "pending" },
+          { lead_id: "lead-2", status: "pending" },
+        ],
+        error: null,
+      },
+      leads: { "lead-1": lead },
+    });
+    sendMock.mockResolvedValue({
+      ok: false,
+      reason: "evolution_error",
+      error: "boom",
+    });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+    });
+
+    expect(result).toEqual({ sent: 0, failed: 2 });
+    // Terminal status DEVE ser 'completed', mesmo com 100% de falha.
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        table: "campaigns",
+        payload: expect.objectContaining({ status: "completed" }),
+      }),
+    );
+    // Sentinela negativa: garante que NENHUM update da tabela `campaigns`
+    // marca status diferente de 'running'/'completed'. Bloqueia regressão
+    // tipo "failed === N ? 'errored' : 'completed'".
+    const campaignStatuses = updates
+      .filter((u) => u.table === "campaigns")
+      .map((u) => (u.payload as { status?: string }).status)
+      .filter((s): s is string => typeof s === "string");
+    expect(campaignStatuses).not.toContain("failed");
+    expect(campaignStatuses).not.toContain("errored");
+    expect(campaignStatuses).not.toContain("completed_with_errors");
+    for (const status of campaignStatuses) {
+      expect(["running", "completed"]).toContain(status);
+    }
+  });
+
+  it("#131: sucesso parcial registra failed_count > 0 e ainda termina como 'completed'", async () => {
+    // 3 targets: 1º send ok, 2º+3º falham. Counters esperados: sent=1,
+    // failed=2. Terminal status: 'completed'. failed_count é a fonte da
+    // verdade pra UI distinguir partial-success de total-failure.
+    const lead = {
+      id: "lead-1",
+      name: "Y",
+      city: null,
+      state: null,
+      category: null,
+      source: "google_maps",
+      country: null,
+      phone: null,
+      email: null,
+      website: null,
+      instagram_handle: null,
+      whatsapp: null,
+      has_website: null,
+      rating: null,
+      reviews_count: null,
+      followers_count: null,
+      stage: "new",
+      score: 0,
+      notes: null,
+    };
+    const { client, updates } = makeSupabase({
+      campaign: {
+        data: {
+          id: "c1",
+          status: "draft",
+          type: "message",
+          mode: "template",
+          template_text: "x",
+          ai_channel: null,
+          ai_tone: null,
+          ai_goal: null,
+        },
+        error: null,
+      },
+      campaignStatusSequence: ["running", "running", "running", "running"],
+      targets: {
+        data: [
+          { lead_id: "lead-1", status: "pending" },
+          { lead_id: "lead-2", status: "pending" },
+          { lead_id: "lead-3", status: "pending" },
+        ],
+        error: null,
+      },
+      leads: { "lead-1": lead },
+    });
+    sendMock
+      .mockResolvedValueOnce({ ok: true, messageId: "m1", whatsappMsgId: "e1" })
+      .mockResolvedValueOnce({ ok: false, reason: "evolution_error", error: "boom-2" })
+      .mockResolvedValueOnce({ ok: false, reason: "evolution_error", error: "boom-3" });
+
+    const result = await processCampaign({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      supabase: client as any,
+      userId: "u1",
+      campaignId: "c1",
+      sendImpl: sendMock,
+      generateMessageImpl: generateMock,
+      sleep: sleepMock,
+    });
+
+    expect(result).toEqual({ sent: 1, failed: 2 });
+    // Terminal status = 'completed' (mesmo com falhas).
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        table: "campaigns",
+        payload: expect.objectContaining({ status: "completed" }),
+      }),
+    );
+    // failed_count foi incrementado 2x via updates de `campaigns.failed_count`.
+    const failedCountUpdates = updates
+      .filter(
+        (u) =>
+          u.table === "campaigns" &&
+          typeof (u.payload as { failed_count?: number }).failed_count ===
+            "number",
+      )
+      .map((u) => (u.payload as { failed_count: number }).failed_count);
+    // Sequência típica do incremento: 1, 2 (depende do mock counter).
+    expect(failedCountUpdates).toContain(2);
   });
 });
 
