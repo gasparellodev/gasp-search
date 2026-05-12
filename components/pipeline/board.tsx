@@ -16,6 +16,7 @@ import {
 import { Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { LeadDetailDrawer } from "@/components/leads/lead-detail-drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -27,9 +28,12 @@ import type {
   PipelineBoard as Board,
   PipelineCard,
 } from "@/lib/leads/list-by-stage";
+import type { LeadListItem, LeadTagSummary } from "@/lib/leads/list-leads";
 
 interface PipelineBoardProps {
   board: Board;
+  /** Tags do usuário — passadas adiante para o `<LeadDetailDrawer>` ao abrir um card. */
+  tags?: LeadTagSummary[];
   /**
    * Permite que testes injetem um trigger que chama `moveLead` diretamente,
    * desacoplando o teste do simulador de drag&drop do dnd-kit.
@@ -41,17 +45,46 @@ interface PipelineBoardProps {
 
 export function PipelineBoard({
   board,
+  tags = [],
   onMoveCommand,
 }: PipelineBoardProps) {
   const router = useRouter();
   const [optimistic, setOptimistic] = useState<Board>(board);
   const [focusedStage, setFocusedStage] = useState<LeadStage>("new");
+  const [activeLead, setActiveLead] = useState<LeadListItem | null>(null);
+  const [loadingLeadId, setLoadingLeadId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
+  // `PointerSensor` com `distance: 4` garante que cliques curtos não disparam
+  // drag — usamos isso pra que `onCardClick` rode no pointerup sem briga com
+  // a sequência drag-start. Cards expõem dois affordances: drag (move stage)
+  // e click (abre drawer com a ficha do lead). Issue #137.
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
   );
   const isEmpty = LEAD_STAGES.every((stage) => optimistic[stage].length === 0);
+
+  async function openLeadDrawer(leadId: string) {
+    if (loadingLeadId === leadId) return;
+    setLoadingLeadId(leadId);
+    try {
+      const response = await fetch(`/api/leads/${leadId}`);
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as {
+          error?: string;
+        };
+        throw new Error(body.error ?? "Falha ao carregar lead");
+      }
+      const lead = (await response.json()) as LeadListItem;
+      setActiveLead(lead);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao carregar lead",
+      );
+    } finally {
+      setLoadingLeadId(null);
+    }
+  }
 
   function findStageOf(leadId: string): LeadStage | null {
     for (const stage of LEAD_STAGES) {
@@ -183,10 +216,20 @@ export function PipelineBoard({
               accent={STAGE_ACCENT[stage]}
               cards={optimistic[stage]}
               highlighted={focusedStage === stage}
+              onCardClick={openLeadDrawer}
+              loadingLeadId={loadingLeadId}
             />
           ))}
         </div>
       </div>
+      <LeadDetailDrawer
+        lead={activeLead}
+        open={activeLead !== null}
+        onOpenChange={(open) => {
+          if (!open) setActiveLead(null);
+        }}
+        tags={tags}
+      />
     </DndContext>
   );
 }
@@ -197,9 +240,19 @@ interface ColumnProps {
   accent: string;
   cards: PipelineCard[];
   highlighted?: boolean;
+  onCardClick: (leadId: string) => void;
+  loadingLeadId: string | null;
 }
 
-function Column({ stage, label, accent, cards, highlighted }: ColumnProps) {
+function Column({
+  stage,
+  label,
+  accent,
+  cards,
+  highlighted,
+  onCardClick,
+  loadingLeadId,
+}: ColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id: stage });
   return (
     <section
@@ -224,7 +277,14 @@ function Column({ stage, label, accent, cards, highlighted }: ColumnProps) {
           {cards.length === 0 ? (
             <p className="text-muted-foreground text-xs italic">Sem leads</p>
           ) : (
-            cards.map((card) => <Card key={card.id} card={card} />)
+            cards.map((card) => (
+              <Card
+                key={card.id}
+                card={card}
+                onClick={() => onCardClick(card.id)}
+                loading={loadingLeadId === card.id}
+              />
+            ))
           )}
         </div>
       </div>
@@ -232,7 +292,13 @@ function Column({ stage, label, accent, cards, highlighted }: ColumnProps) {
   );
 }
 
-function Card({ card }: { card: PipelineCard }) {
+interface CardProps {
+  card: PipelineCard;
+  onClick: () => void;
+  loading: boolean;
+}
+
+function Card({ card, onClick, loading }: CardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: card.id });
   const style = transform
@@ -240,12 +306,28 @@ function Card({ card }: { card: PipelineCard }) {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
       }
     : undefined;
+  // `PointerSensor` com `distance: 4` impede que cliques curtos virem drag,
+  // então `onClick` aqui só dispara quando o usuário soltou o ponteiro sem
+  // mover (i.e., tap real). #137.
   return (
     <article
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      role="button"
+      aria-busy={loading || undefined}
+      aria-label={`Abrir ${card.name}`}
+      onClick={(event) => {
+        if (event.defaultPrevented) return;
+        onClick();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onClick();
+        }
+      }}
       className={cn(
         // Apple SK: card de lead com radius 12px (tamanho médio), shadow sutil.
         "border-border bg-background hover:bg-muted/50 min-w-0 cursor-grab rounded-xl border p-3 text-sm shadow-sm transition-colors",

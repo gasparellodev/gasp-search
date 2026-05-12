@@ -34,13 +34,24 @@ Kanban interativo da página `/pipeline`. Colunas = estágios em
 4. **`onMoveCommand` (prop)** existe apenas para testes — permite chamar
    `moveLead` diretamente, sem simular o cycle de pointer events que o
    dnd-kit usa.
+5. **Card clicável abre `<LeadDetailDrawer>`** (#137). O click no card
+   dispara `GET /api/leads/[id]` (recupera o `LeadListItem` completo,
+   incluindo tags via flatten), e o drawer abre com a mesma UX da tabela
+   de `/leads`. `PointerSensor` com `activationConstraint: { distance: 4 }`
+   garante que cliques curtos **não** disparam drag — sem briga entre
+   gestos. Em falha do fetch, `toast.error` é exibido e o drawer não
+   abre. A página `/pipeline/page.tsx` carrega `listTags` em paralelo
+   ao `listLeadsByStage` e passa `tags={tags}` para o `<PipelineBoard>`,
+   que repassa ao drawer.
 
 ## Dependências
 
 - `@dnd-kit/core` (`DndContext`, `useDroppable`, `useDraggable`)
 - `@/lib/leads/list-by-stage` (tipo `PipelineBoard` + `PipelineCard`)
+- `@/lib/leads/list-leads` (tipos `LeadListItem`, `LeadTagSummary`)
 - `@/lib/validators/leads` (`LEAD_STAGES`, `LeadStage`)
-- `sonner` (toast.error em rollback)
+- `@/components/leads/lead-detail-drawer` (drawer reutilizado em #136/#137)
+- `sonner` (toast.error em rollback / falha de fetch)
 - `next/navigation` (`useRouter().refresh()` após sucesso)
 
 ## Quando atualizar este `CLAUDE.md`

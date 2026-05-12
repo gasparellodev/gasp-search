@@ -18,7 +18,7 @@ Componentes da feature de campanhas (Phase 5). Tudo Client Component (forms, Rea
 |---|---|
 | `campaign-form.tsx` | Form de criação (modo template ou IA por lead), com preview de render usando o primeiro lead selecionado. POST /api/campaigns. |
 | `campaign-progress.tsx` | Card com barra de progresso (`sent_count + failed_count` / `total_count`), badge de status, botão Cancelar (PATCH `{action:'cancel'}`). Subscribe Realtime em `campaigns` filtrado por id. |
-| `target-status-table.tsx` | Tabela de targets com ícones de status (pending/sent/failed/skipped) e error_message. |
+| `target-status-table.tsx` | Tabela de targets com ícones de status (pending/sent/failed/skipped) e error_message. Nome do lead vira `<Link href="/leads/${lead_id}">` (cross-link #137); fallback usa os 8 primeiros chars do `lead_id` quando `lead_name` é null. |
 
 ## Dependências
 

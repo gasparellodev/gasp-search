@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 
 import { PipelineBoard } from "@/components/pipeline/board";
 import type { PipelineBoard as Board } from "@/lib/leads/list-by-stage";
+import type { LeadListItem } from "@/lib/leads/list-leads";
 
 const hoisted = vi.hoisted(() => ({
   refreshSpy: vi.fn(),
@@ -219,5 +220,84 @@ describe("PipelineBoard", () => {
 
     trigger!({ leadId: "lead-1", toStage: "new" });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("click em card abre o drawer com o lead carregado via GET /api/leads/[id] (#137)", async () => {
+    const user = userEvent.setup();
+    const fullLead: LeadListItem = {
+      id: "lead-1",
+      user_id: "u1",
+      name: "Barbearia A",
+      source: "google_maps",
+      source_search_job_id: null,
+      website: null,
+      instagram_handle: null,
+      phone: null,
+      whatsapp: null,
+      email: null,
+      category: "Barbearia",
+      city: "Curitiba",
+      state: "PR",
+      country: "Brasil",
+      has_website: false,
+      rating: null,
+      reviews_count: null,
+      followers_count: null,
+      stage: "new",
+      score: 10,
+      notes: null,
+      raw: null,
+      created_at: "2026-01-01T00:00:00Z",
+      updated_at: "2026-01-01T00:00:00Z",
+      enriched_at: null,
+      tags: [],
+    };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url === "/api/leads/lead-1") {
+        return {
+          ok: true,
+          json: async () => fullLead,
+        } as Response;
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PipelineBoard board={board} tags={[]} />);
+
+    await user.click(screen.getByText("Barbearia A"));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/leads/lead-1");
+    });
+
+    // Drawer abre com o lead carregado — SheetTitle do drawer mostra o nome.
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { level: 2, name: "Barbearia A" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("toast.error quando GET /api/leads/[id] falha — drawer não abre", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Lead não encontrado" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PipelineBoard board={board} tags={[]} />);
+
+    await user.click(screen.getByText("Barbearia A"));
+
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "Barbearia A" }),
+    ).not.toBeInTheDocument();
   });
 });
