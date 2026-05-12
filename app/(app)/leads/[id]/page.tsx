@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { listLeadMessages } from "@/lib/ai/messages";
 import { getLead } from "@/lib/leads/crud";
+import { STAGE_LABEL, STAGE_VARIANT } from "@/lib/leads/stage-presentation";
 import { createServerSupabase } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -81,7 +82,9 @@ export default async function LeadDetailPage({
               {compact([lead.category, location]) || "Lead sem categoria"}
             </p>
           </div>
-          <Badge variant="secondary">{lead.stage}</Badge>
+          <Badge variant={STAGE_VARIANT[lead.stage]}>
+            {STAGE_LABEL[lead.stage]}
+          </Badge>
         </div>
       </header>
 
