@@ -25,17 +25,26 @@ function makeReq(body: unknown) {
   });
 }
 
+type CountChainState = "fresh" | "running" | "hour";
+
 function makeSupabase(opts: {
   campaignsList?: { data: unknown; error: unknown };
   validLeads?: { data: unknown; error: unknown };
   insertResult?: { data: unknown; error: unknown };
   insertTargetsError?: unknown;
+  runningCount?: number;
+  hourCount?: number;
 }) {
   const calls: Array<{ table: string; op: string }> = [];
   const leadsInArgs: Array<{ column: string; values: unknown }> = [];
   const leadsEqArgs: Array<{ column: string; value: unknown }> = [];
   const campaignsInsertPayloads: Array<Record<string, unknown>> = [];
   const campaignTargetsInsertPayloads: unknown[] = [];
+  const campaignsCountCalls: Array<{
+    kind: CountChainState;
+    userId: unknown;
+    extra?: { column: string; value: unknown };
+  }> = [];
 
   const from = vi.fn((table: string) => {
     if (table === "campaigns") {
@@ -49,10 +58,67 @@ function makeSupabase(opts: {
         campaignsInsertPayloads.push(payload);
         return { select: insertSelect };
       });
-      // GET list
-      const limit = vi.fn(async () => opts.campaignsList ?? { data: [], error: null });
+
+      const limit = vi.fn(
+        async () => opts.campaignsList ?? { data: [], error: null },
+      );
       const order = vi.fn(() => ({ limit }));
-      const select = vi.fn(() => ({ order }));
+
+      const select = vi.fn(
+        (
+          _columns: string,
+          selectOpts?: { count?: string; head?: boolean },
+        ) => {
+          if (selectOpts?.count === "exact" && selectOpts?.head === true) {
+            let state: CountChainState = "fresh";
+            let userIdValue: unknown = null;
+            let extra: { column: string; value: unknown } | undefined;
+            const chain: {
+              eq: (column: string, value: unknown) => typeof chain;
+              gte: (column: string, value: unknown) => typeof chain;
+              then: (
+                resolve: (v: { count: number; error: null }) => unknown,
+                reject?: (e: unknown) => unknown,
+              ) => Promise<unknown>;
+            } = {
+              eq(column, value) {
+                if (column === "user_id") {
+                  userIdValue = value;
+                } else if (column === "status" && value === "running") {
+                  state = "running";
+                  extra = { column, value };
+                }
+                return chain;
+              },
+              gte(column, value) {
+                state = "hour";
+                extra = { column, value };
+                return chain;
+              },
+              then(resolve, reject) {
+                const count =
+                  state === "hour"
+                    ? (opts.hourCount ?? 0)
+                    : state === "running"
+                      ? (opts.runningCount ?? 0)
+                      : 0;
+                campaignsCountCalls.push({
+                  kind: state,
+                  userId: userIdValue,
+                  extra,
+                });
+                return Promise.resolve({ count, error: null }).then(
+                  resolve,
+                  reject,
+                );
+              },
+            };
+            return chain;
+          }
+          return { order };
+        },
+      );
+
       return { select, insert };
     }
     if (table === "leads") {
@@ -88,6 +154,7 @@ function makeSupabase(opts: {
       leadsEqArgs,
       campaignsInsertPayloads,
       campaignTargetsInsertPayloads,
+      campaignsCountCalls,
     },
   };
 }
@@ -152,8 +219,6 @@ describe("POST /api/campaigns", () => {
       data: { user: { id: "u1" } },
       error: null,
     });
-    // Supabase retorna 1 row (única) mesmo quando a query recebe duplicatas;
-    // backend deve deduplicar ANTES da query e comparar contra o tamanho do Set.
     const { client, spies } = makeSupabase({
       validLeads: { data: [{ id: VALID_LEAD }], error: null },
       insertResult: { data: { id: "camp-1" }, error: null },
@@ -166,15 +231,13 @@ describe("POST /api/campaigns", () => {
         name: "Test",
         mode: "template",
         templateText: "Hi {{nome}}",
-        leadIds: [VALID_LEAD, VALID_LEAD, VALID_LEAD], // duplicatas explícitas
+        leadIds: [VALID_LEAD, VALID_LEAD, VALID_LEAD],
       }),
     );
 
     expect(res.status).toBe(201);
-    // A query .in('id', ids) deve ter recebido a lista deduplicada.
     expect(spies.leadsInArgs).toHaveLength(1);
     expect(spies.leadsInArgs[0]?.values).toEqual([VALID_LEAD]);
-    // total_count e targets também devem refletir o conjunto único.
     const campaignPayload = spies.campaignsInsertPayloads[0];
     expect(campaignPayload?.total_count).toBe(1);
     const targets = spies.campaignTargetsInsertPayloads[0] as Array<{
@@ -189,9 +252,6 @@ describe("POST /api/campaigns", () => {
       data: { user: { id: "u1" } },
       error: null,
     });
-    // Simula que o lead requisitado NÃO pertence ao user u1: Supabase
-    // (com .eq('user_id', 'u1') e RLS) retorna zero rows. Backend deve
-    // rejeitar com mensagem amigável.
     const { client, spies } = makeSupabase({
       validLeads: { data: [], error: null },
     });
@@ -209,8 +269,6 @@ describe("POST /api/campaigns", () => {
     );
 
     expect(res.status).toBe(422);
-    // Defesa em profundidade: backend filtrou explicitamente por user_id,
-    // não confiou só em RLS.
     expect(spies.leadsEqArgs).toHaveLength(1);
     expect(spies.leadsEqArgs[0]).toEqual({ column: "user_id", value: "u1" });
   });
@@ -243,6 +301,121 @@ describe("POST /api/campaigns", () => {
         campaignId: "camp-1",
       }),
     );
+  });
+
+  describe("rate-limit por usuário (#134)", () => {
+    it("Case A: retorna 409 quando user já tem campanha com status='running'", async () => {
+      supabaseMocks.getUser.mockResolvedValue({
+        data: { user: { id: "u1" } },
+        error: null,
+      });
+      const { client, spies } = makeSupabase({
+        runningCount: 1,
+        hourCount: 0,
+        validLeads: { data: [{ id: VALID_LEAD }], error: null },
+        insertResult: { data: { id: "camp-1" }, error: null },
+      });
+      supabaseMocks.createServerSupabase.mockResolvedValue(client);
+      const { POST } = await import("@/app/api/campaigns/route");
+
+      const res = await POST(
+        makeReq({
+          name: "Test",
+          mode: "template",
+          templateText: "Hi",
+          leadIds: [VALID_LEAD],
+        }),
+      );
+
+      expect(res.status).toBe(409);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("campaign_already_running");
+
+      // Backend deve ter checado runningCount com escopo user_id + status.
+      const runningCalls = spies.campaignsCountCalls.filter(
+        (c) => c.kind === "running",
+      );
+      expect(runningCalls).toHaveLength(1);
+      expect(runningCalls[0]?.userId).toBe("u1");
+      expect(runningCalls[0]?.extra).toEqual({
+        column: "status",
+        value: "running",
+      });
+
+      // Não deve inserir nem disparar processor.
+      expect(spies.campaignsInsertPayloads).toHaveLength(0);
+      expect(spies.campaignTargetsInsertPayloads).toHaveLength(0);
+      expect(processMock).not.toHaveBeenCalled();
+    });
+
+    it("Case B: retorna 429 quando user excede MAX_CAMPAIGNS_PER_HOUR (default 5)", async () => {
+      supabaseMocks.getUser.mockResolvedValue({
+        data: { user: { id: "u1" } },
+        error: null,
+      });
+      const { client, spies } = makeSupabase({
+        runningCount: 0,
+        hourCount: 5,
+        validLeads: { data: [{ id: VALID_LEAD }], error: null },
+        insertResult: { data: { id: "camp-1" }, error: null },
+      });
+      supabaseMocks.createServerSupabase.mockResolvedValue(client);
+      const { POST } = await import("@/app/api/campaigns/route");
+
+      const res = await POST(
+        makeReq({
+          name: "Test",
+          mode: "template",
+          templateText: "Hi",
+          leadIds: [VALID_LEAD],
+        }),
+      );
+
+      expect(res.status).toBe(429);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe("rate_limited");
+      expect(res.headers.get("Retry-After")).toBe("60");
+
+      // Backend deve ter checado hourCount usando .gte('created_at', ...).
+      const hourCalls = spies.campaignsCountCalls.filter(
+        (c) => c.kind === "hour",
+      );
+      expect(hourCalls).toHaveLength(1);
+      expect(hourCalls[0]?.userId).toBe("u1");
+      expect(hourCalls[0]?.extra?.column).toBe("created_at");
+
+      expect(spies.campaignsInsertPayloads).toHaveLength(0);
+      expect(spies.campaignTargetsInsertPayloads).toHaveLength(0);
+      expect(processMock).not.toHaveBeenCalled();
+    });
+
+    it("Case C: 201 quando user está dentro do limite (sem running e hourCount < MAX)", async () => {
+      supabaseMocks.getUser.mockResolvedValue({
+        data: { user: { id: "u1" } },
+        error: null,
+      });
+      const { client, spies } = makeSupabase({
+        runningCount: 0,
+        hourCount: 4,
+        validLeads: { data: [{ id: VALID_LEAD }], error: null },
+        insertResult: { data: { id: "camp-1" }, error: null },
+      });
+      supabaseMocks.createServerSupabase.mockResolvedValue(client);
+      const { POST } = await import("@/app/api/campaigns/route");
+
+      const res = await POST(
+        makeReq({
+          name: "Test",
+          mode: "template",
+          templateText: "Hi",
+          leadIds: [VALID_LEAD],
+        }),
+      );
+
+      expect(res.status).toBe(201);
+      expect(spies.campaignsInsertPayloads).toHaveLength(1);
+      expect(processMock).toHaveBeenCalledOnce();
+    });
   });
 });
 

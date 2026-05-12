@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 import { apiErrorResponse } from "@/lib/api/errors";
 import { processCampaign } from "@/lib/campaigns/processor";
+import { env } from "@/lib/env";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createCampaignSchema } from "@/lib/validators/campaigns";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
+
+const ONE_HOUR_MS = 3_600_000;
 
 function validationIssues(error: ZodError) {
   return error.issues.map((issue) => ({
@@ -72,6 +75,45 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Rate-limit por usuário (#134). Duas defesas antes de qualquer escrita:
+    //   1) Uma única campanha 'running' por user de cada vez — evita
+    //      concorrência no processor (Anthropic + Evolution) e impede que
+    //      o user dispare batches sobrepostos. Casa com #122 (BullMQ): o
+    //      limite continua válido quando processCampaign migrar para fila.
+    //   2) Hard cap de N campanhas criadas em uma janela de 1h (default 5
+    //      via env.MAX_CAMPAIGNS_PER_HOUR). Protege budget Anthropic +
+    //      quota WhatsApp contra flooding malicioso/acidental.
+    const { count: runningCount } = await supabase
+      .from("campaigns")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "running");
+    if ((runningCount ?? 0) > 0) {
+      return new Response(
+        JSON.stringify({ error: "campaign_already_running" }),
+        {
+          status: 409,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const oneHourAgo = new Date(Date.now() - ONE_HOUR_MS).toISOString();
+    const { count: hourCount } = await supabase
+      .from("campaigns")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", oneHourAgo);
+    if ((hourCount ?? 0) >= env.MAX_CAMPAIGNS_PER_HOUR) {
+      return new Response(JSON.stringify({ error: "rate_limited" }), {
+        status: 429,
+        headers: {
+          "Retry-After": "60",
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
     // Dedupe defensivo: payload `[lead, lead]` retornaria 1 row do Supabase
     // mas teria length=2 — rejeitaria campanha legítima (#129). Set garante
     // que validamos e processamos cada lead uma única vez, além de evitar
