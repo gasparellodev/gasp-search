@@ -43,6 +43,11 @@ export const AnnouncementSchema = z.object({
     .number({ error: "KM inválido" })
     .int("KM deve ser inteiro")
     .min(0, "KM não pode ser negativo"),
+  combustivel: z.string().trim().min(1, PT_REQUIRED).max(40),
+  cambio: z.string().trim().min(1, PT_REQUIRED).max(40),
+  cor: z.string().trim().min(1, PT_REQUIRED).max(40),
+  motor: z.string().trim().min(1, PT_REQUIRED).max(80),
+  fipe_codigo: z.string().trim().max(40).optional(),
   preco: z
     .number({ error: "Preço inválido" })
     .min(0, "Preço não pode ser negativo")

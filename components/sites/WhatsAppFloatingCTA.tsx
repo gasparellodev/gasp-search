@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 
 import { WhatsappIcon } from "@/components/sites/social-icons";
+import { trackEvent } from "@/lib/analytics/track-event";
 import { useFloatingCtaVisibility } from "@/lib/hooks/use-floating-cta-visibility";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
@@ -46,6 +47,9 @@ export function WhatsAppFloatingCTA({
       href={whatsappHref}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={() => {
+        trackEvent("whatsapp_click", { component: "floating-cta" });
+      }}
       aria-label="Contato WhatsApp"
       title="Contato WhatsApp"
       data-testid="whatsapp-floating-cta"

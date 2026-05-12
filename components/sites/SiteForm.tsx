@@ -7,13 +7,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
-import { cn } from "@/lib/utils";
+import { submitSiteForm } from "@/app/actions/site-form";
+import { trackEvent } from "@/lib/analytics/track-event";
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import {
   SiteFormSchema,
   type SiteFormInput,
 } from "@/lib/sites/site-form.schema";
-import { submitSiteForm } from "@/app/actions/site-form";
+import { cn } from "@/lib/utils";
 
 export type SiteFormVariant = "home" | "contact" | "car-detail";
 
@@ -95,6 +96,7 @@ export function SiteForm({
           return;
         }
         toast.success("Mensagem enviada!");
+        trackEvent("form_submit", { form_variant: variant });
         setSubmitted(true);
         reset({
           model: prefillModel ?? "",

@@ -54,6 +54,18 @@ async function fillCarStep(user: ReturnType<typeof userEvent.setup>) {
   fireEvent.change(screen.getByLabelText(/Quilometragem/i), {
     target: { value: "35000" },
   });
+  fireEvent.change(screen.getByLabelText(/^Combustível$/i), {
+    target: { value: "Flex" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Câmbio$/i), {
+    target: { value: "Automático" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Cor$/i), {
+    target: { value: "Prata" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Motor$/i), {
+    target: { value: "2.0 16V" },
+  });
   await user.click(screen.getByRole("button", { name: /Continuar/i }));
 }
 
@@ -167,6 +179,10 @@ describe("<AnnounceForm />", () => {
         modelo: "Corolla XEi",
         ano: 2022,
         km: 35000,
+        combustivel: "Flex",
+        cambio: "Automático",
+        cor: "Prata",
+        motor: "2.0 16V",
         email: "maria@example.com",
         car_target_slug: "bmw-m2-2023",
         lgpd_consent: true,

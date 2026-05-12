@@ -20,7 +20,9 @@ tests/
 │   ├── smoke.spec.ts    # carrega `/`
 │   ├── responsive.spec.ts # regressão de menu mobile e overflow horizontal
 │   ├── sites/           # Phase 7 — render público dos sites gerados (#166)
+│   ├── visual/          # projeto `visual-sites` — screenshots vs `tests/visual/figma-baseline/v3/` (#204)
 │   └── ...              # fluxos por área (leads, campaigns, whatsapp, integration, pipeline)
+├── visual/              # README + baselines PNG versionados (gerados com seed + `--update-snapshots`)
 └── fixtures/            # JSON fixtures para mappers Apify
 ```
 
@@ -160,6 +162,11 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
   `tests/e2e/sites/detail-d1.spec.ts` cobrem Detail D1 (#226):
   breadcrumb visual shared, galeria cinema scroll-snap, lightbox Radix
   com teclado/focus return, info block e spec grid híbrido.
+- `tests/unit/lib/analytics/track-event.test.ts` +
+  `tests/unit/components/sites/GA4Tag.test.tsx` +
+  `tests/e2e/sites/analytics-consent.spec.ts` cobrem GA4 consent-gated (#233).
+- `tests/e2e/visual/sites-routes.spec.ts` (projeto `visual-sites`) cobre
+  regressão visual das 6 rotas × 2 viewports (#204); ver `tests/visual/README.md`.
 
 ### Quando usar mock factory vs inline `vi.mock`
 

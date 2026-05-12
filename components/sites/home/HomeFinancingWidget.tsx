@@ -1,8 +1,9 @@
 "use client";
 
-import { useDeferredValue, useId, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { BanksStrip } from "@/components/sites/BanksStrip";
+import { trackEvent } from "@/lib/analytics/track-event";
 import {
   calculateInstallment,
   DEFAULT_MONTHLY_INTEREST,
@@ -65,6 +66,7 @@ export function HomeFinancingWidget({
   const [priceRaw, setPriceRaw] = useState<string>(formatBRL(DEFAULT_PRICE));
   const [downPct, setDownPct] = useState<number>(DEFAULT_DOWN_PCT);
   const [months, setMonths] = useState<number>(DEFAULT_MONTHS);
+  const financingTracked = useRef(false);
 
   const price = parseDigitsToNumber(priceRaw);
 
@@ -87,6 +89,14 @@ export function HomeFinancingWidget({
       return null;
     }
   }, [deferredPrice, deferredDown, deferredMonths]);
+
+  useEffect(() => {
+    if (financingTracked.current) return;
+    if (computation === null) return;
+    if (deferredPrice <= 0) return;
+    financingTracked.current = true;
+    trackEvent("financing_calc", { source: "home_financing_widget" });
+  }, [computation, deferredPrice]);
 
   const installmentDisplay = (() => {
     if (computation === null) return "—";
@@ -252,6 +262,9 @@ export function HomeFinancingWidget({
             href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => {
+              trackEvent("whatsapp_click", { component: "home-financing-widget" });
+            }}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--auto-whatsapp,#25d366)] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-[var(--auto-whatsapp-hover,#1fb855)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--auto-whatsapp,#25d366)]"
           >
             Simular financiamento no WhatsApp

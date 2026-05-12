@@ -125,6 +125,9 @@ em light mode, conflita com tema).
 | `MobileNav.tsx` | **Client Component.** Radix Dialog fullscreen mobile com focus trap, ESC, body scroll lock, close button, fechamento ao clicar na área vazia, links que fecham o menu e popstate/back-button que fecha o menu. Recebe links e WhatsApp href do `<SiteHeader>`. |
 | `SiteFooter.tsx` | **Server Component (#219 / Sprint 3 G2).** Footer global 4-colunas desktop / stack mobile: marca + sameAs icons, NAP completo em `<address>`, horários (`variables.hours ?? "Segunda a Sexta: 09h-18h \| Sábado: 09h-13h"`), navegação + link interno `/sites/<slug>/lgpd` (#234), banks strip, payment methods e microbranding "Site por GaspLab". Consome `SiteVariablesV2` (`brand_assets`, `address`, `hours`) e mantém fallback gracioso quando `address`/`email` são `null`. |
 | `CookieBanner.tsx` | **Client Component (#234).** Banner LGPD global dos sites públicos. Opt-in default via `localStorage` key `gasp_consent_v1`; categorias `necessary` (sempre on), `analytics`, `marketing`; botão "Aceitar todos", modal Radix "Personalizar" com focus trap/ESC, e "Apenas necessários". Persiste auditoria best-effort via `recordConsentDecision`. |
+| `GA4Tag.tsx` | **Client Component (#233).** Injeta `next/script` para `gtag/js` + snippet de config **somente** quando `useConsent('analytics')` e `publicEnv.NEXT_PUBLIC_GA4_ID` estão ativos. |
+| `SitesAnalytics.tsx` | **Client Component (#233).** Compõe `<GA4Tag />` + `@vercel/analytics/react` (`<Analytics />`) no layout dos sites públicos. |
+| `CarDetailViewBeacon.tsx` | **Client Component (#233).** `useEffect` único por montagem: `trackEvent('car_detail_view', { site_slug, car_slug })` no detalhe do veículo. |
 | `BanksStrip.tsx` | **Server Component (#219).** Strip compartilhada de 7 bancos parceiros com SVGs locais em `public/assets/banks/*`. Ícones têm dimensões fixas 40×40 para evitar CLS e `alt` como fallback de asset. |
 | `PaymentStrip.tsx` | **Server Component (#219).** Strip compartilhada de 6 métodos de pagamento com SVGs locais em `public/assets/payment/*`. Ícones têm dimensões fixas 40×40 para evitar CLS e `alt` como fallback de asset. |
 | `WhatsAppFloatingCTA.tsx` | **Client Component (#220 / Sprint 3 G3).** CTA global fixo bottom-right para todas as rotas `/sites/<slug>/*`. Usa `buildWhatsAppLink({ template: 'general', component: 'floating-cta' })`, `WhatsappIcon`, `aria-label="Contato WhatsApp"`, `title` desktop, `--z-floating-cta: 50`, `--auto-shadow-whatsapp-floating`, safe-area inset e `useFloatingCtaVisibility()` para desmontar quando `body[data-modal-open]` estiver presente. |
@@ -185,6 +188,7 @@ client/server fica explícita no import de `@/app/actions/site-form`.
 - `@/lib/hooks/use-floating-cta-visibility` — esconde CTA global quando modal/drawer sinaliza `body[data-modal-open]`.
 - `@/lib/hooks/use-car-context` — normaliza contexto serializado do carro para a barra mobile.
 - `@/lib/hooks/use-consent` — lê consentimento granular do banner LGPD.
+- `@vercel/analytics` — `<Analytics />` em `SitesAnalytics` (#233).
 - `@/lib/sites/sanitize` — defesa em profundidade pra cores hex.
 - `radix-ui` Accordion primitive — usado pelo `<SiteFAQ>`.
 

@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 
 import { WhatsappIcon } from "@/components/sites/social-icons";
+import { trackEvent } from "@/lib/analytics/track-event";
 import {
   type InitialCarContext,
   useCarContext,
@@ -79,6 +80,9 @@ export function FloatingInstallmentBar({
           href={carContext.whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => {
+            trackEvent("whatsapp_click", { component: "floating-installment-bar" });
+          }}
           aria-label={`Falar no WhatsApp sobre ${carContext.vehicleLabel}`}
           className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-[var(--auto-radius-full,9999px)] bg-[var(--auto-whatsapp,#25d366)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--auto-whatsapp-hover,#1fb855)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--auto-whatsapp,#25d366)] focus-visible:ring-offset-2"
         >

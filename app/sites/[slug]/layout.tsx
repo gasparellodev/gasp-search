@@ -1,10 +1,13 @@
 import "server-only";
 
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { CookieBanner } from "@/components/sites/CookieBanner";
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
+import { SitesAnalytics } from "@/components/sites/SitesAnalytics";
 import { WhatsAppFloatingCTA } from "@/components/sites/WhatsAppFloatingCTA";
+import { publicEnv } from "@/lib/env-public";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSitewideGraph } from "@/lib/sites/schema";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
@@ -44,7 +47,17 @@ import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
  * **Fallback path:** quando `getSite` retorna `null`, status `draft`/
  * `archived`, ou variables falham `safeParse`, **omitimos** os schemas
  * (sem JSON-LD parcial). A page abaixo trata `notFound()` de qualquer jeito.
+ *
+ * **#233:** `generateMetadata` injeta verificação GSC quando
+ * `NEXT_PUBLIC_GSC_VERIFICATION` está definida; `<SitesAnalytics>` injeta
+ * GA4 (consent-gated) + Vercel Analytics.
  */
+export async function generateMetadata(): Promise<Metadata> {
+  const token = publicEnv.NEXT_PUBLIC_GSC_VERIFICATION;
+  if (!token) return {};
+  return { verification: { google: token } };
+}
+
 export default async function AutoShowroomLayout({
   children,
   params,
@@ -73,6 +86,7 @@ export default async function AutoShowroomLayout({
       {children}
       {variables && <WhatsAppFloatingCTA variables={variables} slug={slug} />}
       {variables && <CookieBanner />}
+      {variables && <SitesAnalytics />}
     </div>
   );
 }

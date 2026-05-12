@@ -284,6 +284,11 @@ function buildAnnouncementMessage(
   const lines = [
     `Veículo anunciado: ${payload.marca} ${payload.modelo} ${payload.ano}`,
     `Quilometragem: ${payload.km}`,
+    `Combustível: ${payload.combustivel}`,
+    `Câmbio: ${payload.cambio}`,
+    `Cor: ${payload.cor}`,
+    `Motor: ${payload.motor}`,
+    payload.fipe_codigo ? `Referência FIPE: ${payload.fipe_codigo}` : null,
     payload.preco == null ? null : `Preço pretendido: ${payload.preco}`,
     targetLabel ? `Entrada para: ${targetLabel}` : null,
     payload.mensagem ? `Mensagem: ${payload.mensagem}` : null,

@@ -12,6 +12,7 @@ import {
   requestUploadUrl,
   submitAnnouncement,
 } from "@/app/actions/site-announcement";
+import { trackEvent } from "@/lib/analytics/track-event";
 import {
   AnnouncementSchema,
   type AnnouncementInput,
@@ -65,6 +66,11 @@ export function AnnounceForm({
       modelo: "",
       ano: undefined as unknown as number,
       km: undefined as unknown as number,
+      combustivel: "",
+      cambio: "",
+      cor: "",
+      motor: "",
+      fipe_codigo: "",
       preco: null,
       nome: "",
       telefone: "",
@@ -82,7 +88,19 @@ export function AnnounceForm({
 
   async function goNext() {
     const fieldsByStep: (keyof AnnouncementInput)[][] = [
-      ["marca", "modelo", "ano", "km", "preco", "mensagem"],
+      [
+        "marca",
+        "modelo",
+        "ano",
+        "km",
+        "combustivel",
+        "cambio",
+        "cor",
+        "motor",
+        "preco",
+        "mensagem",
+        "fipe_codigo",
+      ],
       ["nome", "telefone", "email"],
       [],
       ["lgpd_consent"],
@@ -131,6 +149,7 @@ export function AnnounceForm({
         if (result.leadId) {
           await uploadPhotos(result.leadId, result.uploadToken, photos);
         }
+        trackEvent("tradein_submit", { site_id: siteId });
         toast.success("Recebemos seu anúncio! Em breve entramos em contato.");
         setSubmitted(true);
         setPhotos([]);
@@ -189,6 +208,15 @@ export function AnnounceForm({
       className="rounded-site-feature border border-foreground/15 p-6 md:p-8"
       data-testid="announce-form"
     >
+      <div
+        className="mb-6 h-1.5 w-full overflow-hidden rounded-full bg-foreground/10"
+        aria-hidden="true"
+      >
+        <div
+          className="h-full rounded-full bg-foreground transition-[width] duration-300 ease-out"
+          style={{ width: `${((step + 1) / STEPS.length) * 100}%` }}
+        />
+      </div>
       <ol
         data-testid="announce-stepper"
         className="grid grid-cols-2 gap-2 text-sm md:grid-cols-4"
@@ -254,6 +282,51 @@ export function AnnounceForm({
               ...register("km", { valueAsNumber: true }),
             }}
           />
+          <Field
+            id={`${baseId}-combustivel`}
+            label="Combustível"
+            error={errors.combustivel?.message}
+            inputProps={{ type: "text", ...register("combustivel") }}
+          />
+          <Field
+            id={`${baseId}-cambio`}
+            label="Câmbio"
+            error={errors.cambio?.message}
+            inputProps={{ type: "text", ...register("cambio") }}
+          />
+          <Field
+            id={`${baseId}-cor`}
+            label="Cor"
+            error={errors.cor?.message}
+            inputProps={{ type: "text", ...register("cor") }}
+          />
+          <Field
+            id={`${baseId}-motor`}
+            label="Motor"
+            error={errors.motor?.message}
+            inputProps={{ type: "text", ...register("motor") }}
+          />
+          <Field
+            id={`${baseId}-fipe`}
+            label="Código FIPE (opcional)"
+            error={errors.fipe_codigo?.message}
+            inputProps={{ type: "text", ...register("fipe_codigo") }}
+          />
+          <div className="md:col-span-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-4 py-3 text-sm text-foreground/75">
+            <p>
+              Consulte a tabela FIPE oficial em{" "}
+              <Link
+                href="https://veiculos.fipe.org.br/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-foreground underline underline-offset-2"
+                data-testid="announce-fipe-link"
+              >
+                veiculos.fipe.org.br
+              </Link>
+              .
+            </p>
+          </div>
           <Field
             id={`${baseId}-preco`}
             label="Preço pretendido (opcional)"

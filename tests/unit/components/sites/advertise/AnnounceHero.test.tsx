@@ -10,7 +10,7 @@ describe("<AnnounceHero />", () => {
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Anuncie seu carro aqui/i,
+        name: /^Anuncie seu carro$/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/equipe da Touring Cars avaliar/i)).toBeInTheDocument();

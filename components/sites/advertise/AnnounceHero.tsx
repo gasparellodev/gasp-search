@@ -7,8 +7,11 @@ interface AnnounceHeroProps {
 
 export function AnnounceHero({ businessName, targetCar = null }: AnnounceHeroProps) {
   return (
-    <section data-testid="announce-hero" className="w-full bg-background py-16 md:py-24">
-      <div className="mx-auto max-w-7xl px-4 md:px-8">
+    <section
+      data-testid="announce-hero"
+      className="flex min-h-[50dvh] w-full flex-col justify-center bg-background py-12 md:py-16"
+    >
+      <div className="mx-auto w-full max-w-7xl px-4 md:px-8">
         <div className="max-w-4xl">
           <p className="text-sm font-medium uppercase tracking-[0.18em] text-foreground/55">
             Avaliação de troca
@@ -17,7 +20,7 @@ export function AnnounceHero({ businessName, targetCar = null }: AnnounceHeroPro
             className="mt-4 font-bold leading-[1.04] text-foreground"
             style={{ fontSize: "clamp(2.75rem, 7vw, 5.5rem)" }}
           >
-            Anuncie seu carro aqui
+            Anuncie seu carro
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-foreground/70 md:text-lg">
             Envie os dados do veículo para a equipe da {businessName} avaliar

@@ -18,12 +18,12 @@ const baseProps = {
 };
 
 describe("<AdvertiseSection />", () => {
-  it("renderiza <h1> 'Anuncie seu carro aqui'", () => {
+  it("renderiza <h1> 'Anuncie seu carro'", () => {
     render(<AdvertiseSection {...baseProps} />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Anuncie seu carro aqui/i,
+        name: /Anuncie seu carro$/i,
       }),
     ).toBeInTheDocument();
   });

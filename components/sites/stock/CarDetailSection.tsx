@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
+import { CarDetailViewBeacon } from "../CarDetailViewBeacon";
 import { SiteForm } from "../SiteForm";
 
 import { DetailBreadcrumb } from "./DetailBreadcrumb";
@@ -73,6 +74,7 @@ export function CarDetailSection({
 
   return (
     <section data-testid="car-detail-section" className="w-full bg-background">
+      <CarDetailViewBeacon slug={slug} carSlug={car.slug} />
       <div className="mx-auto max-w-7xl px-4 py-8 md:px-8 md:py-12">
         <DetailBreadcrumb
           slug={slug}
