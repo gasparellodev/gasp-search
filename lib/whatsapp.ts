@@ -162,6 +162,9 @@ export const WhatsAppComponentSchema = z.enum([
   "advertise-section",
   "floating-cta",
   "site-form",
+  "detail-cta-primary",
+  "detail-cta-secondary",
+  "detail-financing-inline",
   "other",
 ]);
 export type WhatsAppComponent = z.infer<typeof WhatsAppComponentSchema>;

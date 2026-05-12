@@ -132,7 +132,7 @@ describe("<CarDetailSection /> — info", () => {
         slug={SLUG}
       />,
     );
-    expect(screen.getByTestId("car-detail-price")).toHaveTextContent(
+    expect(screen.getByTestId("detail-price-display")).toHaveTextContent(
       /R\$\s?119\.900/,
     );
   });
@@ -147,8 +147,8 @@ describe("<CarDetailSection /> — info", () => {
         slug={SLUG}
       />,
     );
-    expect(screen.getByTestId("car-detail-price")).toHaveTextContent(
-      "Sob consulta",
+    expect(screen.getByTestId("detail-price-consult")).toHaveTextContent(
+      "Preço sob consulta",
     );
   });
 });
@@ -164,7 +164,7 @@ describe("<CarDetailSection /> — WhatsApp CTA", () => {
         slug={SLUG}
       />,
     );
-    const cta = screen.getByTestId("car-detail-cta-whatsapp");
+    const cta = screen.getByTestId("detail-cta-primary");
     const href = cta.getAttribute("href")!;
     expect(href.startsWith("https://wa.me/5581981000000?text=")).toBe(true);
 
@@ -186,7 +186,7 @@ describe("<CarDetailSection /> — WhatsApp CTA", () => {
         slug={SLUG}
       />,
     );
-    const cta = screen.getByTestId("car-detail-cta-whatsapp");
+    const cta = screen.getByTestId("detail-cta-primary");
     expect(cta).toHaveAttribute("target", "_blank");
     expect(cta).toHaveAttribute("rel", "noopener noreferrer");
   });
@@ -201,7 +201,7 @@ describe("<CarDetailSection /> — WhatsApp CTA", () => {
         slug={SLUG}
       />,
     );
-    const cta = screen.getByTestId("car-detail-cta-whatsapp");
+    const cta = screen.getByTestId("detail-cta-primary");
     expect(cta).toHaveAttribute(
       "aria-label",
       `Falar no WhatsApp sobre ${car.brand} ${car.model} ${car.year}`,

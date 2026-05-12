@@ -117,11 +117,14 @@ existente (variant `'car-detail'`).
 | `StockGrid.tsx` | Shared Client/Server-safe. Grid 1/2/3 cols que reutiliza `<CarCard>` para cada veículo, preservando `data-testid="car-card-<slug>"`, raio 8px e WhatsApp inline. |
 | `StockPagination.tsx` | **Client.** Navegação de páginas do estoque: prev/next + números no desktop, botão "Carregar mais 12" no mobile. |
 | `StockEmptyState.tsx` | **Client.** Empty state desenhado com SVG, copy PT-BR e CTA "Limpar filtros". |
-| `CarDetailSection.tsx` | Server. Orquestra D1 (#226): `<DetailBreadcrumb>`, `<DetailGalleryCinema>`, `<DetailInfoBlock>`, CTA WhatsApp, `<DetailSpecGrid>` e `<SiteForm variant="car-detail">`. **#220:** a barra mobile fixed vive fora deste section, no caller da rota, para receber `car` já resolvido sem transformar o section em client. |
+| `CarDetailSection.tsx` | Server. Orquestra D1/D2 (#226/#227): `<DetailBreadcrumb>`, `<DetailGalleryCinema>`, `<DetailInfoBlock>`, `<DetailPriceBlock>` (preço sticky, calculadora, CTAs), `<DetailSpecGrid>` e `<SiteForm variant="car-detail">`. **#220:** a barra mobile fixed vive fora deste section, no caller da rota. |
 | `CarGallery.tsx` | **Client.** Imagem principal + thumbs + `<dialog>` lightbox. `dialogRef` + ESC + restauração de foco. |
 | `DetailBreadcrumb.tsx` | Server. Compõe `<Breadcrumb>` shared visual: Estoque → Marca filtrada (`?m=`) → Modelo Ano. BreadcrumbList JSON-LD segue no `SiteSchema` parent da rota. |
 | `DetailGalleryCinema.tsx` | **Client.** Galeria cinema full-height (`70dvh`) com scroll-snap horizontal, `<Image priority>` na primeira foto, `sizes="(max-width: 768px) 100vw, 70vw"`, alt `${brand} ${model} ${year} - foto ${index+1}`, contador `aria-live` e lightbox Radix com teclado. |
-| `DetailInfoBlock.tsx` | Server. Renderiza H1 model/year, `<AICitableHero page="detalhe">` imediatamente após o H1, badges, preço atual e descrição com `whitespace-pre-line` sem HTML. |
+| `DetailInfoBlock.tsx` | Server. Renderiza H1 model/year, `<AICitableHero page="detalhe">` imediatamente após o H1, badges e descrição com `whitespace-pre-line` sem HTML. O preço fica no `<DetailPriceBlock>` colateral (#227). |
+| `DetailPriceBlock.tsx` | Server. Coluna lateral: preço BRL ou “Preço sob consulta”, parcela default, `<DetailFinancingCalcInline>` (client), selos de confiança, `<DetailCtaStack>`. Sticky `lg:top-24`. Estados `available: false` / `status: "sold"` → VENDIDO + CTAs desabilitados. |
+| `DetailFinancingCalcInline.tsx` | **Client.** Calculadora Tabela PRICE + disclaimer + CTA WhatsApp `financing` (`utm_content=detail-financing-inline`). |
+| `DetailCtaStack.tsx` | Shared. Dois CTAs full-width template `vehicle` com `utm_content` distinto (`detail-cta-primary` / `detail-cta-secondary`); prop `unavailable` desabilita ambos. |
 | `DetailSpecGrid.tsx` | Server. Grid híbrido top-level + datasheet allowlist para ficha técnica D1. |
 | `car-categories.ts` | Pure helpers — `classifyCar(car)`, `parseCategoriaParam(raw)`, type `CarCategorySlug`. |
 
@@ -140,11 +143,14 @@ existente (variant `'car-detail'`).
 | `tests/unit/components/sites/stock/StockFilterSidebar.test.tsx` | 10 sections, default expanded, badges, callbacks e axe. |
 | `tests/unit/components/sites/stock/StockFilterDrawer.test.tsx` | Vaul aberto, DialogTitle, max-height, fechar e axe. |
 | `tests/unit/components/sites/stock/CarGallery.test.tsx` | Trigger → dialog open, close, thumb active. |
-| `tests/unit/components/sites/stock/CarDetailSection.test.tsx` | WhatsApp CTA, datasheet, description XSS, prefillModel, axe-core. |
+| `tests/unit/components/sites/stock/CarDetailSection.test.tsx` | Preço no `<DetailPriceBlock>`, CTAs `detail-cta-primary`, datasheet, description XSS, prefillModel, axe-core. |
 | `tests/unit/components/sites/stock/DetailBreadcrumb.test.tsx` | Breadcrumb visual shared, links de estoque/marca e página atual. |
 | `tests/unit/components/sites/stock/DetailGalleryCinema.test.tsx` | Scroll-snap, alt text, contador `aria-live`, lightbox Radix, teclado e axe aberto/fechado. |
 | `tests/unit/components/sites/stock/DetailInfoBlock.test.tsx` | H1, AI-citable, badges, descrição escapada e axe. |
 | `tests/unit/components/sites/stock/DetailSpecGrid.test.tsx` | Grid híbrido, allowlist de datasheet e omissão de opcionais ausentes. |
+| `tests/unit/components/sites/stock/DetailCtaStack.test.tsx` | CTAs vehicle + `utm_content`, indisponível, axe. |
+| `tests/unit/components/sites/stock/DetailFinancingCalcInline.test.tsx` | Calculadora inline, recálculo, deep-link financing, axe. |
+| `tests/unit/components/sites/stock/DetailPriceBlock.test.tsx` | Sticky, preço/parcela/consulta, vendido, financing aninhado, axe. |
 | `tests/unit/app/sites/estoque/page.test.tsx` | Status routing + searchParams handling. |
 | `tests/unit/app/sites/estoque/carDetailPage.test.tsx` | Status routing + `cars.find` 404 + metadata. |
 | `tests/e2e/sites/detail-d1.spec.ts` | D1 afetado: breadcrumb, galeria/info/spec e lightbox preservando scroll. |
