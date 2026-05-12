@@ -120,18 +120,20 @@ describe("LeadDetailDrawer", () => {
     expect(screen.queryByRole("heading", { name: /barbearia x/i })).toBeNull();
   });
 
-  it("mostra três tabs (Visão Geral, Notas, Mensagens)", () => {
+  it("mostra três tabs (Visão Geral, Notas, Mensagens IA)", () => {
     render(<LeadDetailDrawer {...defaultProps} />);
     expect(screen.getByRole("tab", { name: /visão geral/i })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: /notas/i })).toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: /^mensagens$/i }),
+      screen.getByRole("tab", { name: /mensagens ia/i }),
     ).toBeInTheDocument();
   });
 
-  it("Visão Geral mostra contatos e tags atuais", () => {
+  it("Visão Geral mostra contatos editáveis e tags atuais", () => {
     render(<LeadDetailDrawer {...defaultProps} />);
-    expect(screen.getByText("+5541999999999")).toBeInTheDocument();
+    // Telefone agora é editável (Input) e nome é input — issue #136.
+    expect(screen.getByLabelText(/^nome$/i)).toHaveValue("Barbearia X");
+    expect(screen.getByLabelText(/telefone/i)).toHaveValue("+5541999999999");
     expect(screen.getByText("barbeariax.com")).toBeInTheDocument();
     expect(screen.getByText(/Frio/)).toBeInTheDocument();
   });
@@ -226,9 +228,9 @@ describe("LeadDetailDrawer", () => {
     });
   });
 
-  it("Mensagens usa a experiência real da issue #33 no drawer", async () => {
+  it("Mensagens IA usa a experiência real da issue #33 no drawer", async () => {
     render(<LeadDetailDrawer {...defaultProps} />);
-    await userEvent.click(screen.getByRole("tab", { name: /^mensagens$/i }));
+    await userEvent.click(screen.getByRole("tab", { name: /mensagens ia/i }));
     expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/issue #33/i)).not.toBeInTheDocument();
     expect(screen.getByTestId("drawer-message-generator")).toHaveTextContent(
