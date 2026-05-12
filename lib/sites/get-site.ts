@@ -57,6 +57,12 @@ export interface SiteRow {
   /** Contagem de reviews Google (lida de `leads.reviews_count`). */
   lead_reviews_count: number | null;
   /**
+   * Payload bruto do lead, usado best-effort por surfaces públicas que
+   * precisam de metadados ainda não normalizados (ex.: placeId/lat/lng
+   * do Google Maps em `/contato`). Nunca logar este valor.
+   */
+  lead_raw: unknown;
+  /**
    * Momento de assinatura do contrato pelo cliente (issue #199, migration
    * 0018). `null` até confirmação manual via admin. Habilita o gate
    * `isIndexable(site)` em `lib/sites/metadata.ts` que controla
@@ -88,7 +94,7 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
   const { data, error } = await supa
     .from("lead_sites")
     .select(
-      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count )",
+      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count, raw )",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -116,12 +122,14 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
   // `leads` join pode vir como objeto único (FK 1:1 implícita) ou array
   // dependendo do Supabase client. Defendemos contra ambos os casos.
   const rawLeads = (data as { leads?: unknown }).leads;
-  const leadRow: { rating: unknown; reviews_count: unknown } | null = Array.isArray(
-    rawLeads,
-  )
-    ? ((rawLeads[0] as { rating: unknown; reviews_count: unknown } | undefined) ??
-      null)
-    : ((rawLeads as { rating: unknown; reviews_count: unknown } | null) ?? null);
+  const leadRow: { rating: unknown; reviews_count: unknown; raw?: unknown } | null =
+    Array.isArray(rawLeads)
+      ? ((rawLeads[0] as
+          | { rating: unknown; reviews_count: unknown; raw?: unknown }
+          | undefined) ?? null)
+      : ((rawLeads as
+          | { rating: unknown; reviews_count: unknown; raw?: unknown }
+          | null) ?? null);
   const leadRating = typeof leadRow?.rating === "number" ? leadRow.rating : null;
   const leadReviewsCount =
     typeof leadRow?.reviews_count === "number" ? leadRow.reviews_count : null;
@@ -135,5 +143,6 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
     visual_identity: visualIdentity,
     lead_rating: leadRating,
     lead_reviews_count: leadReviewsCount,
+    lead_raw: leadRow?.raw ?? null,
   };
 }

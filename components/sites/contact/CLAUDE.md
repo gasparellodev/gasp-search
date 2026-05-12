@@ -3,14 +3,15 @@
 ## Propósito
 
 Sub-componentes que compõem a página Contato do site público
-(`/sites/<slug>/contato`) — issue #163. Renderizam dados de contato
+(`/sites/<slug>/contato`) — issue #163, redesenhada em #230. Renderizam dados de contato
 (WhatsApp, telefone, email, endereço, horário, sociais) e o
 `<SiteForm variant="contact">` para captura de lead.
 
 ## Como adicionar
 
-- 1 arquivo por seção, em PascalCase com prefixo `Contact` (ex:
-  `ContactSection.tsx`, `ContactMap.tsx` quando virem).
+- 1 arquivo por seção, em PascalCase com prefixo `Contact` quando for
+  page-level (`ContactSection.tsx`, `ContactDualPane.tsx`) ou nome de
+  bloco explícito (`BusinessHours.tsx`, `WhatsAppDirectCard.tsx`).
 - **Sempre Server Component.** `import "server-only";` na linha 1.
   `<SiteForm>` interno é Client (delegação client/server explícita).
 - **Props com subset explícito** (`Pick<SiteVariables, ...>` mais
@@ -23,7 +24,7 @@ Sub-componentes que compõem a página Contato do site público
   espaços / parênteses / hífens persistidos no DB.
 - **Skip campos opcionais** (`email`, `address_line`, `instagram_url`,
   etc.) quando `null` — defesa contra ícones/linhas mortas no UI.
-  `hours` tem fallback "Sob consulta".
+  `hours` tem fallback `"Segunda a Sexta: 09h-18h | Sábado: 09h-13h"`.
 
 ## Regras de negócio
 
@@ -36,17 +37,25 @@ Sub-componentes que compõem a página Contato do site público
    Subseções usam `<h2>`.
 4. **Inline `<SiteForm variant="contact">`** no rodapé da section.
    `siteId`/`slug` propagados pra Server Action `submitSiteForm`.
+5. **Mapa estático é opcional (#230).** A rota monta `staticMapUrl` com
+   `GOOGLE_MAPS_STATIC_API_KEY` quando presente. Sem chave, renderiza
+   placeholder visual + link externo Google Maps com endereço textual.
+   Lat/lng/placeId vêm de `leads.raw` best-effort; V2 tipa coordenadas.
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
-| `ContactSection.tsx` | Section principal: hero (image + h1 + canais + sociais) + form de captura. Recebe `Pick<SiteVariables, ...>` + `siteId` + `slug` + opcional `manifestContactUrl?: string \| null` (#217). Pattern de URL: `manifestContactUrl ?? variables.brand_assets.contact_image_url`. Caller (`/contato/page.tsx`) deriva via `site.visual_identity?.contact_url ?? null`. |
+| `ContactSection.tsx` | Orquestrador da página Contato (#230): `<ContactDualPane>`, sociais, `<PaymentStrip>` e `<SiteForm variant="contact">`. Recebe `staticMapUrl` opcional + `mapsHref` já resolvidos pela rota. |
+| `ContactDualPane.tsx` | Layout dual-pane: copy/canais/horário/WhatsApp à esquerda e mapa estático/fallback à direita. Não busca dados; apenas renderiza props sanitizadas upstream. |
+| `BusinessHours.tsx` | Bloco visual de horários. Consome `hours: string \| null`, split por `\n` ou `|`, fallback canônico V1. |
+| `WhatsAppDirectCard.tsx` | Card de atendimento direto por WhatsApp usando `buildWhatsAppLink({ template: 'general', component: 'contact-section' })`. |
 
 ## Boundary client/server
 
 ```
-ContactSection (server) ───┐
+ContactSection (server) ───┬─ ContactDualPane (server)
+                           ├─ PaymentStrip (server)
                            └─ delega ao <SiteForm> (client) ── react-hook-form
 ```
 
@@ -56,7 +65,9 @@ A section é puro Server Component; só `<SiteForm>` cruza pra cliente
 ## Dependências
 
 - `next/image`.
-- `lucide-react@^1.14` (`Mail`, `MapPin`, `Clock`, `Phone`).
+- `lucide-react@^1.14` (`Mail`, `MapPin`, `Clock`, `Phone`,
+  `ExternalLink`, `MessageCircle`).
+- `@/lib/sites/static-map` — builder server-side da URL Static Maps.
 - `../social-icons` — `InstagramIcon`/`FacebookIcon`/`YoutubeIcon`/
   `WhatsappIcon` (lucide removeu por trademark).
 - `../SiteForm` — Client Component reutilizado de #161.
