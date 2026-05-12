@@ -21,6 +21,7 @@ tests/e2e/sites/
 ├── cookie-consent.spec.ts # #234 — banner LGPD + persistência localStorage
 ├── stock-filter.spec.ts # #224 — filtros URL/shareable + drawer mobile
 ├── detail-d1.spec.ts     # #226 — breadcrumb, galeria cinema/lightbox, info e spec grid
+├── detail-d3.spec.ts     # #228 — Tradein widget + Similar vehicles + FAQ contextual + ordem visual
 └── status-routing.spec.ts# AC5 — draft/archived → 404
 ```
 

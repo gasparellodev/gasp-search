@@ -314,6 +314,60 @@ describe("<CarDetailSection /> — form inline", () => {
   });
 });
 
+describe("<CarDetailSection /> — D3 wireup (#228)", () => {
+  const renderSection = () => {
+    const car = SITE_FIXTURE.cars[0]!;
+    return render(
+      <CarDetailSection
+        variables={baseVariables}
+        car={car}
+        siteId={SITE_ID}
+        slug={SLUG}
+      />,
+    );
+  };
+
+  it("renderiza DetailTradeinWidget entre SpecGrid e SiteForm", () => {
+    renderSection();
+    expect(screen.getByTestId("detail-tradein-widget")).toBeInTheDocument();
+  });
+
+  it("renderiza DetailSimilarVehicles", () => {
+    renderSection();
+    // Pode ser null se houver < 2 carros distintos — fixture tem várias entradas
+    expect(
+      screen.getByTestId("detail-similar-vehicles"),
+    ).toBeInTheDocument();
+  });
+
+  it("renderiza DetailFaqVehicle", () => {
+    renderSection();
+    expect(screen.getByTestId("detail-faq-vehicle")).toBeInTheDocument();
+  });
+
+  it("ordem DOM: SpecGrid → Tradein → Similar → FAQ → SiteForm", () => {
+    const { container } = renderSection();
+    const order = [
+      "detail-spec-grid",
+      "detail-tradein-widget",
+      "detail-similar-vehicles",
+      "detail-faq-vehicle",
+      "site-form",
+    ];
+    const positions = order.map((id) => {
+      const el = container.querySelector(`[data-testid="${id}"]`);
+      expect(el).not.toBeNull();
+      return Array.from(container.querySelectorAll("[data-testid]")).indexOf(
+        el as Element,
+      );
+    });
+    // Cada índice deve ser estritamente crescente
+    for (let i = 1; i < positions.length; i += 1) {
+      expect(positions[i]).toBeGreaterThan(positions[i - 1]!);
+    }
+  });
+});
+
 describe("<CarDetailSection /> — a11y runtime", () => {
   it("não tem violações axe-core (a11y runtime)", async () => {
     const car = SITE_FIXTURE.cars[0]!;

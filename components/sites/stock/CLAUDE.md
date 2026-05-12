@@ -33,13 +33,17 @@ existente (variant `'car-detail'`).
 │  └───────────────────────────────┘         │
 └────────────────────────────────────────────┘
 
-┌─ CarDetailSection (server, D1 #226) ───────┐
-│  DetailBreadcrumb + WhatsApp CTA           │
-│  ┌─ DetailGalleryCinema (client) ─┐        │
-│  │  scroll-snap + Radix lightbox  │        │
-│  └────────────────────────────────┘        │
-│  DetailInfoBlock + DetailSpecGrid          │
-│  <SiteForm/>                               │
+┌─ CarDetailSection (server, D1+D2+D3) ──────┐
+│  DetailBreadcrumb (#226)                   │
+│  ┌─ DetailGalleryCinema (client, #226) ─┐  │
+│  │  scroll-snap + Radix lightbox        │  │
+│  └──────────────────────────────────────┘  │
+│  DetailInfoBlock + DetailPriceBlock (#227) │
+│  DetailSpecGrid (#226)                     │
+│  DetailTradeinWidget (#228)                │
+│  DetailSimilarVehicles (#228)              │
+│  DetailFaqVehicle → <SiteFAQ> (#228)       │
+│  <SiteForm variant="car-detail"/>          │
 └────────────────────────────────────────────┘
 ```
 
@@ -126,6 +130,9 @@ existente (variant `'car-detail'`).
 | `DetailFinancingCalcInline.tsx` | **Client.** Calculadora Tabela PRICE + disclaimer + CTA WhatsApp `financing` (`utm_content=detail-financing-inline`). |
 | `DetailCtaStack.tsx` | Shared. Dois CTAs full-width template `vehicle` com `utm_content` distinto (`detail-cta-primary` / `detail-cta-secondary`); prop `unavailable` desabilita ambos. |
 | `DetailSpecGrid.tsx` | Server. Grid híbrido top-level + datasheet allowlist para ficha técnica D1. |
+| `DetailTradeinWidget.tsx` | **Server (#228 / Sprint 6 D3).** Card `bg-[var(--auto-muted)]` com h2 "Use seu carro como entrada" + body PT-BR + CTA "AVALIAR" → `/sites/<slug>/anunciar?car_target_slug=<currentCarSlug>` (coordenado com #231; rota ignora param graciosamente). `encodeURIComponent` defensivo no slug. `data-testid="detail-tradein-widget"`. |
+| `DetailSimilarVehicles.tsx` | **Server (#228 / Sprint 6 D3).** Section "Veículos similares" no detalhe. Consome `findSimilarCars(cars, current, limit=4)` de `lib/sites/find-similar-cars.ts` e renderiza: (a) sub-bloco "Veículos similares" com cards `similar` (matches fortes, sem badge); (b) sub-bloco "Você também pode gostar" com cards `fallback` (top-priced fillers) quando `fallback.length > 0`; (c) CTA "Ver estoque completo" quando `total < limit` (estoque pequeno ou poucos matches); (d) `null` quando pool vazio (evita section fantasma). Reusa `<CarCard>` shared (#201). Mobile: scroll horizontal `snap-x snap-mandatory` + `w-[80%]` por card. Desktop: grid 4 colunas. `data-testid="detail-similar-vehicles"` + scrollers separados (`detail-similar-scroller` / `detail-similar-fallback-scroller`). |
+| `DetailFaqVehicle.tsx` | **Server thin wrapper (#228 / Sprint 6 D3).** Wraps `<SiteFAQ>` shared com items de `buildDetailFaqItems(car)` (5 perguntas interpolando `{brand}/{model}/{year}`). title="Perguntas frequentes" eyebrow="FAQ DESTE VEÍCULO" testId="detail-faq-vehicle". **Não emite JSON-LD `FAQPage`** (anti-pattern Google p/ business sites). |
 | `car-categories.ts` | Pure helpers — `classifyCar(car)`, `parseCategoriaParam(raw)`, type `CarCategorySlug`. |
 
 ## Testes
@@ -148,6 +155,9 @@ existente (variant `'car-detail'`).
 | `tests/unit/components/sites/stock/DetailGalleryCinema.test.tsx` | Scroll-snap, alt text, contador `aria-live`, lightbox Radix, teclado e axe aberto/fechado. |
 | `tests/unit/components/sites/stock/DetailInfoBlock.test.tsx` | H1, AI-citable, badges, descrição escapada e axe. |
 | `tests/unit/components/sites/stock/DetailSpecGrid.test.tsx` | Grid híbrido, allowlist de datasheet e omissão de opcionais ausentes. |
+| `tests/unit/components/sites/stock/DetailTradeinWidget.test.tsx` | D3 (#228): h2/CTA/href com `car_target_slug=` + encoding de chars especiais + axe. |
+| `tests/unit/components/sites/stock/DetailSimilarVehicles.test.tsx` | D3 (#228): pool vazio → null, 4 cards no happy path, badge "Você também pode gostar" quando fallback, CTA "Ver estoque completo" só com estoque pequeno, scroll-snap mobile, wiring CarCard (siteSlug + whatsappPhone) + axe. |
+| `tests/unit/components/sites/stock/DetailFaqVehicle.test.tsx` | D3 (#228): smoke wrapper sobre `<SiteFAQ>` — interpolação brand/model/year + testId + axe. |
 | `tests/unit/components/sites/stock/DetailCtaStack.test.tsx` | CTAs vehicle + `utm_content`, indisponível, axe. |
 | `tests/unit/components/sites/stock/DetailFinancingCalcInline.test.tsx` | Calculadora inline, recálculo, deep-link financing, axe. |
 | `tests/unit/components/sites/stock/DetailPriceBlock.test.tsx` | Sticky, preço/parcela/consulta, vendido, financing aninhado, axe. |
