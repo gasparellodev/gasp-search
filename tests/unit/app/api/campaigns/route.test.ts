@@ -5,14 +5,15 @@ const supabaseMocks = vi.hoisted(() => ({
   createServerSupabase: vi.fn(),
 }));
 
-const processMock = vi.hoisted(() => vi.fn());
+const enqueueMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/supabase/server", () => ({
   createServerSupabase: supabaseMocks.createServerSupabase,
 }));
 
-vi.mock("@/lib/campaigns/processor", () => ({
-  processCampaign: processMock,
+vi.mock("@/lib/queue/campaigns", () => ({
+  enqueueCampaign: enqueueMock,
+  CAMPAIGN_TARGETS_QUEUE_NAME: "campaign-targets",
 }));
 
 const VALID_LEAD = "11111111-1111-4111-8111-111111111111";
@@ -162,8 +163,8 @@ function makeSupabase(opts: {
 beforeEach(() => {
   vi.resetModules();
   supabaseMocks.getUser.mockReset();
-  processMock.mockReset();
-  processMock.mockResolvedValue({ sent: 0, failed: 0 });
+  enqueueMock.mockReset();
+  enqueueMock.mockResolvedValue({ queuedTargets: 0 });
 });
 
 describe("POST /api/campaigns", () => {
@@ -273,7 +274,7 @@ describe("POST /api/campaigns", () => {
     expect(spies.leadsEqArgs[0]).toEqual({ column: "user_id", value: "u1" });
   });
 
-  it("retorna 201 e dispara processCampaign no happy path", async () => {
+  it("retorna 201 e enfileira N jobs no happy path (#122)", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "u1" } },
       error: null,
@@ -283,6 +284,7 @@ describe("POST /api/campaigns", () => {
       insertResult: { data: { id: "camp-1" }, error: null },
     });
     supabaseMocks.createServerSupabase.mockResolvedValue(client);
+    enqueueMock.mockResolvedValue({ queuedTargets: 1 });
     const { POST } = await import("@/app/api/campaigns/route");
     const res = await POST(
       makeReq({
@@ -294,13 +296,43 @@ describe("POST /api/campaigns", () => {
     );
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body).toEqual({ campaignId: "camp-1" });
-    expect(processMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "u1",
-        campaignId: "camp-1",
+    expect(body).toEqual({ campaignId: "camp-1", queuedTargets: 1 });
+    expect(enqueueMock).toHaveBeenCalledWith({
+      campaignId: "camp-1",
+      userId: "u1",
+      targets: [
+        expect.objectContaining({
+          leadId: VALID_LEAD,
+        }),
+      ],
+    });
+  });
+
+  it("INSERT campaigns agora persiste status='running' + started_at (substitui o que processor fazia inline)", async () => {
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    });
+    const { client, spies } = makeSupabase({
+      validLeads: { data: [{ id: VALID_LEAD }], error: null },
+      insertResult: { data: { id: "camp-1" }, error: null },
+    });
+    supabaseMocks.createServerSupabase.mockResolvedValue(client);
+    enqueueMock.mockResolvedValue({ queuedTargets: 1 });
+    const { POST } = await import("@/app/api/campaigns/route");
+
+    await POST(
+      makeReq({
+        name: "Test",
+        mode: "template",
+        templateText: "Hi",
+        leadIds: [VALID_LEAD],
       }),
     );
+
+    const insertedCampaign = spies.campaignsInsertPayloads[0];
+    expect(insertedCampaign?.status).toBe("running");
+    expect(typeof insertedCampaign?.started_at).toBe("string");
   });
 
   describe("rate-limit por usuário (#134)", () => {
@@ -342,10 +374,10 @@ describe("POST /api/campaigns", () => {
         value: "running",
       });
 
-      // Não deve inserir nem disparar processor.
+      // Não deve inserir nem enfileirar.
       expect(spies.campaignsInsertPayloads).toHaveLength(0);
       expect(spies.campaignTargetsInsertPayloads).toHaveLength(0);
-      expect(processMock).not.toHaveBeenCalled();
+      expect(enqueueMock).not.toHaveBeenCalled();
     });
 
     it("Case B: retorna 429 quando user excede MAX_CAMPAIGNS_PER_HOUR (default 5)", async () => {
@@ -386,7 +418,7 @@ describe("POST /api/campaigns", () => {
 
       expect(spies.campaignsInsertPayloads).toHaveLength(0);
       expect(spies.campaignTargetsInsertPayloads).toHaveLength(0);
-      expect(processMock).not.toHaveBeenCalled();
+      expect(enqueueMock).not.toHaveBeenCalled();
     });
 
     it("Case C: 201 quando user está dentro do limite (sem running e hourCount < MAX)", async () => {
@@ -414,7 +446,7 @@ describe("POST /api/campaigns", () => {
 
       expect(res.status).toBe(201);
       expect(spies.campaignsInsertPayloads).toHaveLength(1);
-      expect(processMock).toHaveBeenCalledOnce();
+      expect(enqueueMock).toHaveBeenCalledOnce();
     });
   });
 });

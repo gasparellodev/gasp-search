@@ -2,7 +2,9 @@
 
 ## Propósito
 
-Helpers server-side de campanhas (Phase 5 + extensão Phase 7 M4.3). Concentra o processor inline que itera os `campaign_targets` aplicando throttle. A partir de #172 também roteia entre dois fluxos via `campaign.type`:
+Helpers server-side de campanhas (Phase 5 + extensão Phase 7 M4.3 + Phase 6 fila durável em #122). A partir de #122 o loop inline foi **removido**: `lib/queue/campaigns.enqueueCampaign(...)` enfileira 1 job BullMQ por target, e o worker (`lib/queue/worker.ts`) chama `processCampaignTarget(...)` aqui dentro para cada job.
+
+Roteamento por `campaign.type` continua igual:
 
 - `'message'` (default, Phase 5/6) — render template ou gera IA → `sendWhatsAppMessage`.
 - `'site_preview'` (Phase 7 M4.3, #172) — fetch `lead_sites` por lead → `dispatchSitePreview` (que renderiza o template hard-coded `SITE_PREVIEW_TEMPLATE` e dispara via `sendWhatsAppMessage`).
@@ -11,13 +13,13 @@ Helpers server-side de campanhas (Phase 5 + extensão Phase 7 M4.3). Concentra o
 
 - Server-only (`import "server-only"`).
 - Tudo aqui delega a `lib/evolution/send.sendWhatsAppMessage`, `lib/evolution/templates.renderTemplate` (modo template do Phase 5) e `lib/sites/dispatch-site-preview.dispatchSitePreview` (modo `site_preview` do Phase 7) — não duplique lógica.
-- Tests injetam `sleep`, `sendImpl`, `generateMessageImpl`, `dispatchSitePreviewImpl`, `serviceClient` para evitar timer real, API real e service-role real.
+- Tests injetam `sendImpl`, `generateMessageImpl`, `dispatchSitePreviewImpl`, `serviceClient` para evitar API real e service-role real. **Throttle não tem mais injeção** — vive na BullMQ Queue config (`limiter: { max: 1, duration: EVOLUTION_DEFAULT_THROTTLE_MS }`).
 
 ## Arquivos
 
 | Path | Propósito |
 |---|---|
-| `processor.ts` | `processCampaign({ supabase, userId, campaignId, throttleMs, sleep, sendImpl, generateMessageImpl, dispatchSitePreviewImpl?, serviceClient? })` — atualiza `campaigns.status='running'/'completed'/'cancelled'`, itera `campaign_targets` pendentes, **branch entre `type='message'` (template/IA) e `type='site_preview'`** (dispatch helper), incrementa counters. Throttle padrão 3s. Checa cancelamento a cada iteração. |
+| `processor.ts` | `processCampaignTarget(job: CampaignTargetJob, opts?)` — função pura-ish que processa **1 único target**. Lê `campaigns` (verifica `status='cancelled'` → retorna `{status:'cancelled'}` sem tocar nada), roteia por `type`, executa branch (`message` ou `site_preview`), grava `campaign_targets.status`, incrementa counter (`sent_count`/`failed_count`), conta pending restantes e marca `campaigns.status='completed'` se zerou (sem sobrescrever `cancelled`). Worker injeta service-role; testes injetam mock. |
 
 ## Branch `type='site_preview'`
 
@@ -49,17 +51,25 @@ Sentinelas no test:
 - `#131: campanha com 100% falha termina com status 'completed'` trava o enum (não pode aparecer `failed`/`errored`/`completed_with_errors` em update de `campaigns`).
 - `#131: sucesso parcial registra failed_count > 0 e ainda termina como 'completed'` confirma que `failed_count` é incrementado corretamente em parallel com o status terminal único.
 
+## Queue boundary (#122)
+
+- A rota `POST /api/campaigns` faz INSERT + chama `enqueueCampaign` em `lib/queue/campaigns.ts`. **Nunca** importe `processCampaignTarget` direto na rota — sempre passe pela fila para garantir retry/backoff e respeitar throttle.
+- O worker (`lib/queue/worker.ts`) é único consumidor de `processCampaignTarget`. Em V1 dev: `npm run worker:campaigns` em terminal separado. Em V2 prod: ver `lib/queue/CLAUDE.md` (Vercel Cron / Background Functions / VM dedicada).
+- `processCampaignTarget` deve ser **idempotente o suficiente** — re-run de 1 job (retry) recalcula o estado lendo `campaigns.status` e o lead. Único side-effect "perdido" em duplicação é uma mensagem WhatsApp enviada 2x (mitigado por `removeOnComplete` + `attempts=3`).
+
 ## Limitações conhecidas
 
-- Tudo roda inline na request da rota POST `/api/campaigns` com `maxDuration=300`. Limite de 50 leads (validado em `lib/validators/campaigns`) mantém o tempo total dentro do envelope.
-- Para campanhas maiores, fica a issue de Phase 5.5: migrar para Vercel Queues ou cron.
+- Validador `lib/validators/campaigns` mantém limite de 50 leads/campanha (Phase 6 pré-#122). Com fila durável o limite poderia subir, mas mantemos por enquanto para proteger budget Anthropic + UX (preview da fila na UI).
+- V1 sem painel de fila (`bull-board`) — debug via `redis-cli` ou logs do worker. Phase 8 follow-up provável.
 
 ## Dependências
 
 - `@/lib/ai/anthropic`
 - `@/lib/evolution/send`
+- `@/lib/evolution/rate-limit` (constante `EVOLUTION_DEFAULT_THROTTLE_MS`)
 - `@/lib/evolution/templates`
 - `@/lib/sites/dispatch-site-preview`
 - `@/lib/supabase/service`
+- `@/lib/queue/campaigns` (tipo `CampaignTargetJob`)
 - `@/lib/validators/ai`
 - `@/types/database`

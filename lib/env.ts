@@ -75,6 +75,17 @@ const serverEnvSchema = z
     // conservador o suficiente para uso humano e protege budget Anthropic
     // + quotas WhatsApp contra flooding acidental ou malicioso.
     MAX_CAMPAIGNS_PER_HOUR: z.coerce.number().int().positive().default(5),
+    // Phase 6 / #122 — BullMQ + Redis. Default casa com o docker-compose em
+    // `docker/redis/` (host 6380 → container 6379). Aceita URL com auth
+    // (`redis://:password@host:port`) e TLS (`rediss://`) para V2 prod
+    // (Upstash / Vercel KV / Redis Cloud). Validador refine bloqueia
+    // outros schemes acidentais.
+    REDIS_URL: z
+      .url("REDIS_URL deve ser uma URL válida")
+      .refine((u) => /^rediss?:\/\//.test(u), {
+        message: "REDIS_URL precisa usar redis(s)://",
+      })
+      .default("redis://localhost:6380"),
     // Test-only seed (Phase 7 #166). Apenas relevante em dev/test.
     // Em produção a rota `/api/__test__/seed-lead-site` retorna 404
     // independentemente desses valores.

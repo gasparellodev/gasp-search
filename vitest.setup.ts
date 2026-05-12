@@ -62,6 +62,13 @@ if (!process.env.OPENAI_IMAGE_CONCURRENCY) {
 if (!process.env.BRL_RATE) {
   process.env.BRL_RATE = "5.0";
 }
+// BullMQ / ioredis (Phase 6 #122) — default casa com docker/redis/. Tests
+// nunca conectam de fato (módulos `ioredis` e `bullmq` são mockados via
+// `vi.mock` nos specs de `lib/queue/`). Manter aqui só evita Zod validation
+// throw quando `lib/env.ts` é importado.
+if (!process.env.REDIS_URL) {
+  process.env.REDIS_URL = "redis://localhost:6380";
+}
 
 // Polyfills mínimos para libs que assumem APIs do browser (cmdk, radix popover).
 class ResizeObserverStub {

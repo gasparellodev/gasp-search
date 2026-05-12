@@ -33,7 +33,10 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `evolution/client.ts` | Wrapper REST do Evolution API (`createEvolutionClient`) + `EvolutionApiError` |
 | `evolution/templates.ts` | `renderTemplate`/`validateTemplate` para campanhas modo template (`extractPlaceholders` é interno desde #138a) |
 | `evolution/phone.ts` | `normalizePhone(raw)` canônico — 8–15 dígitos, E.164 sem `+`. Reusado por `send.ts` e `webhook.ts` (#138a) |
-| `campaigns/processor.ts` | `processCampaign(...)` — itera `campaign_targets`, render/IA por lead, send com throttle, atualiza counters |
+| `campaigns/processor.ts` | `processCampaignTarget(job, opts?)` — **#122**: processa 1 único target da fila BullMQ. Branch `message`/`site_preview`, atualiza `campaign_targets.status`, incrementa counters, marca `campaigns` como `completed` quando zera os pending. Loop inline removido — agora cada target é 1 job. |
+| `queue/redis.ts` | **#122 / Server-only.** Singleton `ioredis` client com `maxRetriesPerRequest: null` (requisito BullMQ). Consumido por `queue/campaigns.ts`, `queue/worker.ts` e (futuro) `whatsapp/presence.ts` (#123). |
+| `queue/campaigns.ts` | **#122 / Server-only.** `Queue<CampaignTargetJob>('campaign-targets')` + `enqueueCampaign({campaignId, userId, targets}) → {queuedTargets}`. `jobId` determinístico (`<campaignId>:<targetId>`) para idempotência. Retry 3x backoff exponencial. |
+| `queue/worker.ts` | **#122 / Server-only.** Entry-point do worker BullMQ (`npm run worker:campaigns`). `concurrency: 1` + `limiter: max=1 duration=3000ms` (anti-ban WhatsApp, reusa `EVOLUTION_DEFAULT_THROTTLE_MS`). Delega para `processCampaignTarget`. Graceful SIGINT/SIGTERM. |
 | `validators/campaigns.ts` | Schemas Zod de criação (com refine por modo) e atualização (cancel) de campanhas |
 | `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |
 | `dashboard/summary.ts` | **Server-only.** Agrega métricas e últimas buscas do dashboard |

@@ -20,7 +20,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
     globals: false,
-    include: ["tests/unit/**/*.{test,spec}.{ts,tsx}"],
+    include: [
+      "tests/unit/**/*.{test,spec}.{ts,tsx}",
+      // Phase 6 / #122 — stitching tests da fila BullMQ + processor.
+      "tests/integration/**/*.{test,spec}.{ts,tsx}",
+    ],
     exclude: ["node_modules/**", "tests/e2e/**", ".next/**"],
     coverage: {
       provider: "v8",
