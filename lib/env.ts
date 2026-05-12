@@ -51,6 +51,8 @@ const serverEnvSchema = z
       .max(10)
       .default(2),
     BRL_RATE: z.coerce.number().positive().default(5.0),
+    GOOGLE_MAPS_STATIC_API_KEY: z
+      .preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional()),
     INDEXNOW_KEY: z.preprocess(
       (v) => (v === "" ? undefined : v),
       z

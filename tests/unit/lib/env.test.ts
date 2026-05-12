@@ -180,6 +180,24 @@ describe("lib/env (server)", () => {
     expect(env.INDEXNOW_KEY).toBe("abc123_INDEXNOW");
   });
 
+  it("trata GOOGLE_MAPS_STATIC_API_KEY vazia como undefined", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      GOOGLE_MAPS_STATIC_API_KEY: "",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.GOOGLE_MAPS_STATIC_API_KEY).toBeUndefined();
+  });
+
+  it("aceita GOOGLE_MAPS_STATIC_API_KEY opcional quando preenchida", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      GOOGLE_MAPS_STATIC_API_KEY: "maps-key-123",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.GOOGLE_MAPS_STATIC_API_KEY).toBe("maps-key-123");
+  });
+
   it("rejeita INDEXNOW_KEY com caracteres inválidos", async () => {
     Object.assign(process.env, {
       ...VALID_ENV,

@@ -25,6 +25,11 @@ import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 import { env } from "@/lib/env";
 import { buildBreadcrumbSchema } from "@/lib/sites/schema";
+import {
+  buildGoogleMapsPlaceHref,
+  buildStaticMapUrl,
+} from "@/lib/sites/static-map";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -33,6 +38,45 @@ interface PageProps {
 const NOINDEX_FALLBACK: Metadata = {
   robots: { index: false, follow: false },
 };
+
+function formatAddressLine(address: SiteVariablesV2["address"]): string | null {
+  if (!address) return null;
+  return `${address.street}, ${address.number} - ${address.neighborhood}, ${address.city} - ${address.state}, ${address.zip}`;
+}
+
+function readRawObject(raw: unknown): Record<string, unknown> {
+  return raw && typeof raw === "object" && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+}
+
+function extractMapRaw(raw: unknown): {
+  placeId: string | null;
+  lat: number | null;
+  lng: number | null;
+} {
+  const obj = readRawObject(raw);
+  const location = readRawObject(obj["location"]);
+  const placeId =
+    typeof obj["placeId"] === "string"
+      ? obj["placeId"]
+      : typeof obj["place_id"] === "string"
+        ? obj["place_id"]
+        : null;
+  const lat =
+    typeof location["lat"] === "number"
+      ? location["lat"]
+      : typeof obj["lat"] === "number"
+        ? obj["lat"]
+        : null;
+  const lng =
+    typeof location["lng"] === "number"
+      ? location["lng"]
+      : typeof obj["lng"] === "number"
+        ? obj["lng"]
+        : null;
+  return { placeId, lat, lng };
+}
 
 export async function generateMetadata({
   params,
@@ -79,6 +123,16 @@ export default async function ContatoPage({ params }: PageProps) {
     { name: "Início", item: siteUrl },
     { name: "Contato", item: `${siteUrl}/contato` },
   ]);
+  const addressLine = formatAddressLine(parsed.data.address);
+  const mapRaw = extractMapRaw(site.lead_raw);
+  const mapsHref = buildGoogleMapsPlaceHref(addressLine);
+  const staticMapUrl = buildStaticMapUrl({
+    apiKey: env.GOOGLE_MAPS_STATIC_API_KEY,
+    placeId: mapRaw.placeId,
+    lat: mapRaw.lat,
+    lng: mapRaw.lng,
+    address: addressLine,
+  });
 
   return (
     <SitePage
@@ -93,7 +147,8 @@ export default async function ContatoPage({ params }: PageProps) {
         variables={parsed.data}
         siteId={site.id}
         slug={site.slug}
-        manifestContactUrl={site.visual_identity?.contact_url ?? null}
+        staticMapUrl={staticMapUrl}
+        mapsHref={mapsHref}
       />
     </SitePage>
   );

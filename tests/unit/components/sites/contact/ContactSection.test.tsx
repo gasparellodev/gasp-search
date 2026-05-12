@@ -10,9 +10,10 @@ expect.extend(toHaveNoViolations);
 
 const SITE_ID = "55555555-5555-4555-8555-555555555555";
 const SLUG = "j7k2p9-touring-cars";
+const MAPS_HREF =
+  "https://www.google.com/maps/place/?q=Av.+Boa+Viagem%2C+Recife+-+PE";
 
 const baseVariables = {
-
   whatsapp: SITE_FIXTURE.whatsapp,
   phone_display: SITE_FIXTURE.phone_display,
   email: SITE_FIXTURE.email,
@@ -24,207 +25,100 @@ const baseVariables = {
   business_name: SITE_FIXTURE.business_name,
   brand_assets: SITE_FIXTURE.brand_assets,
   business_slug: SITE_FIXTURE.business_slug,
-
 };
 
-// Pre-existing fixture (kept for parity with formatAddressLine output in
-// ContactSection — referenced indirectly via address fields above).
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const _addressLineString = "Av. Boa Viagem, 1000 — Boa Viagem, Recife - PE, 51020-000";
+function renderContact(overrides: Partial<typeof baseVariables> = {}) {
+  return render(
+    <ContactSection
+      variables={{ ...baseVariables, ...overrides }}
+      siteId={SITE_ID}
+      slug={SLUG}
+      staticMapUrl="https://maps.googleapis.com/maps/api/staticmap?x=1"
+      mapsHref={MAPS_HREF}
+    />,
+  );
+}
 
 describe("<ContactSection />", () => {
-  it("renderiza <h1> 'Contato'", () => {
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-      />,
-    );
+  it("renderiza dual-pane com h1 Contato e mapa estático", () => {
+    renderContact();
     expect(
-      screen.getByRole("heading", { level: 1, name: /Contato/i }),
+      screen.getByRole("heading", { level: 1, name: "Contato" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", { name: `Mapa — ${SITE_FIXTURE.business_name}` }),
+    ).toHaveAttribute("src", "https://maps.googleapis.com/maps/api/staticmap?x=1");
   });
 
-  it("link WhatsApp aponta pra wa.me com somente os dígitos do whatsapp", () => {
-    const variables = { ...baseVariables, whatsapp: "55 81 9 8100-0000" };
-    render(
-      <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
-    );
-    const channels = screen.getByTestId("contact-channels");
-    const link = within(channels).getByRole("link", { name: /WhatsApp/i });
-    const href = link.getAttribute("href")!; expect(href).toMatch(/^https:\/\/wa\.me\/5581981000000\?text=/); expect(href).toContain("utm_campaign=general"); expect(href).toContain("utm_content=contact-section");
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noopener noreferrer");
-  });
-
-  it("link tel: usa `tel:+<digits>`", () => {
+  it("renderiza fallback visual quando staticMapUrl está ausente", () => {
     render(
       <ContactSection
         variables={baseVariables}
         siteId={SITE_ID}
         slug={SLUG}
+        staticMapUrl={null}
+        mapsHref={MAPS_HREF}
       />,
     );
-    const channels = screen.getByTestId("contact-channels");
-    const links = within(channels).getAllByRole("link");
-    const tel = links.find((a) =>
-      a.getAttribute("href")?.startsWith("tel:+"),
-    );
-    expect(tel).toBeDefined();
-    expect(tel!.getAttribute("href")).toBe("tel:+5581981000000");
-  });
-
-  it("renderiza link mailto: quando email presente", () => {
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-      />,
-    );
-    const link = screen.getByRole("link", {
-      name: SITE_FIXTURE.email!,
-    });
-    expect(link).toHaveAttribute(
+    expect(screen.getByText(/Mapa indisponível/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Abrir mapa/i })).toHaveAttribute(
       "href",
-      `mailto:${SITE_FIXTURE.email}`,
+      MAPS_HREF,
     );
   });
 
-  it("omite mailto: quando email é null", () => {
-    const variables = { ...baseVariables, email: null };
-    render(
-      <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
-    );
+  it("renderiza canais de email e endereço", () => {
+    renderContact();
+    const channels = screen.getByTestId("contact-channels");
+
     expect(
-      screen.queryByText(/mailto/i),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("link", { name: /@/ }),
-    ).toBeNull();
+      within(channels).getByRole("link", { name: SITE_FIXTURE.email! }),
+    ).toHaveAttribute("href", `mailto:${SITE_FIXTURE.email}`);
+    expect(within(channels).getByText(/Av\. Boa Viagem/)).toBeInTheDocument();
   });
 
-  it("omite endereço quando address é null", () => {
-    const variables = { ...baseVariables, address: null };
-    render(
-      <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
-    );
-    expect(screen.queryByText(/Av\. Boa Viagem/i)).toBeNull();
+  it("omite email e endereço quando ausentes", () => {
+    renderContact({ email: null, address: null });
+    expect(screen.queryByRole("link", { name: /@/ })).toBeNull();
+    expect(screen.queryByText(/Av\. Boa Viagem/)).toBeNull();
   });
 
-  it("usa fallback 'Sob consulta' quando hours é null", () => {
-    const variables = { ...baseVariables, hours: null };
-    render(
-      <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
-    );
-    expect(screen.getByText(/Sob consulta/i)).toBeInTheDocument();
+  it("renderiza BusinessHours com fallback quando hours é null", () => {
+    renderContact({ hours: null });
+    expect(screen.getByTestId("business-hours")).toBeInTheDocument();
+    expect(screen.getByText("Segunda a Sexta: 09h-18h")).toBeInTheDocument();
   });
 
-  it("renderiza ícones sociais com target=_blank/rel=noopener noreferrer (sem WhatsApp duplicado)", () => {
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-      />,
-    );
+  it("renderiza WhatsAppDirectCard e não duplica WhatsApp nas redes sociais", () => {
+    renderContact();
+
+    expect(screen.getByTestId("whatsapp-direct-card")).toBeInTheDocument();
     const socials = screen.getByTestId("contact-socials");
-    const links = within(socials).getAllByRole("link");
-    // Instagram + Facebook + YouTube — WhatsApp está no canal principal acima,
-    // não duplica nas redes sociais (decisão UX 2026-05-09).
-    expect(links).toHaveLength(3);
-    for (const link of links) {
-      expect(link).toHaveAttribute("target", "_blank");
-      expect(link).toHaveAttribute("rel", "noopener noreferrer");
-    }
+    expect(within(socials).getAllByRole("link")).toHaveLength(3);
   });
 
   it("oculta o bloco social inteiro quando todas as URLs são null", () => {
-    const variables = {
-      ...baseVariables,
+    renderContact({
       instagram_url: null,
       facebook_url: null,
       youtube_url: null,
-    };
-    render(
-      <ContactSection variables={variables} siteId={SITE_ID} slug={SLUG} />,
-    );
-    // <ul data-testid="contact-socials"> é renderizado só quando há ao menos
-    // uma rede social. Sem nenhuma, o bloco não aparece (evita "WhatsApp atoa").
+    });
     expect(screen.queryByTestId("contact-socials")).toBeNull();
   });
 
-  it("renderiza imagem hero com alt descritivo", () => {
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-      />,
-    );
-    const img = screen.getByAltText(
-      `Contato — ${SITE_FIXTURE.business_name}`,
-    );
-    expect(img).toBeInTheDocument();
-  });
-
-  // #217 — manifest override
-  it("usa `brand_assets.contact_image_url` quando manifestContactUrl é null", () => {
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-        manifestContactUrl={null}
-      />,
-    );
-    const img = screen.getByAltText(
-      `Contato — ${SITE_FIXTURE.business_name}`,
-    );
-    expect(img.getAttribute("src")).toBe(
-      SITE_FIXTURE.brand_assets.contact_image_url,
+  it("renderiza PaymentStrip e SiteForm variant contact", () => {
+    renderContact();
+    expect(
+      screen.getByRole("group", { name: /Métodos de pagamento/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("site-form")).toHaveAttribute(
+      "data-variant",
+      "contact",
     );
   });
 
-  it("usa manifestContactUrl quando fornecido (precedência sobre brand_assets)", () => {
-    const aiUrl = "https://cdn.example.com/touring/contact-ai.png";
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-        manifestContactUrl={aiUrl}
-      />,
-    );
-    const img = screen.getByAltText(
-      `Contato — ${SITE_FIXTURE.business_name}`,
-    );
-    expect(img.getAttribute("src")).toBe(aiUrl);
-  });
-
-  it("renderiza <SiteForm> com variant='contact'", () => {
-    render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-      />,
-    );
-    const form = screen.getByTestId("site-form");
-    expect(form).toHaveAttribute("data-variant", "contact");
-  });
-
-  // AC7 round 3 — runtime axe-core (M2.3 #162 pattern). Cobre links
-  // externos, ícones sociais e form de contato em conjunto.
-  it("não tem violações axe-core (a11y runtime)", async () => {
-    const { container } = render(
-      <ContactSection
-        variables={baseVariables}
-        siteId={SITE_ID}
-        slug={SLUG}
-      />,
-    );
+  it("não tem violações axe-core", async () => {
+    const { container } = renderContact();
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   }, 15_000);

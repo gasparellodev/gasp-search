@@ -100,6 +100,7 @@ describe("getSite (lib/sites/get-site.ts)", () => {
         visual_identity: null,
         lead_rating: null,
         lead_reviews_count: null,
+        lead_raw: null,
       });
     },
   );
@@ -150,7 +151,7 @@ describe("getSite (lib/sites/get-site.ts)", () => {
       throw new Error("expected lead_sites builder to be tracked");
     }
     expect(leadSites.select).toHaveBeenCalledWith(
-      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count )",
+      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count, raw )",
     );
     expect(leadSites.eq).toHaveBeenCalledWith("slug", SLUG);
   });
@@ -167,13 +168,14 @@ describe("getSite (lib/sites/get-site.ts)", () => {
         variables: { foo: "bar" },
         signed_at: "2026-05-10T00:00:00Z",
         visual_identity: null,
-        leads: { rating: 4.8, reviews_count: 87 },
+        leads: { rating: 4.8, reviews_count: 87, raw: { placeId: "abc" } },
       });
       const { getSite } = await import("@/lib/sites/get-site");
 
       const result = await getSite(SLUG);
       expect(result?.lead_rating).toBe(4.8);
       expect(result?.lead_reviews_count).toBe(87);
+      expect(result?.lead_raw).toEqual({ placeId: "abc" });
     });
 
     it("propaga corretamente quando join retorna array (Supabase 1:1)", async () => {
