@@ -35,6 +35,20 @@ Per-target loop:
 
 Não usa `campaign.mode`, `template_text`, `ai_*` — esses ficam null em campaigns `site_preview` (validador deve aceitar).
 
+## Status terminal (#131)
+
+Após o loop, o processor decide o status final assim:
+
+- `campaign.status === 'cancelled'` → mantém `cancelled` (estado terminal já gravado pelo PATCH de cancelamento).
+- Caso contrário → grava `status = 'completed'` literal (sem ternário). "Completed" significa **rodou até o fim**, não que tudo deu certo.
+
+Distinção entre sucesso total / sucesso parcial / falha total é feita pela UI lendo `campaign.failed_count` e `sent_count`. **Não existe** valor `completed_with_errors` no enum `campaign_status` — qualquer novo estado terminal exige migration + atualização de UI (decisão Opção 1 do body de #131, escolhida por minimizar churn).
+
+Sentinelas no test:
+
+- `#131: campanha com 100% falha termina com status 'completed'` trava o enum (não pode aparecer `failed`/`errored`/`completed_with_errors` em update de `campaigns`).
+- `#131: sucesso parcial registra failed_count > 0 e ainda termina como 'completed'` confirma que `failed_count` é incrementado corretamente em parallel com o status terminal único.
+
 ## Limitações conhecidas
 
 - Tudo roda inline na request da rota POST `/api/campaigns` com `maxDuration=300`. Limite de 50 leads (validado em `lib/validators/campaigns`) mantém o tempo total dentro do envelope.

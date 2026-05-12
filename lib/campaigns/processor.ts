@@ -266,7 +266,9 @@ export async function processCampaign({
     }
   }
 
-  // Decide status final
+  // Status terminal: `completed` significa "rodou até o fim" (não cancelada).
+  // Distinção partial-success vs 100% falha é feita pela UI lendo
+  // `failed_count` — não há `completed_with_errors` no enum (#131).
   const { data: finalCampaign } = await supabase
     .from("campaigns")
     .select("status")
@@ -276,7 +278,7 @@ export async function processCampaign({
     await supabase
       .from("campaigns")
       .update({
-        status: failed === 0 ? "completed" : "completed",
+        status: "completed",
         completed_at: new Date().toISOString(),
       })
       .eq("id", campaignId);
