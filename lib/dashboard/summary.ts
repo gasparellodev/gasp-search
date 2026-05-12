@@ -1,26 +1,8 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Tables } from "@/types/database";
+import type { Database } from "@/types/database";
 import { LEAD_STAGES, type LeadStage } from "@/lib/validators/leads";
 import type { DashboardSummary } from "@/lib/dashboard/types";
-
-type CountResult = {
-  count: number | null;
-  error: { message: string } | null;
-};
-
-type StageRow = Pick<Tables<"leads">, "stage">;
-
-type SearchJobRow = Pick<
-  Tables<"search_jobs">,
-  | "id"
-  | "source"
-  | "status"
-  | "results_count"
-  | "error_message"
-  | "created_at"
-  | "finished_at"
->;
 
 function emptyStageCounts(): Record<LeadStage, number> {
   return {
@@ -54,21 +36,18 @@ export async function getDashboardSummary({
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
 
-  const totalResult = (await supabase
+  const totalResult = await supabase
     .from("leads")
-    .select("id", { count: "exact", head: true })) as unknown as CountResult;
+    .select("id", { count: "exact", head: true });
   assertNoError(totalResult, "total de leads");
 
-  const newResult = (await supabase
+  const newResult = await supabase
     .from("leads")
     .select("id", { count: "exact", head: true })
-    .gte("created_at", sevenDaysAgo.toISOString())) as unknown as CountResult;
+    .gte("created_at", sevenDaysAgo.toISOString());
   assertNoError(newResult, "leads novos");
 
-  const stageResult = (await supabase.from("leads").select("stage")) as {
-    data: StageRow[] | null;
-    error: { message: string } | null;
-  };
+  const stageResult = await supabase.from("leads").select("stage");
   assertNoError(stageResult, "estágios");
 
   const leadsByStage = emptyStageCounts();
@@ -78,16 +57,13 @@ export async function getDashboardSummary({
     }
   }
 
-  const searchesResult = (await supabase
+  const searchesResult = await supabase
     .from("search_jobs")
     .select(
       "id, source, status, results_count, error_message, created_at, finished_at",
     )
     .order("created_at", { ascending: false })
-    .limit(5)) as {
-    data: SearchJobRow[] | null;
-    error: { message: string } | null;
-  };
+    .limit(5);
   assertNoError(searchesResult, "últimas buscas");
 
   return {

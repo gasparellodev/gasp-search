@@ -42,7 +42,7 @@ export async function createTag({
     }
     throw new Error(`Falha ao criar tag: ${error.message}`);
   }
-  return data as unknown as TagRow;
+  return data;
 }
 
 export async function updateTag({
@@ -67,7 +67,7 @@ export async function updateTag({
     if (code === "PGRST116") return null; // no rows
     throw new Error(`Falha ao atualizar tag: ${error.message}`);
   }
-  return data as unknown as TagRow;
+  return data;
 }
 
 export async function deleteTag({

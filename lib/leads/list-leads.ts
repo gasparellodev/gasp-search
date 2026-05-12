@@ -80,19 +80,14 @@ export async function listLeads({
     }
   }
 
-  type Builder = {
-    eq: (column: string, value: unknown) => Builder;
-    ilike: (column: string, value: string) => Builder;
-    in: (column: string, values: unknown[]) => Builder;
-    order: (
-      column: string,
-      opts: { ascending: boolean },
-    ) => { range: (from: number, to: number) => Promise<unknown> };
-  };
-
+  // O builder do Supabase é encadeável e fortemente tipado — apenas o
+  // shape do `select()` com embed (`*, lead_tags(tag:tags(...))`) não é
+  // inferido pelo typegen (limitação conhecida do @supabase/postgrest-js
+  // para nested embeds com aliasing). O `as LeadRow[]` na linha final
+  // resolve isso sem precisar de uma indireção `as unknown as Builder`.
   let query = supabase
     .from("leads")
-    .select(LEAD_SELECT, { count: "exact" }) as unknown as Builder;
+    .select(LEAD_SELECT, { count: "exact" });
 
   if (filters?.stage) query = query.eq("stage", filters.stage);
   if (filters?.source) query = query.eq("source", filters.source);
@@ -102,19 +97,15 @@ export async function listLeads({
   if (filters?.q) query = query.ilike("name", `%${filters.q}%`);
   if (leadIdsFromTags) query = query.in("id", leadIdsFromTags);
 
-  const { data, count, error } = (await query
+  const { data, count, error } = await query
     .order(params.sortBy, { ascending: params.sortDir === "asc" })
-    .range(from, to)) as {
-    data: unknown;
-    count: number | null;
-    error: { message: string } | null;
-  };
+    .range(from, to);
 
   if (error) {
     throw new Error(`Falha ao listar leads: ${error.message}`);
   }
 
-  const rows = (data ?? []) as unknown as LeadRow[];
+  const rows = (data ?? []) as LeadRow[];
   const totalCount = count ?? 0;
   const totalPages =
     totalCount === 0 ? 0 : Math.ceil(totalCount / params.pageSize);

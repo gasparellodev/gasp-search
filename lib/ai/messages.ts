@@ -71,7 +71,7 @@ export async function listLeadMessages({
     totalCount === 0 ? 0 : Math.ceil(totalCount / LEAD_MESSAGES_PAGE_SIZE);
 
   return {
-    messages: (data ?? []) as unknown as LeadMessage[],
+    messages: (data ?? []) as LeadMessage[],
     totalCount,
     page: safePage,
     pageSize: LEAD_MESSAGES_PAGE_SIZE,

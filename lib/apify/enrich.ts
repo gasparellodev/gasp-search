@@ -103,6 +103,13 @@ export async function enrichLeadsByUrls({
     .dataset(datasetId)
     .listItems();
 
+  // Intentional cast: `apify-client.dataset(id).listItems()` retorna
+  // `PaginatedList<Record<string, unknown>>` — `apify-client` v2 não suporta
+  // generics no `listItems()`. O cast aqui é o boundary onde tratamos o
+  // payload externo do actor `vdrmota~contact-info-scraper` como o shape
+  // `WebsiteContactItem`. Runtime guard é feito por `mapWebsiteContact`
+  // (lê apenas campos esperados com `?? null`) e por `normalizeWebsite`
+  // (rejeita URLs malformadas) — qualquer campo extra do actor é ignorado.
   const itemList = items as unknown as WebsiteContactItem[];
 
   // Index dos leads do user pelos websites normalizados que importam.
