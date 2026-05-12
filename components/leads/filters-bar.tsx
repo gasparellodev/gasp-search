@@ -21,8 +21,8 @@ import {
   LEAD_STAGES,
   type LeadFilters,
   type LeadSource,
-  type LeadStage,
 } from "@/lib/validators/leads";
+import { STAGE_LABEL } from "@/lib/leads/stage-presentation";
 import type { LeadTagSummary } from "@/lib/leads/list-leads";
 import { cn } from "@/lib/utils";
 
@@ -30,15 +30,6 @@ interface FiltersBarProps {
   tags: LeadTagSummary[];
   filters: LeadFilters;
 }
-
-const STAGE_LABEL: Record<LeadStage, string> = {
-  new: "Novo",
-  contacted: "Contatado",
-  in_conversation: "Em conversa",
-  qualified: "Qualificado",
-  closed_won: "Ganho",
-  closed_lost: "Perdido",
-};
 
 const SOURCE_LABEL: Record<LeadSource, string> = {
   google_maps: "Google Maps",
