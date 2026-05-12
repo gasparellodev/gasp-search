@@ -110,15 +110,13 @@ export async function sendWhatsAppMessage({
       })
       .eq("id", inserted.id);
 
-    // Primeiro outbound: promove stage do lead.
-    if (lead.stage === "new" || lead.stage === "contacted") {
-      // 'new' → 'contacted'. 'contacted' → mantém (já foi).
-      if (lead.stage === "new") {
-        await supabase
-          .from("leads")
-          .update({ stage: "contacted" })
-          .eq("id", leadId);
-      }
+    // Primeiro outbound: promove stage 'new' → 'contacted'.
+    // Demais estágios (incluindo 'contacted') mantêm — já avançaram no funil.
+    if (lead.stage === "new") {
+      await supabase
+        .from("leads")
+        .update({ stage: "contacted" })
+        .eq("id", leadId);
     }
 
     return {
