@@ -24,16 +24,8 @@ import type {
   DashboardSummary,
   RecentSearch,
 } from "@/lib/dashboard/types";
+import { STAGE_LABEL } from "@/lib/leads/stage-presentation";
 import type { LeadStage } from "@/lib/validators/leads";
-
-const STAGE_LABEL: Record<LeadStage, string> = {
-  new: "Novo",
-  contacted: "Contatado",
-  in_conversation: "Em conversa",
-  qualified: "Qualificado",
-  closed_won: "Ganho",
-  closed_lost: "Perdido",
-};
 
 const SEARCH_SOURCE_LABEL: Record<RecentSearch["source"], string> = {
   google_maps: "Google Maps",
