@@ -71,8 +71,11 @@ export function renderTemplate(text: string, lead: LeadForMessage): string {
  * Lista de placeholders presentes no texto, sem duplicatas e em ordem
  * lexicográfica. Inclui placeholders desconhecidos (use `validateTemplate`
  * para distinguir).
+ *
+ * Privada — uso interno apenas por `validateTemplate`. Não exporte sem
+ * importer concreto (#138a).
  */
-export function extractPlaceholders(text: string): string[] {
+function extractPlaceholders(text: string): string[] {
   const found = new Set<string>();
   for (const match of text.matchAll(PLACEHOLDER_REGEX)) {
     if (match[1]) {

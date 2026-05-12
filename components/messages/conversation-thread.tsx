@@ -30,7 +30,7 @@ function StatusIcon({ status }: { status: LeadMessage["status"] }) {
     case "read":
       return (
         <CheckCheck
-          className="size-3 text-blue-500"
+          className="size-3 text-sky-500 dark:text-sky-400"
           data-testid="status-icon"
         />
       );
