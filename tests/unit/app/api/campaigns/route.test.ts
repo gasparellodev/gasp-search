@@ -32,6 +32,10 @@ function makeSupabase(opts: {
   insertTargetsError?: unknown;
 }) {
   const calls: Array<{ table: string; op: string }> = [];
+  const leadsInArgs: Array<{ column: string; values: unknown }> = [];
+  const leadsEqArgs: Array<{ column: string; value: unknown }> = [];
+  const campaignsInsertPayloads: Array<Record<string, unknown>> = [];
+  const campaignTargetsInsertPayloads: unknown[] = [];
 
   const from = vi.fn((table: string) => {
     if (table === "campaigns") {
@@ -40,8 +44,9 @@ function makeSupabase(opts: {
         error: opts.insertResult?.error ?? null,
       }));
       const insertSelect = vi.fn(() => ({ single: insertSelectSingle }));
-      const insert = vi.fn(() => {
+      const insert = vi.fn((payload: Record<string, unknown>) => {
         calls.push({ table, op: "insert" });
+        campaignsInsertPayloads.push(payload);
         return { select: insertSelect };
       });
       // GET list
@@ -51,14 +56,24 @@ function makeSupabase(opts: {
       return { select, insert };
     }
     if (table === "leads") {
-      const inSelect = vi.fn(async () => opts.validLeads ?? { data: [], error: null });
-      const select = vi.fn(() => ({ in: inSelect }));
+      const eqHandler = vi.fn(async (column: string, value: unknown) => {
+        leadsEqArgs.push({ column, value });
+        return opts.validLeads ?? { data: [], error: null };
+      });
+      const inHandler = vi.fn((column: string, values: unknown) => {
+        leadsInArgs.push({ column, values });
+        return { eq: eqHandler };
+      });
+      const select = vi.fn(() => ({ in: inHandler }));
       return { select };
     }
     if (table === "campaign_targets") {
-      const insert = vi.fn(async () => ({
-        error: opts.insertTargetsError ?? null,
-      }));
+      const insert = vi.fn(async (payload: unknown) => {
+        campaignTargetsInsertPayloads.push(payload);
+        return {
+          error: opts.insertTargetsError ?? null,
+        };
+      });
       return { insert };
     }
     throw new Error(`unexpected ${table}`);
@@ -66,7 +81,14 @@ function makeSupabase(opts: {
 
   return {
     client: { auth: { getUser: supabaseMocks.getUser }, from },
-    spies: { from, calls },
+    spies: {
+      from,
+      calls,
+      leadsInArgs,
+      leadsEqArgs,
+      campaignsInsertPayloads,
+      campaignTargetsInsertPayloads,
+    },
   };
 }
 
@@ -123,6 +145,74 @@ describe("POST /api/campaigns", () => {
       }),
     );
     expect(res.status).toBe(422);
+  });
+
+  it("dedup leadIds antes de validar — payload com duplicatas é aceito após dedup (#129)", async () => {
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    });
+    // Supabase retorna 1 row (única) mesmo quando a query recebe duplicatas;
+    // backend deve deduplicar ANTES da query e comparar contra o tamanho do Set.
+    const { client, spies } = makeSupabase({
+      validLeads: { data: [{ id: VALID_LEAD }], error: null },
+      insertResult: { data: { id: "camp-1" }, error: null },
+    });
+    supabaseMocks.createServerSupabase.mockResolvedValue(client);
+    const { POST } = await import("@/app/api/campaigns/route");
+
+    const res = await POST(
+      makeReq({
+        name: "Test",
+        mode: "template",
+        templateText: "Hi {{nome}}",
+        leadIds: [VALID_LEAD, VALID_LEAD, VALID_LEAD], // duplicatas explícitas
+      }),
+    );
+
+    expect(res.status).toBe(201);
+    // A query .in('id', ids) deve ter recebido a lista deduplicada.
+    expect(spies.leadsInArgs).toHaveLength(1);
+    expect(spies.leadsInArgs[0]?.values).toEqual([VALID_LEAD]);
+    // total_count e targets também devem refletir o conjunto único.
+    const campaignPayload = spies.campaignsInsertPayloads[0];
+    expect(campaignPayload?.total_count).toBe(1);
+    const targets = spies.campaignTargetsInsertPayloads[0] as Array<{
+      lead_id: string;
+    }>;
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.lead_id).toBe(VALID_LEAD);
+  });
+
+  it("escopo da query de validação por user_id — defesa em profundidade vs cross-tenant (#129)", async () => {
+    supabaseMocks.getUser.mockResolvedValue({
+      data: { user: { id: "u1" } },
+      error: null,
+    });
+    // Simula que o lead requisitado NÃO pertence ao user u1: Supabase
+    // (com .eq('user_id', 'u1') e RLS) retorna zero rows. Backend deve
+    // rejeitar com mensagem amigável.
+    const { client, spies } = makeSupabase({
+      validLeads: { data: [], error: null },
+    });
+    supabaseMocks.createServerSupabase.mockResolvedValue(client);
+    const { POST } = await import("@/app/api/campaigns/route");
+
+    const LEAD_FROM_OTHER_USER = "22222222-2222-4222-8222-222222222222";
+    const res = await POST(
+      makeReq({
+        name: "Test",
+        mode: "template",
+        templateText: "Hi",
+        leadIds: [LEAD_FROM_OTHER_USER],
+      }),
+    );
+
+    expect(res.status).toBe(422);
+    // Defesa em profundidade: backend filtrou explicitamente por user_id,
+    // não confiou só em RLS.
+    expect(spies.leadsEqArgs).toHaveLength(1);
+    expect(spies.leadsEqArgs[0]).toEqual({ column: "user_id", value: "u1" });
   });
 
   it("retorna 201 e dispara processCampaign no happy path", async () => {

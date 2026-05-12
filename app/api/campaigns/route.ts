@@ -72,13 +72,22 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Verifica que TODOS os leadIds pertencem ao user — RLS garante,
-    // mas validamos explicitamente pra retornar mensagem amigável.
+    // Dedupe defensivo: payload `[lead, lead]` retornaria 1 row do Supabase
+    // mas teria length=2 — rejeitaria campanha legítima (#129). Set garante
+    // que validamos e processamos cada lead uma única vez, além de evitar
+    // colisão na PK (campaign_id, lead_id) de `campaign_targets`.
+    const leadIds = [...new Set(parsed.data.leadIds)];
+
+    // Verifica que TODOS os leadIds pertencem ao user. RLS já filtra, mas
+    // o `.eq('user_id', user.id)` é defesa em profundidade: caso a policy
+    // seja alterada/desabilitada por engano, a query ainda nega acesso
+    // cross-tenant (#129).
     const { data: validLeads } = await supabase
       .from("leads")
       .select("id")
-      .in("id", parsed.data.leadIds);
-    if (!validLeads || validLeads.length !== parsed.data.leadIds.length) {
+      .in("id", leadIds)
+      .eq("user_id", user.id);
+    if (!validLeads || validLeads.length !== leadIds.length) {
       return NextResponse.json(
         { error: "Alguns leads não foram encontrados ou não pertencem a você." },
         { status: 422 },
@@ -95,7 +104,7 @@ export async function POST(request: Request) {
         ai_channel: parsed.data.aiChannel ?? null,
         ai_tone: parsed.data.aiTone ?? null,
         ai_goal: parsed.data.aiGoal ?? null,
-        total_count: parsed.data.leadIds.length,
+        total_count: leadIds.length,
         status: "draft",
       })
       .select("id")
@@ -108,7 +117,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const targetsPayload = parsed.data.leadIds.map((leadId) => ({
+    const targetsPayload = leadIds.map((leadId) => ({
       campaign_id: created.id,
       lead_id: leadId,
       status: "pending" as const,
