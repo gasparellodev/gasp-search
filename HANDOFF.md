@@ -6,9 +6,9 @@
 
 ## Estado em 12 de maio de 2026
 
-Phases 0-5 entregues integralmente. Phase 6 (Local hardening & Insights) e Phase 7 (Site Generator — Concessionárias) em finalização.
+Phases 0-6 entregues integralmente. Phase 7 (Site Generator — Concessionárias) em finalização — restam 5 issues funcionais + 1 chore de analytics.
 
-### Mergeado em `main` (113 PRs)
+### Mergeado em `main` (135 PRs)
 
 | Phase | Range | Status |
 |---|---|---|
@@ -17,8 +17,8 @@ Phases 0-5 entregues integralmente. Phase 6 (Local hardening & Insights) e Phase
 | 2 — Search Engine | #15-#28 | ✅ 16/16 fechadas |
 | 3 — CRM Tools | #29-#35 | ✅ 7/7 fechadas |
 | 4 — Polish | #36-#40 | ✅ 12/12 fechadas |
-| 6 — Local hardening & Insights | #122-#138 | 🔄 11 fechadas / 13 abertas |
-| 7 — Site Generator (Concessionárias) | #150-#233 | 🔄 44 fechadas / 7 abertas |
+| 6 — Local hardening & Insights | #122-#138 | ✅ 24/24 fechadas |
+| 7 — Site Generator (Concessionárias) | #150-#233 | 🔄 53/59 fechadas (6 abertas) |
 
 ### Plano ativo
 
@@ -28,7 +28,9 @@ Phases 0-5 entregues integralmente. Phase 6 (Local hardening & Insights) e Phase
 
 Estrutura: 7 waves sequenciais, 28 PRs (24 issues + 4 adjacentes), subagent-driven-development em paralelo dentro de cada wave. Critérios go/no-go entre waves, riscos mapeados, métricas de sucesso verificáveis.
 
-### Issues abertas (22 restantes)
+**Progresso**: Waves 0-4 concluídas. Wave 5 em andamento (Detail trio: #226 e #227 mergeadas; resta #228). Wave 6 pendente.
+
+### Issues abertas (6 restantes)
 
 ```bash
 gh issue list --state open --limit 50
@@ -36,12 +38,9 @@ gh issue list --state open --limit 50
 
 | Bucket | Issues | Wave |
 |---|---|---|
-| Bugs CRITICAL/HIGH (Phase 6) | #129, #130, #131, #132 | 1 |
-| Bugs MEDIUM + tech-debt rollup (#138 split) | #133, #134, #135, #138 | 2 |
-| Lead UI convergência | #136, #137 | 3 |
-| Phase 6 features | #122, #123, #124 | 4 |
-| Phase 7 institucionais + Detail trio | #226-#231 | 5 |
-| Phase 7 polish + baseline | #233, #204 | 6 |
+| Detail D3 (trade-in + similar + FAQ) | #228 | 5 |
+| Phase 7 institucionais (Sobre / Contato / Anunciar) | #229, #230, #231 | 5 |
+| Phase 7 polish | #204 (baseline visual v3), #233 (GA4 + Analytics + GSC) | 6 |
 
 ---
 
@@ -220,14 +219,16 @@ Não usar uma key real de produção em branch/PR público antes de decidir se o
 
 Seguir o plano em [`docs/superpowers/plans/2026-05-12-finalize-all-open-issues-plan.md`](./docs/superpowers/plans/2026-05-12-finalize-all-open-issues-plan.md).
 
-**Estado em 2026-05-12**: Wave 0 em execução (housekeeping). Próximas:
+**Estado em 2026-05-12 (fim do dia)**: Waves 0-4 concluídas. Wave 5 em andamento — Detail trio com #226 (D1) e #227 (D2) já em `main`; resta #228 (D3). Wave 6 ainda não iniciada.
 
-- **Wave 1** — Bugs CRITICAL/HIGH (#129, #130, #131, #132): rate-limit AI, webhook auth hardening, terminal status, dedupe leadIds.
-- **Wave 2** — Bugs MEDIUM + tech-debt (#133, #134, #135, #138 split): cascade delete, rate-limit campaigns, STAGE_LABEL extract, normalize phone, types regen, SSRF guard.
-- **Wave 3** — Lead UI convergência (#136 → #137): `<LeadTabs>` unificado + cross-links.
-- **Wave 4** — Phase 6 features (#124 ∥ #122 → #123): dashboard insights, BullMQ + Redis, real-time indicators.
-- **Wave 5** — Phase 7 (#229/#230/#231 ∥ #226 → #227 → #228): Sobre/Contato/Anunciar redesign + Detail trio.
-- **Wave 6** — Phase 7 polish (#233 ∥ #204): Analytics + visual baseline 12-fixture.
+- ~~Wave 1~~ — Bugs CRITICAL/HIGH (#129–#132): **concluída**.
+- ~~Wave 2~~ — Bugs MEDIUM + tech-debt (#133–#135, #138 split): **concluída**.
+- ~~Wave 3~~ — Lead UI convergência (#136 → #137): **concluída**.
+- ~~Wave 4~~ — Phase 6 features (#122, #123, #124): **concluída** (Phase 6 fechada).
+- **Wave 5 (em andamento)** — Phase 7 redesigns:
+  - **Próximo: #228** — Detail D3: trade-in widget + similar vehicles + FAQ do veículo (fecha o trio do detalhe).
+  - Em seguida: #229 (Sobre / O1), #230 (Contato / O2), #231 (Anunciar / O3) — institucionais.
+- **Wave 6** — Phase 7 polish: #204 (baseline visual v3 com 12 fixtures) + #233 (GA4 + Vercel Analytics + GSC verification).
 
 Cada wave executa subagent-driven-development com TDD obrigatório, code-review + security-review, squash merge `Closes #N`. Quality gates definidos no [`CLAUDE.md`](./CLAUDE.md) raiz e [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
