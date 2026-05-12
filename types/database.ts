@@ -1,13 +1,28 @@
 // =============================================================================
 // types/database.ts
 // =============================================================================
-// Tipos do schema Supabase. Este arquivo replica a saída esperada de
-// `supabase gen types typescript` aplicado contra a migration 0001_init.sql.
+// Fonte canônica: gerado pelo Supabase MCP `generate_typescript_types`
+// contra o projeto `pvazzozzqwwshgacmafv` (Phase 6 / issue #138c).
 //
-// Após o user aplicar a migration e rodar
-//   `npx supabase gen types typescript --project-id <id> > types/database.ts`
-// este arquivo será regenerado e pode divergir levemente em formatação.
-// As regras de negócio (constraints, RLS) NÃO aparecem aqui — apenas shape.
+// ⚠️ NÃO editar manualmente. Para regenerar:
+//
+//   1. (Local)  `npm run gen:types`               (precisa `supabase start`).
+//   2. (Remoto) `npm run gen:types:remote` com `SUPABASE_PROJECT_REF` no env.
+//   3. (MCP)    Invocar `plugin-supabase-supabase.generate_typescript_types`
+//               com `project_id` do projeto Supabase e colar o output aqui.
+//
+// Tightening manual aplicado sobre o output do gerador (cada um documentado
+// inline com comentário):
+//   - `campaigns.type`, `consent_logs.action`, `lead_sites.status` mantêm
+//     a union canônica (Postgres usa `text` + check constraint, não enum).
+//   - `consent_logs.ip`, `lead_form_submissions.consent_ip` mantêm
+//     `string | null` (cliente Supabase v2 serializa `inet` como texto).
+//   - `lead_sites.variables.Insert` mantém `?` (NOT NULL + default
+//     `'{}'::jsonb` na migration 0010; gerador não detecta defaults).
+//
+// O type-level test em `tests/unit/types/database.test.ts` defende o shape
+// e quebra o build se este arquivo divergir do contrato esperado pelo
+// código de feature.
 // =============================================================================
 
 export type Json =
@@ -18,176 +33,385 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5";
+  };
   public: {
     Tables: {
-      profiles: {
+      campaign_targets: {
         Row: {
-          id: string;
-          full_name: string | null;
-          avatar_url: string | null;
+          campaign_id: string;
           created_at: string;
-        };
-        Insert: {
-          id: string;
-          full_name?: string | null;
-          avatar_url?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          full_name?: string | null;
-          avatar_url?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      tags: {
-        Row: {
-          id: string;
-          user_id: string;
-          name: string;
-          color: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          name: string;
-          color?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          name?: string;
-          color?: string;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      search_jobs: {
-        Row: {
-          id: string;
-          user_id: string;
-          source: Database["public"]["Enums"]["search_source"];
-          input: Json;
-          apify_run_id: string | null;
-          status: Database["public"]["Enums"]["search_status"];
-          results_count: number;
           error_message: string | null;
-          created_at: string;
-          finished_at: string | null;
+          lead_id: string;
+          sent_message_id: string | null;
+          status: Database["public"]["Enums"]["campaign_target_status"];
         };
         Insert: {
-          id?: string;
-          user_id: string;
-          source: Database["public"]["Enums"]["search_source"];
-          input: Json;
-          apify_run_id?: string | null;
-          status?: Database["public"]["Enums"]["search_status"];
-          results_count?: number;
-          error_message?: string | null;
+          campaign_id: string;
           created_at?: string;
-          finished_at?: string | null;
+          error_message?: string | null;
+          lead_id: string;
+          sent_message_id?: string | null;
+          status?: Database["public"]["Enums"]["campaign_target_status"];
         };
         Update: {
-          id?: string;
-          user_id?: string;
-          source?: Database["public"]["Enums"]["search_source"];
-          input?: Json;
-          apify_run_id?: string | null;
-          status?: Database["public"]["Enums"]["search_status"];
-          results_count?: number;
-          error_message?: string | null;
+          campaign_id?: string;
           created_at?: string;
-          finished_at?: string | null;
+          error_message?: string | null;
+          lead_id?: string;
+          sent_message_id?: string | null;
+          status?: Database["public"]["Enums"]["campaign_target_status"];
+        };
+        Relationships: [
+          {
+            foreignKeyName: "campaign_targets_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_targets_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "campaign_targets_sent_message_id_fkey";
+            columns: ["sent_message_id"];
+            isOneToOne: false;
+            referencedRelation: "lead_messages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      campaigns: {
+        Row: {
+          ai_channel: string | null;
+          ai_goal: string | null;
+          ai_tone: string | null;
+          completed_at: string | null;
+          created_at: string;
+          failed_count: number;
+          id: string;
+          mode: Database["public"]["Enums"]["campaign_mode"];
+          name: string;
+          sent_count: number;
+          started_at: string | null;
+          status: Database["public"]["Enums"]["campaign_status"];
+          template_text: string | null;
+          total_count: number;
+          // Coluna `type` (migration 0013) — distingue campaign clássica de
+          // mensagem (`'message'`) das campaigns que disparam prévias de
+          // site (`'site_preview'`, hook em lib/campaigns/processor.ts).
+          // Supabase typegen entrega `string` porque a coluna é `text` +
+          // check constraint; mantemos a union pra type-safety no TS.
+          type: "message" | "site_preview";
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          ai_channel?: string | null;
+          ai_goal?: string | null;
+          ai_tone?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          failed_count?: number;
+          id?: string;
+          mode: Database["public"]["Enums"]["campaign_mode"];
+          name: string;
+          sent_count?: number;
+          started_at?: string | null;
+          status?: Database["public"]["Enums"]["campaign_status"];
+          template_text?: string | null;
+          total_count?: number;
+          type?: "message" | "site_preview";
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          ai_channel?: string | null;
+          ai_goal?: string | null;
+          ai_tone?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          failed_count?: number;
+          id?: string;
+          mode?: Database["public"]["Enums"]["campaign_mode"];
+          name?: string;
+          sent_count?: number;
+          started_at?: string | null;
+          status?: Database["public"]["Enums"]["campaign_status"];
+          template_text?: string | null;
+          total_count?: number;
+          type?: "message" | "site_preview";
+          updated_at?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
-      leads: {
+      consent_logs: {
         Row: {
-          id: string;
-          user_id: string;
-          source: Database["public"]["Enums"]["search_source"];
-          source_search_job_id: string | null;
-          name: string;
-          category: string | null;
-          city: string | null;
-          state: string | null;
-          country: string | null;
-          phone: string | null;
-          email: string | null;
-          website: string | null;
-          instagram_handle: string | null;
-          whatsapp: string | null;
-          has_website: boolean | null;
-          rating: number | null;
-          reviews_count: number | null;
-          followers_count: number | null;
-          stage: Database["public"]["Enums"]["lead_stage"];
-          score: number;
-          notes: string | null;
-          raw: Json | null;
-          enriched_at: string | null;
+          // `action` é `text` no banco com check constraint; mantemos a union
+          // PT-BR canônica do banner LGPD (sincronizada com
+          // `lib/lgpd/consent-state.ts:ConsentAction`).
+          action: "accept_all" | "accept_selected" | "reject";
+          categories: Json;
+          consent_text: string;
           created_at: string;
-          updated_at: string;
+          id: string;
+          // `inet` no Postgres; cliente Supabase v2 serializa como texto.
+          // Mantemos `string | null` (com inserts `null` para anônimo) —
+          // narrowing canônico em `lib/lgpd/consent-audit.ts:LogConsentInput`.
+          ip: string | null;
+          timestamp: string;
+          user_agent: string | null;
+          user_id: string | null;
+          version: string;
         };
         Insert: {
-          id?: string;
-          user_id: string;
-          source: Database["public"]["Enums"]["search_source"];
-          source_search_job_id?: string | null;
-          name: string;
-          category?: string | null;
-          city?: string | null;
-          state?: string | null;
-          country?: string | null;
-          phone?: string | null;
-          email?: string | null;
-          website?: string | null;
-          instagram_handle?: string | null;
-          whatsapp?: string | null;
-          has_website?: boolean | null;
-          rating?: number | null;
-          reviews_count?: number | null;
-          followers_count?: number | null;
-          stage?: Database["public"]["Enums"]["lead_stage"];
-          score?: number;
-          notes?: string | null;
-          raw?: Json | null;
-          enriched_at?: string | null;
+          action: "accept_all" | "accept_selected" | "reject";
+          categories: Json;
+          consent_text: string;
           created_at?: string;
-          updated_at?: string;
+          id?: string;
+          ip?: string | null;
+          timestamp: string;
+          user_agent?: string | null;
+          user_id?: string | null;
+          version: string;
         };
         Update: {
-          id?: string;
-          user_id?: string;
-          source?: Database["public"]["Enums"]["search_source"];
-          source_search_job_id?: string | null;
-          name?: string;
-          category?: string | null;
-          city?: string | null;
-          state?: string | null;
-          country?: string | null;
-          phone?: string | null;
-          email?: string | null;
-          website?: string | null;
-          instagram_handle?: string | null;
-          whatsapp?: string | null;
-          has_website?: boolean | null;
-          rating?: number | null;
-          reviews_count?: number | null;
-          followers_count?: number | null;
-          stage?: Database["public"]["Enums"]["lead_stage"];
-          score?: number;
-          notes?: string | null;
-          raw?: Json | null;
-          enriched_at?: string | null;
+          action?: "accept_all" | "accept_selected" | "reject";
+          categories?: Json;
+          consent_text?: string;
           created_at?: string;
-          updated_at?: string;
+          id?: string;
+          ip?: string | null;
+          timestamp?: string;
+          user_agent?: string | null;
+          user_id?: string | null;
+          version?: string;
         };
         Relationships: [];
+      };
+      generation_throttle: {
+        Row: {
+          attempted_at: string;
+          id: string;
+          user_id: string;
+        };
+        Insert: {
+          attempted_at?: string;
+          id?: string;
+          user_id: string;
+        };
+        Update: {
+          attempted_at?: string;
+          id?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      lead_form_submissions: {
+        Row: {
+          // `inet` no Postgres → `string | null` no TS (mesma motivação que
+          // `consent_logs.ip`); coletado pelo handler `/api/sites/form` (#H3).
+          consent_ip: string | null;
+          consent_text: string;
+          consent_timestamp: string;
+          consent_user_agent: string | null;
+          created_at: string;
+          email: string;
+          id: string;
+          lead_site_id: string;
+          message: string | null;
+          model: string | null;
+          name: string;
+          phone: string;
+          user_id: string;
+        };
+        Insert: {
+          consent_ip?: string | null;
+          consent_text: string;
+          consent_timestamp?: string;
+          consent_user_agent?: string | null;
+          created_at?: string;
+          email: string;
+          id?: string;
+          lead_site_id: string;
+          message?: string | null;
+          model?: string | null;
+          name: string;
+          phone: string;
+          user_id: string;
+        };
+        Update: {
+          consent_ip?: string | null;
+          consent_text?: string;
+          consent_timestamp?: string;
+          consent_user_agent?: string | null;
+          created_at?: string;
+          email?: string;
+          id?: string;
+          lead_site_id?: string;
+          message?: string | null;
+          model?: string | null;
+          name?: string;
+          phone?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lead_form_submissions_lead_site_id_fkey";
+            columns: ["lead_site_id"];
+            isOneToOne: false;
+            referencedRelation: "lead_sites";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lead_messages: {
+        Row: {
+          ai_generated: boolean;
+          campaign_id: string | null;
+          channel: string;
+          content: string;
+          created_at: string;
+          direction: Database["public"]["Enums"]["lead_message_direction"];
+          error_message: string | null;
+          id: string;
+          lead_id: string;
+          status: Database["public"]["Enums"]["lead_message_status"];
+          tone: string | null;
+          user_id: string;
+          whatsapp_msg_id: string | null;
+        };
+        Insert: {
+          ai_generated?: boolean;
+          campaign_id?: string | null;
+          channel: string;
+          content: string;
+          created_at?: string;
+          direction?: Database["public"]["Enums"]["lead_message_direction"];
+          error_message?: string | null;
+          id?: string;
+          lead_id: string;
+          status?: Database["public"]["Enums"]["lead_message_status"];
+          tone?: string | null;
+          user_id: string;
+          whatsapp_msg_id?: string | null;
+        };
+        Update: {
+          ai_generated?: boolean;
+          campaign_id?: string | null;
+          channel?: string;
+          content?: string;
+          created_at?: string;
+          direction?: Database["public"]["Enums"]["lead_message_direction"];
+          error_message?: string | null;
+          id?: string;
+          lead_id?: string;
+          status?: Database["public"]["Enums"]["lead_message_status"];
+          tone?: string | null;
+          user_id?: string;
+          whatsapp_msg_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lead_messages_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lead_messages_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lead_sites: {
+        Row: {
+          archived_at: string | null;
+          created_at: string;
+          generated_at: string | null;
+          generation_error: string | null;
+          id: string;
+          last_viewed_at: string | null;
+          lead_id: string;
+          published_at: string | null;
+          sent_at: string | null;
+          signed_at: string | null;
+          slug: string;
+          // `status` é `text` + check constraint, não enum nativo. Mantemos a
+          // union em `Enums<"lead_site_status">` (modelada no `Enums` abaixo).
+          status: Database["public"]["Enums"]["lead_site_status"];
+          updated_at: string;
+          user_id: string;
+          variables: Json;
+          view_count: number;
+          visual_identity: Json | null;
+        };
+        Insert: {
+          archived_at?: string | null;
+          created_at?: string;
+          generated_at?: string | null;
+          generation_error?: string | null;
+          id?: string;
+          last_viewed_at?: string | null;
+          lead_id: string;
+          published_at?: string | null;
+          sent_at?: string | null;
+          signed_at?: string | null;
+          slug: string;
+          status?: Database["public"]["Enums"]["lead_site_status"];
+          updated_at?: string;
+          user_id: string;
+          // `variables` é NOT NULL no banco mas tem `default '{}'::jsonb`
+          // (migration 0010 `lead_sites`); o Supabase typegen marca como
+          // obrigatório porque não detecta defaults JSONB. Mantemos `?` aqui
+          // para refletir o contrato real de insert (caller pode omitir).
+          variables?: Json;
+          view_count?: number;
+          visual_identity?: Json | null;
+        };
+        Update: {
+          archived_at?: string | null;
+          created_at?: string;
+          generated_at?: string | null;
+          generation_error?: string | null;
+          id?: string;
+          last_viewed_at?: string | null;
+          lead_id?: string;
+          published_at?: string | null;
+          sent_at?: string | null;
+          signed_at?: string | null;
+          slug?: string;
+          status?: Database["public"]["Enums"]["lead_site_status"];
+          updated_at?: string;
+          user_id?: string;
+          variables?: Json;
+          view_count?: number;
+          visual_identity?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lead_sites_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       lead_tags: {
         Row: {
@@ -202,370 +426,249 @@ export interface Database {
           lead_id?: string;
           tag_id?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "lead_tags_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lead_tags_tag_id_fkey";
+            columns: ["tag_id"];
+            isOneToOne: false;
+            referencedRelation: "tags";
+            referencedColumns: ["id"];
+          },
+        ];
       };
-      lead_messages: {
+      leads: {
         Row: {
-          id: string;
-          lead_id: string;
-          user_id: string;
-          channel: string;
-          tone: string | null;
-          content: string;
+          category: string | null;
+          city: string | null;
+          country: string | null;
           created_at: string;
-          direction: Database["public"]["Enums"]["lead_message_direction"];
-          status: Database["public"]["Enums"]["lead_message_status"];
-          whatsapp_msg_id: string | null;
-          campaign_id: string | null;
-          error_message: string | null;
-          ai_generated: boolean;
+          email: string | null;
+          enriched_at: string | null;
+          followers_count: number | null;
+          has_website: boolean | null;
+          id: string;
+          instagram_handle: string | null;
+          name: string;
+          notes: string | null;
+          phone: string | null;
+          rating: number | null;
+          raw: Json | null;
+          reviews_count: number | null;
+          score: number;
+          source: Database["public"]["Enums"]["search_source"];
+          source_search_job_id: string | null;
+          stage: Database["public"]["Enums"]["lead_stage"];
+          state: string | null;
+          updated_at: string;
+          user_id: string;
+          website: string | null;
+          whatsapp: string | null;
         };
         Insert: {
-          id?: string;
-          lead_id: string;
-          user_id: string;
-          channel: string;
-          tone?: string | null;
-          content: string;
+          category?: string | null;
+          city?: string | null;
+          country?: string | null;
           created_at?: string;
-          direction?: Database["public"]["Enums"]["lead_message_direction"];
-          status?: Database["public"]["Enums"]["lead_message_status"];
-          whatsapp_msg_id?: string | null;
-          campaign_id?: string | null;
-          error_message?: string | null;
-          ai_generated?: boolean;
+          email?: string | null;
+          enriched_at?: string | null;
+          followers_count?: number | null;
+          has_website?: boolean | null;
+          id?: string;
+          instagram_handle?: string | null;
+          name: string;
+          notes?: string | null;
+          phone?: string | null;
+          rating?: number | null;
+          raw?: Json | null;
+          reviews_count?: number | null;
+          score?: number;
+          source: Database["public"]["Enums"]["search_source"];
+          source_search_job_id?: string | null;
+          stage?: Database["public"]["Enums"]["lead_stage"];
+          state?: string | null;
+          updated_at?: string;
+          user_id: string;
+          website?: string | null;
+          whatsapp?: string | null;
         };
         Update: {
-          id?: string;
-          lead_id?: string;
-          user_id?: string;
-          channel?: string;
-          tone?: string | null;
-          content?: string;
+          category?: string | null;
+          city?: string | null;
+          country?: string | null;
           created_at?: string;
-          direction?: Database["public"]["Enums"]["lead_message_direction"];
-          status?: Database["public"]["Enums"]["lead_message_status"];
-          whatsapp_msg_id?: string | null;
-          campaign_id?: string | null;
-          error_message?: string | null;
-          ai_generated?: boolean;
-        };
-        Relationships: [];
-      };
-      lead_form_submissions: {
-        Row: {
-          id: string;
-          user_id: string;
-          lead_site_id: string;
-          name: string;
-          phone: string;
-          email: string;
-          message: string | null;
-          model: string | null;
-          consent_text: string;
-          consent_ip: string | null;
-          consent_user_agent: string | null;
-          consent_timestamp: string;
-          created_at: string;
-        };
-        Insert: {
+          email?: string | null;
+          enriched_at?: string | null;
+          followers_count?: number | null;
+          has_website?: boolean | null;
           id?: string;
-          user_id: string;
-          lead_site_id: string;
-          name: string;
-          phone: string;
-          email: string;
-          message?: string | null;
-          model?: string | null;
-          consent_text: string;
-          consent_ip?: string | null;
-          consent_user_agent?: string | null;
-          consent_timestamp?: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          lead_site_id?: string;
+          instagram_handle?: string | null;
           name?: string;
-          phone?: string;
-          email?: string;
-          message?: string | null;
-          model?: string | null;
-          consent_text?: string;
-          consent_ip?: string | null;
-          consent_user_agent?: string | null;
-          consent_timestamp?: string;
+          notes?: string | null;
+          phone?: string | null;
+          rating?: number | null;
+          raw?: Json | null;
+          reviews_count?: number | null;
+          score?: number;
+          source?: Database["public"]["Enums"]["search_source"];
+          source_search_job_id?: string | null;
+          stage?: Database["public"]["Enums"]["lead_stage"];
+          state?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          website?: string | null;
+          whatsapp?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "leads_source_search_job_id_fkey";
+            columns: ["source_search_job_id"];
+            isOneToOne: false;
+            referencedRelation: "search_jobs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      profiles: {
+        Row: {
+          avatar_url: string | null;
+          created_at: string;
+          full_name: string | null;
+          id: string;
+        };
+        Insert: {
+          avatar_url?: string | null;
           created_at?: string;
+          full_name?: string | null;
+          id: string;
+        };
+        Update: {
+          avatar_url?: string | null;
+          created_at?: string;
+          full_name?: string | null;
+          id?: string;
         };
         Relationships: [];
       };
-      consent_logs: {
+      search_jobs: {
         Row: {
-          id: string;
-          user_id: string | null;
-          ip: string | null;
-          user_agent: string | null;
-          timestamp: string;
-          consent_text: string;
-          version: string;
-          action: "accept_all" | "accept_selected" | "reject";
-          categories: Json;
+          apify_run_id: string | null;
           created_at: string;
+          error_message: string | null;
+          finished_at: string | null;
+          id: string;
+          input: Json;
+          results_count: number;
+          source: Database["public"]["Enums"]["search_source"];
+          status: Database["public"]["Enums"]["search_status"];
+          user_id: string;
         };
         Insert: {
-          id?: string;
-          user_id?: string | null;
-          ip?: string | null;
-          user_agent?: string | null;
-          timestamp: string;
-          consent_text: string;
-          version: string;
-          action: "accept_all" | "accept_selected" | "reject";
-          categories: Json;
+          apify_run_id?: string | null;
           created_at?: string;
+          error_message?: string | null;
+          finished_at?: string | null;
+          id?: string;
+          input: Json;
+          results_count?: number;
+          source: Database["public"]["Enums"]["search_source"];
+          status?: Database["public"]["Enums"]["search_status"];
+          user_id: string;
         };
         Update: {
-          id?: string;
-          user_id?: string | null;
-          ip?: string | null;
-          user_agent?: string | null;
-          timestamp?: string;
-          consent_text?: string;
-          version?: string;
-          action?: "accept_all" | "accept_selected" | "reject";
-          categories?: Json;
+          apify_run_id?: string | null;
           created_at?: string;
+          error_message?: string | null;
+          finished_at?: string | null;
+          id?: string;
+          input?: Json;
+          results_count?: number;
+          source?: Database["public"]["Enums"]["search_source"];
+          status?: Database["public"]["Enums"]["search_status"];
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      tags: {
+        Row: {
+          color: string;
+          created_at: string;
+          id: string;
+          name: string;
+          user_id: string;
+        };
+        Insert: {
+          color?: string;
+          created_at?: string;
+          id?: string;
+          name: string;
+          user_id: string;
+        };
+        Update: {
+          color?: string;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          user_id?: string;
         };
         Relationships: [];
       };
       whatsapp_instances: {
         Row: {
-          id: string;
-          user_id: string;
+          created_at: string;
           evo_instance: string;
           evo_instance_v2: string;
-          status: Database["public"]["Enums"]["whatsapp_status"];
+          id: string;
+          last_seen_at: string | null;
           phone_number: string | null;
           qr_code: string | null;
-          last_seen_at: string | null;
-          created_at: string;
+          status: Database["public"]["Enums"]["whatsapp_status"];
           updated_at: string;
+          user_id: string;
         };
         Insert: {
-          id?: string;
-          user_id: string;
+          created_at?: string;
           evo_instance: string;
           evo_instance_v2: string;
-          status?: Database["public"]["Enums"]["whatsapp_status"];
+          id?: string;
+          last_seen_at?: string | null;
           phone_number?: string | null;
           qr_code?: string | null;
-          last_seen_at?: string | null;
-          created_at?: string;
+          status?: Database["public"]["Enums"]["whatsapp_status"];
           updated_at?: string;
+          user_id: string;
         };
         Update: {
-          id?: string;
-          user_id?: string;
+          created_at?: string;
           evo_instance?: string;
           evo_instance_v2?: string;
-          status?: Database["public"]["Enums"]["whatsapp_status"];
+          id?: string;
+          last_seen_at?: string | null;
           phone_number?: string | null;
           qr_code?: string | null;
-          last_seen_at?: string | null;
-          created_at?: string;
+          status?: Database["public"]["Enums"]["whatsapp_status"];
           updated_at?: string;
-        };
-        Relationships: [];
-      };
-      campaigns: {
-        Row: {
-          id: string;
-          user_id: string;
-          name: string;
-          // Coluna `type` (migration 0013) — distingue campaign clássica
-          // de mensagem (`'message'`) das campaigns que disparam prévias
-          // de site (`'site_preview'`, hook em lib/campaigns/processor.ts).
-          type: "message" | "site_preview";
-          mode: Database["public"]["Enums"]["campaign_mode"];
-          template_text: string | null;
-          ai_channel: string | null;
-          ai_tone: string | null;
-          ai_goal: string | null;
-          status: Database["public"]["Enums"]["campaign_status"];
-          total_count: number;
-          sent_count: number;
-          failed_count: number;
-          started_at: string | null;
-          completed_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          name: string;
-          type?: "message" | "site_preview";
-          mode: Database["public"]["Enums"]["campaign_mode"];
-          template_text?: string | null;
-          ai_channel?: string | null;
-          ai_tone?: string | null;
-          ai_goal?: string | null;
-          status?: Database["public"]["Enums"]["campaign_status"];
-          total_count?: number;
-          sent_count?: number;
-          failed_count?: number;
-          started_at?: string | null;
-          completed_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
           user_id?: string;
-          name?: string;
-          type?: "message" | "site_preview";
-          mode?: Database["public"]["Enums"]["campaign_mode"];
-          template_text?: string | null;
-          ai_channel?: string | null;
-          ai_tone?: string | null;
-          ai_goal?: string | null;
-          status?: Database["public"]["Enums"]["campaign_status"];
-          total_count?: number;
-          sent_count?: number;
-          failed_count?: number;
-          started_at?: string | null;
-          completed_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      campaign_targets: {
-        Row: {
-          campaign_id: string;
-          lead_id: string;
-          status: Database["public"]["Enums"]["campaign_target_status"];
-          error_message: string | null;
-          sent_message_id: string | null;
-          created_at: string;
-        };
-        Insert: {
-          campaign_id: string;
-          lead_id: string;
-          status?: Database["public"]["Enums"]["campaign_target_status"];
-          error_message?: string | null;
-          sent_message_id?: string | null;
-          created_at?: string;
-        };
-        Update: {
-          campaign_id?: string;
-          lead_id?: string;
-          status?: Database["public"]["Enums"]["campaign_target_status"];
-          error_message?: string | null;
-          sent_message_id?: string | null;
-          created_at?: string;
-        };
-        Relationships: [];
-      };
-      lead_sites: {
-        Row: {
-          id: string;
-          user_id: string;
-          lead_id: string;
-          slug: string;
-          status: Database["public"]["Enums"]["lead_site_status"];
-          variables: Json;
-          visual_identity: Json | null;
-          generation_error: string | null;
-          generated_at: string | null;
-          published_at: string | null;
-          sent_at: string | null;
-          signed_at: string | null;
-          archived_at: string | null;
-          view_count: number;
-          last_viewed_at: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          lead_id: string;
-          slug: string;
-          status?: Database["public"]["Enums"]["lead_site_status"];
-          variables?: Json;
-          visual_identity?: Json | null;
-          generation_error?: string | null;
-          generated_at?: string | null;
-          published_at?: string | null;
-          sent_at?: string | null;
-          signed_at?: string | null;
-          archived_at?: string | null;
-          view_count?: number;
-          last_viewed_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          lead_id?: string;
-          slug?: string;
-          status?: Database["public"]["Enums"]["lead_site_status"];
-          variables?: Json;
-          visual_identity?: Json | null;
-          generation_error?: string | null;
-          generated_at?: string | null;
-          published_at?: string | null;
-          sent_at?: string | null;
-          signed_at?: string | null;
-          archived_at?: string | null;
-          view_count?: number;
-          last_viewed_at?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Relationships: [];
-      };
-      generation_throttle: {
-        Row: {
-          id: string;
-          user_id: string;
-          attempted_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          attempted_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          attempted_at?: string;
         };
         Relationships: [];
       };
     };
-    Views: Record<string, never>;
-    Functions: Record<string, never>;
-    CompositeTypes: Record<string, never>;
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      __migrate_site_variables_v1_to_v2: {
+        Args: { v1: Json };
+        Returns: Json;
+      };
+    };
     Enums: {
-      search_source: "google_maps" | "instagram" | "website_contact";
-      search_status: "queued" | "running" | "succeeded" | "failed";
-      lead_stage:
-        | "new"
-        | "contacted"
-        | "in_conversation"
-        | "qualified"
-        | "closed_won"
-        | "closed_lost";
-      whatsapp_status:
-        | "disconnected"
-        | "qr_pending"
-        | "connecting"
-        | "connected"
-        | "error";
       campaign_mode: "template" | "ai_per_lead";
       campaign_status:
         | "draft"
@@ -581,22 +684,180 @@ export interface Database {
         | "delivered"
         | "read"
         | "failed";
-      // lead_sites.status é um text com check constraint (não é um enum nativo
-      // do Postgres), mas modelamos como union type pra type-safety no TS.
+      lead_stage:
+        | "new"
+        | "contacted"
+        | "in_conversation"
+        | "qualified"
+        | "closed_won"
+        | "closed_lost";
+      search_source: "google_maps" | "instagram" | "website_contact";
+      search_status: "queued" | "running" | "succeeded" | "failed";
+      whatsapp_status:
+        | "disconnected"
+        | "qr_pending"
+        | "connecting"
+        | "connected"
+        | "error";
+      // `lead_sites.status` é `text` + check constraint, não enum nativo do
+      // Postgres. Modelado aqui como union para type-safety no TS.
       lead_site_status: "draft" | "published" | "sent" | "archived";
     };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
   };
+};
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
 }
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R;
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
+      }
+      ? R
+      : never
+    : never;
 
-// Helpers convenientes baseados em padrões da Supabase
-export type Tables<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Row"];
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I;
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I;
+      }
+      ? I
+      : never
+    : never;
 
-export type TablesInsert<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Insert"];
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U;
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U;
+      }
+      ? U
+      : never
+    : never;
 
-export type TablesUpdate<T extends keyof Database["public"]["Tables"]> =
-  Database["public"]["Tables"][T]["Update"];
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never;
 
-export type Enums<T extends keyof Database["public"]["Enums"]> =
-  Database["public"]["Enums"][T];
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals;
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never;
+
+export const Constants = {
+  public: {
+    Enums: {
+      campaign_mode: ["template", "ai_per_lead"],
+      campaign_status: [
+        "draft",
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+      ],
+      campaign_target_status: ["pending", "sent", "failed", "skipped"],
+      lead_message_direction: ["outbound", "inbound"],
+      lead_message_status: ["queued", "sent", "delivered", "read", "failed"],
+      lead_stage: [
+        "new",
+        "contacted",
+        "in_conversation",
+        "qualified",
+        "closed_won",
+        "closed_lost",
+      ],
+      search_source: ["google_maps", "instagram", "website_contact"],
+      search_status: ["queued", "running", "succeeded", "failed"],
+      whatsapp_status: [
+        "disconnected",
+        "qr_pending",
+        "connecting",
+        "connected",
+        "error",
+      ],
+      lead_site_status: ["draft", "published", "sent", "archived"],
+    },
+  },
+} as const;

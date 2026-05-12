@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
-import {
-  generateMessage,
-  type LeadForMessage,
-} from "@/lib/ai/anthropic";
+import { generateMessage } from "@/lib/ai/anthropic";
 import { apiErrorResponse } from "@/lib/api/errors";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { generateMessageSchema } from "@/lib/validators/ai";
@@ -20,26 +17,13 @@ const lastRequestByUser = new Map<
   { ts: number; expiresAt: number }
 >();
 
-const LEAD_FOR_MESSAGE_SELECT = [
-  "name",
-  "source",
-  "category",
-  "city",
-  "state",
-  "country",
-  "phone",
-  "email",
-  "website",
-  "instagram_handle",
-  "whatsapp",
-  "has_website",
-  "rating",
-  "reviews_count",
-  "followers_count",
-  "stage",
-  "score",
-  "notes",
-].join(",");
+// Literal string (não `.join(",")`) para que o typegen do
+// `@supabase/postgrest-js` consiga inferir o shape retornado pelo
+// `.select(...)` — eliminando o cast `as unknown as LeadForMessage`
+// que existia enquanto a select-list era construída em runtime.
+// Lista deve permanecer 1:1 com `LeadForMessage` em `lib/ai/anthropic.ts`.
+const LEAD_FOR_MESSAGE_SELECT =
+  "name, source, category, city, state, country, phone, email, website, instagram_handle, whatsapp, has_website, rating, reviews_count, followers_count, stage, score, notes";
 
 function validationIssues(error: ZodError) {
   return error.issues.map((issue) => ({
@@ -140,7 +124,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
     }
 
-    const content = await generateMessage(lead as unknown as LeadForMessage, {
+    const content = await generateMessage(lead, {
       channel: parsed.data.channel,
       tone: parsed.data.tone,
       goal: parsed.data.goal,

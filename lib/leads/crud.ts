@@ -43,7 +43,7 @@ export async function getLead({
 
   if (error) throw new Error(`Falha ao carregar lead: ${error.message}`);
   if (!data) return null;
-  return flattenRow(data as unknown as LeadRow);
+  return flattenRow(data as LeadRow);
 }
 
 export async function createLead({
@@ -71,7 +71,7 @@ export async function createLead({
   if (error || !data) {
     throw new Error(`Falha ao criar lead: ${error?.message ?? "desconhecido"}`);
   }
-  return flattenRow(data as unknown as LeadRow);
+  return flattenRow(data as LeadRow);
 }
 
 export async function updateLead({
@@ -95,7 +95,7 @@ export async function updateLead({
       .maybeSingle();
     if (error) throw new Error(`Falha ao atualizar lead: ${error.message}`);
     if (!data) return null;
-    return flattenRow(data as unknown as LeadRow);
+    return flattenRow(data as LeadRow);
   }
 
   // Caminho com tagIds: atualiza colunas escalares (se houver), sincroniza
