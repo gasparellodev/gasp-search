@@ -41,6 +41,7 @@ import {
   type LeadPageSize,
   type LeadSortableColumn,
 } from "@/lib/validators/leads";
+import { STAGE_LABEL, STAGE_VARIANT } from "@/lib/leads/stage-presentation";
 import type { LeadListItem, LeadTagSummary } from "@/lib/leads/list-leads";
 
 interface LeadsTableProps {
@@ -53,27 +54,6 @@ interface LeadsTableProps {
   sortDir: "asc" | "desc";
   tags: LeadTagSummary[];
 }
-
-const STAGE_LABEL: Record<LeadListItem["stage"], string> = {
-  new: "Novo",
-  contacted: "Contatado",
-  in_conversation: "Em conversa",
-  qualified: "Qualificado",
-  closed_won: "Ganho",
-  closed_lost: "Perdido",
-};
-
-const STAGE_VARIANT: Record<
-  LeadListItem["stage"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  new: "secondary",
-  contacted: "outline",
-  in_conversation: "outline",
-  qualified: "default",
-  closed_won: "default",
-  closed_lost: "destructive",
-};
 
 function bestContact(lead: LeadListItem): string {
   if (lead.email) return lead.email;

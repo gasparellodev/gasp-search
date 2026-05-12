@@ -42,6 +42,7 @@ import {
   LEAD_STAGES,
   type LeadStage,
 } from "@/lib/validators/leads";
+import { STAGE_LABEL } from "@/lib/leads/stage-presentation";
 import type { LeadListItem, LeadTagSummary } from "@/lib/leads/list-leads";
 import { cn } from "@/lib/utils";
 
@@ -53,15 +54,6 @@ interface LeadDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   tags: LeadTagSummary[];
 }
-
-const STAGE_LABEL: Record<LeadStage, string> = {
-  new: "Novo",
-  contacted: "Contatado",
-  in_conversation: "Em conversa",
-  qualified: "Qualificado",
-  closed_won: "Ganho",
-  closed_lost: "Perdido",
-};
 
 function formatLocation(lead: LeadListItem): string | null {
   const parts = [lead.city, lead.state].filter(Boolean) as string[];
