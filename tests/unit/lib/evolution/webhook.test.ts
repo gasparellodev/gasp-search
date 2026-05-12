@@ -162,6 +162,66 @@ describe("parseWebhookPayload", () => {
     }
   });
 
+  it("parseia presence.update com composing/paused/available/unavailable", () => {
+    const cases: Array<
+      [
+        string,
+        "typing" | "paused" | "online" | "offline",
+      ]
+    > = [
+      ["composing", "typing"],
+      ["paused", "paused"],
+      ["available", "online"],
+      ["unavailable", "offline"],
+    ];
+
+    for (const [raw, expected] of cases) {
+      const r = parseWebhookPayload({
+        event: "presence.update",
+        instance: "u",
+        data: {
+          id: "5511999998888@s.whatsapp.net",
+          presences: {
+            "5511999998888@s.whatsapp.net": {
+              lastKnownPresence: raw,
+            },
+          },
+        },
+      });
+      expect(r.type).toBe("presence.update");
+      if (r.type === "presence.update") {
+        expect(r.instance).toBe("u");
+        expect(r.from).toBe("5511999998888");
+        expect(r.presence).toBe(expected);
+      }
+    }
+  });
+
+  it("retorna unknown para presence.update sem jid ou presença reconhecida", () => {
+    expect(
+      parseWebhookPayload({
+        event: "presence.update",
+        instance: "u",
+        data: { presences: {} },
+      }).type,
+    ).toBe("unknown");
+
+    expect(
+      parseWebhookPayload({
+        event: "presence.update",
+        instance: "u",
+        data: {
+          id: "5511999998888@s.whatsapp.net",
+          presences: {
+            "5511999998888@s.whatsapp.net": {
+              lastKnownPresence: "recording",
+            },
+          },
+        },
+      }).type,
+    ).toBe("unknown");
+  });
+
   it("retorna unknown para evento desconhecido ou payload sem event", () => {
     expect(parseWebhookPayload({ data: {} }).type).toBe("unknown");
     expect(parseWebhookPayload(null).type).toBe("unknown");

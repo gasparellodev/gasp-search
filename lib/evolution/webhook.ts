@@ -70,6 +70,12 @@ export type ParsedWebhookEvent =
       status: "open" | "close" | "connecting" | "qrReadError";
       phoneNumber: string | null;
     }
+  | {
+      type: "presence.update";
+      instance: string;
+      from: string;
+      presence: "typing" | "paused" | "online" | "offline";
+    }
   | { type: "unknown"; instance: string | null; raw: unknown };
 
 export function verifyHmac(
@@ -109,6 +115,22 @@ function normalizeStatus(
   return STATUS_MAP[upper] ?? null;
 }
 
+const PRESENCE_MAP: Record<
+  string,
+  "typing" | "paused" | "online" | "offline"
+> = {
+  composing: "typing",
+  paused: "paused",
+  available: "online",
+  unavailable: "offline",
+};
+
+function normalizePresence(
+  raw: string,
+): "typing" | "paused" | "online" | "offline" | null {
+  return PRESENCE_MAP[raw.toLowerCase()] ?? null;
+}
+
 function jidPhone(jid: string | undefined | null): string | null {
   if (!jid || typeof jid !== "string") return null;
   const local = jid.split("@")[0];
@@ -127,6 +149,38 @@ function asObject(value: unknown): Record<string, unknown> | undefined {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+function firstPresenceEntry(
+  data: Record<string, unknown>,
+): { jid: string | null; rawPresence: string | null } {
+  const directJid =
+    asString(data.id) ?? asString(data.remoteJid) ?? asString(data.from);
+  const directPresence =
+    asString(data.presence) ??
+    asString(data.status) ??
+    asString(data.lastKnownPresence);
+  if (directJid && directPresence) {
+    return { jid: directJid, rawPresence: directPresence };
+  }
+
+  const presences = asObject(data.presences);
+  if (!presences) {
+    return { jid: directJid ?? null, rawPresence: directPresence ?? null };
+  }
+
+  for (const [jid, value] of Object.entries(presences)) {
+    const entry = asObject(value);
+    const rawPresence =
+      asString(entry?.lastKnownPresence) ??
+      asString(entry?.presence) ??
+      asString(entry?.status);
+    if (rawPresence) {
+      return { jid, rawPresence };
+    }
+  }
+
+  return { jid: directJid ?? null, rawPresence: directPresence ?? null };
 }
 
 /**
@@ -231,6 +285,21 @@ export function parseWebhookPayload(json: unknown): ParsedWebhookEvent {
       };
     }
     return { type: "unknown", instance: instanceCandidate, raw: json };
+  }
+
+  if (event === "presence.update") {
+    const { jid, rawPresence } = firstPresenceEntry(data);
+    const phone = jidPhone(jid);
+    const presence = rawPresence ? normalizePresence(rawPresence) : null;
+    if (!phone || !presence) {
+      return { type: "unknown", instance: instanceCandidate, raw: json };
+    }
+    return {
+      type: "presence.update",
+      instance,
+      from: phone,
+      presence,
+    };
   }
 
   return { type: "unknown", instance: instanceCandidate, raw: json };

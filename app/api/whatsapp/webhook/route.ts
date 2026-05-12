@@ -8,6 +8,10 @@ import {
   type ParsedWebhookEvent,
 } from "@/lib/evolution/webhook";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import {
+  setLeadPresence,
+  type LeadPresenceSnapshot,
+} from "@/lib/whatsapp/presence";
 
 // Endpoint público — sem cookie de sessão. Autenticidade vem de dois caminhos:
 //
@@ -90,6 +94,49 @@ async function resolveLeadForInbound(
   return null;
 }
 
+async function broadcastLeadPresence(
+  supabase: ReturnType<typeof createServiceSupabase>,
+  leadId: string,
+  payload: LeadPresenceSnapshot & { leadId: string },
+) {
+  type PresenceBroadcast = LeadPresenceSnapshot & { leadId: string };
+  const realtime = supabase as unknown as {
+    channel?: (name: string) => {
+      subscribe?: (cb?: (status: string) => void) => unknown;
+      send?: (payload: {
+        type: "broadcast";
+        event: "presence";
+        payload: PresenceBroadcast;
+      }) => Promise<unknown>;
+    };
+    removeChannel?: (channel: unknown) => Promise<unknown>;
+  };
+  if (!realtime.channel) return;
+  const channel = realtime.channel(`whatsapp-presence:${leadId}`);
+  if (!channel.send || !channel.subscribe) return;
+
+  try {
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 500);
+      channel.subscribe?.((status) => {
+        if (status === "SUBSCRIBED") {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+    });
+    await channel.send({
+      type: "broadcast",
+      event: "presence",
+      payload,
+    });
+  } catch {
+    // Broadcast é best-effort; Redis segue como fonte de fallback para o GET.
+  } finally {
+    await realtime.removeChannel?.(channel);
+  }
+}
+
 async function handleEvent(
   supabase: ReturnType<typeof createServiceSupabase>,
   event: ParsedWebhookEvent,
@@ -132,6 +179,22 @@ async function handleEvent(
       .update({ status: event.status })
       .eq("whatsapp_msg_id", event.messageId)
       .eq("user_id", ctx.userId);
+    return;
+  }
+
+  if (event.type === "presence.update") {
+    if (!ctx) return;
+    const lead = await resolveLeadForInbound(supabase, ctx.userId, event.from);
+    if (!lead) return;
+    const snapshot = await setLeadPresence({
+      userId: ctx.userId,
+      leadId: lead.id,
+      presence: event.presence,
+    });
+    await broadcastLeadPresence(supabase, lead.id, {
+      leadId: lead.id,
+      ...snapshot,
+    });
     return;
   }
 

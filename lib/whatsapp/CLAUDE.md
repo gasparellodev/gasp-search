@@ -2,7 +2,7 @@
 
 ## Propósito
 
-Templates e helpers de renderização para mensagens WhatsApp do fluxo **Site Generator (Phase 7)**. Hospeda apenas o que é específico desse domínio — o transporte (chamada à Evolution API) continua em `lib/evolution/`.
+Templates, limites e helpers voláteis para mensagens WhatsApp. Hospeda apenas o que é específico desse domínio — o transporte (chamada à Evolution API) continua em `lib/evolution/`.
 
 > Diferente de `lib/evolution/templates.ts` (campanhas, sintaxe `{{nome}}`, suporta placeholders desconhecidos sem lançar). Aqui o contrato é **estrito**: variável faltante é bug, não input do usuário.
 
@@ -27,6 +27,7 @@ Templates e helpers de renderização para mensagens WhatsApp do fluxo **Site Ge
 | `templates.ts` | `SITE_PREVIEW_TEMPLATE` (PT-BR, placeholders `{business_name}` e `{site_url}`) + `TEMPLATE_VARIABLES` (`as const`) + tipo `TemplateVariable`. |
 | `render-template.ts` | `renderTemplate(template, vars)` — substitui `{key}` por `vars[key]`, lança em variável faltante. |
 | `daily-limit.ts` | **Server-only.** `checkDailyInstanceLimit(userId, supabase)` + `DAILY_INSTANCE_LIMIT=50` (#173) — guard hard 50 envios/dia/instância (anti-ban WhatsApp). Conta `lead_messages` rows com `direction='outbound'` AND `created_at > now()-24h` AND `user_id = X`. **`whatsapp_instances` é 1:1 com `user_id`** (UNIQUE constraint na migration 0003), então contar por user é equivalente a contar por instância. **Janela rolling 24h** (não calendar day). **Boundary inclusive**: count >= 50 → bloqueado. **Fail-open** em erro de DB ou `count: null` (consistente com `enforceRateLimit` do `generateLeadSite`). Retorno discriminated union `{ allowed: true; current } \| { allowed: false; current; limit }`. |
+| `presence.ts` | **Server-only.** Presença volátil da inbox (#123): `setLeadPresence({userId, leadId, presence})` e `getLeadPresence({userId, leadId})` usam Redis via `lib/queue/redis.ts`, chave `whatsapp:presence:<userId>:<leadId>`, TTL fixo 60s. Estados normalizados: `typing`, `paused`, `online`, `offline`. Falha de parse/expiração retorna `{presence:'offline', lastSeen:null}`. Não persistir em Postgres. |
 
 ## Contrato de `checkDailyInstanceLimit` (#173)
 
@@ -48,12 +49,14 @@ Templates e helpers de renderização para mensagens WhatsApp do fluxo **Site Ge
 
 - `@supabase/supabase-js` — tipo `SupabaseClient<Database>` (DI).
 - `@/types/database` — tipos do schema (lead_messages).
+- `@/lib/queue/redis` — presença volátil Redis (#123).
 
 ## Testes
 
 - `tests/unit/lib/whatsapp/templates.test.ts` — estrutura do template, render e-2-e contra o template real.
 - `tests/unit/lib/whatsapp/render-template.test.ts` — happy path, multi-substitution, missing var, empty, `$1`/PT-BR/empty value, idempotência.
 - `tests/unit/lib/whatsapp/daily-limit.test.ts` — boundary cases (0/49/50/51), fail-open (null/error), query shape (table/eqs/gte janela 24h).
+- `tests/unit/lib/whatsapp/presence.test.ts` — chave Redis, TTL e fallback offline em miss/JSON inválido.
 
 ## Roadmap
 

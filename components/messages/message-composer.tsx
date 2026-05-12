@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,17 @@ type Props = {
 
 type InstanceState = { status: string };
 
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
 export function MessageComposer({ leadId }: Props) {
   const [content, setContent] = useState("");
   const [busy, setBusy] = useState(false);
   const [instanceStatus, setInstanceStatus] = useState<string | null>(null);
+  const hasTypedRef = useRef(false);
 
   // Verifica status da instância pra desabilitar botão se desconectado.
   useEffect(() => {
@@ -39,6 +46,36 @@ export function MessageComposer({ leadId }: Props) {
 
   const connected = instanceStatus === "connected";
   const disabled = busy || !connected || content.trim().length === 0;
+
+  useEffect(() => {
+    if (!connected) return;
+    if (!isUuid(leadId)) return;
+
+    const sendTyping = (presence: "typing" | "paused") => {
+      void Promise.resolve(
+        fetch("/api/whatsapp/typing", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ leadId, presence }),
+        }),
+      ).catch(() => {
+        // Volátil e best-effort; não deve interromper composição da mensagem.
+      });
+    };
+
+    if (content.trim().length === 0) {
+      if (hasTypedRef.current) {
+        sendTyping("paused");
+        hasTypedRef.current = false;
+      }
+      return;
+    }
+
+    hasTypedRef.current = true;
+    sendTyping("typing");
+    const timer = window.setTimeout(() => sendTyping("paused"), 2000);
+    return () => window.clearTimeout(timer);
+  }, [connected, content, leadId]);
 
   const send = async () => {
     if (disabled) return;

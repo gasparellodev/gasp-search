@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,6 +12,7 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 import { MessageComposer } from "@/components/messages/message-composer";
 
 const fetchMock = vi.fn<typeof fetch>();
+const validLeadId = "11111111-1111-4111-8111-111111111111";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -29,6 +30,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("MessageComposer", () => {
@@ -117,5 +119,42 @@ describe("MessageComposer", () => {
     await waitFor(() => {
       expect(toastMock.error).toHaveBeenCalledWith("boom");
     });
+  });
+
+  it("emite typing imediatamente e paused após 2s sem digitar", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ status: "connected", phoneNumber: "5511" }),
+    );
+    fetchMock.mockResolvedValue(jsonResponse({ ok: true }, 202));
+
+    render(<MessageComposer leadId={validLeadId} />);
+    await waitFor(() =>
+      screen.getByPlaceholderText(/digite a mensagem/i),
+    );
+
+    vi.useFakeTimers();
+    fireEvent.change(screen.getByPlaceholderText(/digite a mensagem/i), {
+      target: { value: "Oi" },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/whatsapp/typing",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ leadId: validLeadId, presence: "typing" }),
+      }),
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/whatsapp/typing",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ leadId: validLeadId, presence: "paused" }),
+      }),
+    );
   });
 });
