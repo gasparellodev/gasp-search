@@ -7,9 +7,8 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-const { _resetRateLimit, checkRateLimit } = await import(
-  "@/lib/evolution/rate-limit"
-);
+const { _resetRateLimit, checkRateLimit, EVOLUTION_DEFAULT_THROTTLE_MS } =
+  await import("@/lib/evolution/rate-limit");
 
 beforeEach(() => {
   _resetRateLimit();
@@ -55,5 +54,11 @@ describe("checkRateLimit", () => {
     expect(checkRateLimit("u1", 500)).toMatchObject({ ok: false });
     vi.advanceTimersByTime(200);
     expect(checkRateLimit("u1", 500)).toEqual({ ok: true });
+  });
+});
+
+describe("EVOLUTION_DEFAULT_THROTTLE_MS", () => {
+  it("é a constante canônica usada como throttle default (3s)", () => {
+    expect(EVOLUTION_DEFAULT_THROTTLE_MS).toBe(3_000);
   });
 });
