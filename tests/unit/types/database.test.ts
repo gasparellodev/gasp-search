@@ -89,6 +89,7 @@ describe("types/database", () => {
     expectTypeOf<WhatsAppRow["id"]>().toBeString();
     expectTypeOf<WhatsAppRow["user_id"]>().toBeString();
     expectTypeOf<WhatsAppRow["evo_instance"]>().toBeString();
+    expectTypeOf<WhatsAppRow["evo_instance_v2"]>().toBeString();
     expectTypeOf<WhatsAppRow["status"]>().toEqualTypeOf<
       Enums<"whatsapp_status">
     >();

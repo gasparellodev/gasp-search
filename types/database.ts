@@ -344,6 +344,7 @@ export interface Database {
           id: string;
           user_id: string;
           evo_instance: string;
+          evo_instance_v2: string;
           status: Database["public"]["Enums"]["whatsapp_status"];
           phone_number: string | null;
           qr_code: string | null;
@@ -355,6 +356,7 @@ export interface Database {
           id?: string;
           user_id: string;
           evo_instance: string;
+          evo_instance_v2: string;
           status?: Database["public"]["Enums"]["whatsapp_status"];
           phone_number?: string | null;
           qr_code?: string | null;
@@ -366,6 +368,7 @@ export interface Database {
           id?: string;
           user_id?: string;
           evo_instance?: string;
+          evo_instance_v2?: string;
           status?: Database["public"]["Enums"]["whatsapp_status"];
           phone_number?: string | null;
           qr_code?: string | null;
