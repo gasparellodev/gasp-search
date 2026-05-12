@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
 import { SlugCollisionError } from "@/lib/sites/errors";
-import { generateUniqueSlug } from "@/lib/sites/slug";
+import { generateUniqueSlug, slugifyVehicle } from "@/lib/sites/slug";
 import type { Database } from "@/types/database";
 
 // Regex completa do slug: 8 chars do alfabeto seguros, hífen, base alfanum/-.
@@ -155,6 +155,61 @@ describe("SlugCollisionError", () => {
     expect(err).toBeInstanceOf(Error);
     expect(err.message).toBe(
       'Failed to generate unique slug for "Toyota" after 5 attempts',
+    );
+  });
+});
+
+describe("slugifyVehicle()", () => {
+  it("gera slug SEO-friendly com sufixo dos 4 primeiros chars do id", () => {
+    expect(
+      slugifyVehicle({
+        brand: "Toyota",
+        model: "Corolla XEi",
+        year: 2022,
+        id: "a1b2c3d4-1111-4111-8111-111111111111",
+      }),
+    ).toBe("toyota-corolla-xei-2022-a1b2");
+  });
+
+  it("normaliza caracteres PT-BR para ASCII", () => {
+    expect(
+      slugifyVehicle({
+        brand: "Citroën",
+        model: "C4 Cactus Feel Pack",
+        year: 2021,
+        id: "deadbeef-1111-4111-8111-111111111111",
+      }),
+    ).toBe("citroen-c4-cactus-feel-pack-2021-dead");
+  });
+
+  it("preserva brand com hífen sem duplicar separadores", () => {
+    expect(
+      slugifyVehicle({
+        brand: "Mercedes-Benz",
+        model: "Classe A 200",
+        year: 2024,
+        id: "9f8e7d6c-1111-4111-8111-111111111111",
+      }),
+    ).toBe("mercedes-benz-classe-a-200-2024-9f8e");
+  });
+
+  it("documenta colisão MVP: ids com mesmos 4 primeiros chars geram mesmo slug", () => {
+    const input = {
+      brand: "Honda",
+      model: "Civic Touring",
+      year: 2020,
+    };
+
+    expect(
+      slugifyVehicle({
+        ...input,
+        id: "abcd1111-1111-4111-8111-111111111111",
+      }),
+    ).toBe(
+      slugifyVehicle({
+        ...input,
+        id: "abcd9999-1111-4111-8111-999999999999",
+      }),
     );
   });
 });

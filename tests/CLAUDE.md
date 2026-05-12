@@ -141,6 +141,9 @@ instância nova (sem aliasing) e aplica `Partial<T>` shallow:
 - `tests/unit/lib/og/load-geist.test.ts` cobre leitura da fonte Geist local
   (`/fonts/geist-600.woff2` no deployment), precedência de `VERCEL_URL` em
   preview, memoização, fallback em falha e timeout de 1s para OG images.
+- `tests/unit/lib/seo/indexnow.test.ts` cobre `notifyIndexNow` (#232):
+  dedupe, chunks de 10 URLs, POST para os 4 endpoints, warning em falhas
+  e no-op quando `INDEXNOW_KEY` não está configurada.
 
 ### Quando usar mock factory vs inline `vi.mock`
 

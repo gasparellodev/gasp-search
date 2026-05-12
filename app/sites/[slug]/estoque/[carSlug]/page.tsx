@@ -22,7 +22,7 @@
  */
 import "server-only";
 
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 
 import { CarDetailSection } from "@/components/sites/stock/CarDetailSection";
@@ -33,6 +33,7 @@ import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 import { env } from "@/lib/env";
+import { slugify } from "@/lib/utils/slug";
 import {
   buildBreadcrumbSchema,
   buildVehicleSchema,
@@ -45,6 +46,10 @@ interface PageProps {
 const NOINDEX_FALLBACK: Metadata = {
   robots: { index: false, follow: false },
 };
+
+function legacyVehicleSlug(car: { brand: string; model: string; year: number }) {
+  return slugify(`${car.brand} ${car.model} ${car.year}`);
+}
 
 export async function generateMetadata({
   params,
@@ -96,7 +101,17 @@ export default async function CarDetailPage({ params }: PageProps) {
   }
 
   const car = parsed.data.cars.find((c) => c.slug === carSlug);
-  if (!car) notFound();
+  if (!car) {
+    const legacyMatch = parsed.data.cars.find(
+      (candidate) => legacyVehicleSlug(candidate) === carSlug,
+    );
+    if (legacyMatch) {
+      permanentRedirect(
+        `/sites/${site.slug}/estoque/${legacyMatch.slug}`,
+      );
+    }
+    notFound();
+  }
 
   // Schemas per-page: Vehicle + BreadcrumbList (Início → Estoque → Carro).
   // Sitewide graph (AutoDealer/Organization/LocalBusiness) injetado pelo

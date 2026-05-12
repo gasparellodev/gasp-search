@@ -25,7 +25,7 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | Path | Propósito |
 |---|---|
 | `utils.ts` | `cn()` = `twMerge(clsx(...))`, default helper de classe |
-| `env.ts` | **Server-only.** Zod validator de todas as envs (públicas e server). Lança no boot se algo faltar/inválido. Importa `server-only`. |
+| `env.ts` | **Server-only.** Zod validator de todas as envs (públicas e server). Lança no boot se algo faltar/inválido. Importa `server-only`. `INDEXNOW_KEY` é opcional e string vazia vira `undefined` para builds sem IndexNow. |
 | `env-public.ts` | Validator das envs `NEXT_PUBLIC_*` apenas. Safe para Client Components. Lê `process.env.NEXT_PUBLIC_*` por chave (Next inlina). |
 | `api/errors.ts` | Helper de erro para API routes com log estruturado (`requestId`, `route`, `userId`) e resposta amigável sem stack. |
 | `validators/search.ts` | Schemas Zod para entradas das buscas Apify |
@@ -38,7 +38,8 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `dashboard/summary.ts` | **Server-only.** Agrega métricas e últimas buscas do dashboard |
 | `dashboard/types.ts` | Tipos compartilháveis com Client Components do dashboard |
 | `og/load-geist.ts` | **Server-only, Edge-compatible.** Carrega `/fonts/geist-600.woff2` do próprio deployment para OG images com timeout de 1s, memoização por isolate e fallback `null`; evita GitHub raw/CDN e evita embutir o WOFF2 no Edge bundle. |
-| `sites/slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` único globalmente em `lead_sites.slug`. Cliente Supabase recebido por DI. |
+| `seo/indexnow.ts` | **Server-only.** `notifyIndexNow(urls)` — batch de URLs públicas assinadas para IndexNow/Bing/Yandex/Naver, 10 URLs por POST, best-effort com `console.warn` em falha. |
+| `sites/slug.ts` | `generateUniqueSlug(business_name, client)` — `<nanoid8>-<base>` único globalmente em `lead_sites.slug`. Cliente Supabase recebido por DI. Também exporta `slugifyVehicle({brand,model,year,id})` para slugs de detalhe de veículo no formato `{brand}-{model}-{year}-{id4}` (#232). |
 | `sites/errors.ts` | `SlugCollisionError` — erro tipado com `attempts`/`business_name` para o gerador de slug. |
 | `utils/slug.ts` | `slugify(input)` puro — NFKD, lowercase, hífens, fallback `'lead'`. Reusável fora do dominio sites. |
 | `openai/image-client.ts` | **Server-only.** Phase 7 Sprint 2 #A2 (issue #216). Adapter pra `OpenAI().images.generate(...)` com singleton lazy + Zod input validation + erros tipados (`ImageGenerationError {code, retryable, status, model}`) + fallback automático `1792x1024 → 1536x1024` em invalid_size. NÃO passa `response_format` (spike bug #1). `maxRetries: 0` — caller decide retry. Pricing snapshot-locked em `PRICING_USD`. Modelo default pinado via `env.OPENAI_IMAGE_MODEL` (`gpt-image-2-2026-04-21`). |

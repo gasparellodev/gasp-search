@@ -64,6 +64,7 @@ import { ZodError } from "zod";
 
 import { env } from "@/lib/env";
 import { sendWhatsAppMessage } from "@/lib/evolution/send";
+import { notifyIndexNow } from "@/lib/seo/indexnow";
 import { generateCopy } from "@/lib/sites/generate-copy";
 import { extractBrandAssets } from "@/lib/sites/brand-assets";
 import { FALLBACK_IMAGE_URL, mergeSiteVariables } from "@/lib/sites/merge";
@@ -165,6 +166,14 @@ export type UpdateLeadSiteVariablesResult =
         | "invalid_status"
         | "validation"
         | "db_error";
+      message: string;
+    };
+
+export type SignLeadSiteResult =
+  | { ok: true; signed: boolean }
+  | {
+      ok: false;
+      error: "auth" | "not_found" | "invalid_status" | "db_error";
       message: string;
     };
 
@@ -957,6 +966,130 @@ export async function updateLeadSiteVariables(
   }
 
   return { ok: true, slug: existing.slug };
+}
+
+function buildIndexNowUrls(args: {
+  slug: string;
+  variables: unknown;
+}): string[] {
+  const base = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  const siteUrl = `${base}/sites/${args.slug}`;
+  const urls = [
+    siteUrl,
+    `${siteUrl}/estoque`,
+    `${siteUrl}/sobre`,
+    `${siteUrl}/contato`,
+    `${siteUrl}/anunciar`,
+  ];
+
+  const parsed = SiteVariablesV2.safeParse(args.variables);
+  if (!parsed.success) return urls;
+
+  for (const car of parsed.data.cars) {
+    urls.push(`${siteUrl}/estoque/${car.slug}`);
+  }
+
+  return urls;
+}
+
+/**
+ * Server Action `signLeadSite(leadSiteId)` — marca contrato assinado e
+ * dispara IndexNow best-effort quando `signed_at` muda de null para valor.
+ */
+export async function signLeadSite(
+  leadSiteId: string,
+): Promise<SignLeadSiteResult> {
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para assinar o site.",
+    };
+  }
+
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status, signed_at, variables")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  const row = existing as {
+    id: string;
+    lead_id: string | null;
+    slug: string;
+    status: string;
+    signed_at: string | null;
+    variables: unknown;
+  };
+
+  if (row.status !== "published" && row.status !== "sent") {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message: "Apenas sites publicados ou enviados podem ser assinados.",
+    };
+  }
+
+  if (row.signed_at !== null) {
+    return { ok: true, signed: false };
+  }
+
+  const nowIso = new Date().toISOString();
+  const service = createServiceSupabase();
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({ signed_at: nowIso, updated_at: nowIso })
+    .eq("id", leadSiteId);
+
+  if (updateError) {
+    console.error("signLeadSite.persist", {
+      action: "signLeadSite",
+      leadSiteId,
+      slug: row.slug,
+      userId: user.id,
+      errorName: updateError.name ?? "unknown",
+      errorMessage: updateError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao assinar o site. Tente novamente.",
+    };
+  }
+
+  updateTag(`site:${row.slug}`);
+  if (row.lead_id) {
+    revalidatePath(`/leads/${row.lead_id}`);
+  }
+
+  try {
+    await notifyIndexNow(
+      buildIndexNowUrls({ slug: row.slug, variables: row.variables }),
+    );
+  } catch (err) {
+    console.warn("signLeadSite.indexnow_failed", {
+      action: "signLeadSite",
+      leadSiteId,
+      slug: row.slug,
+      errorName: err instanceof Error ? err.name : "unknown",
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return { ok: true, signed: true };
 }
 
 // ---------------------------------------------------------------------------

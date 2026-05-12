@@ -161,6 +161,32 @@ describe("lib/env (server)", () => {
     expect(env.TEST_SEED_TOKEN).toBe("abcdef0123456789");
     expect(env.TEST_SEED_USER_ID).toBe("00000000-0000-4000-8000-000000000000");
   });
+
+  it("trata INDEXNOW_KEY vazia como undefined", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      INDEXNOW_KEY: "",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.INDEXNOW_KEY).toBeUndefined();
+  });
+
+  it("aceita INDEXNOW_KEY alfanumérica quando preenchida", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      INDEXNOW_KEY: "abc123_INDEXNOW",
+    });
+    const { env } = await import("@/lib/env");
+    expect(env.INDEXNOW_KEY).toBe("abc123_INDEXNOW");
+  });
+
+  it("rejeita INDEXNOW_KEY com caracteres inválidos", async () => {
+    Object.assign(process.env, {
+      ...VALID_ENV,
+      INDEXNOW_KEY: "abc 123 key",
+    });
+    await expect(import("@/lib/env")).rejects.toThrow(/INDEXNOW_KEY/);
+  });
 });
 
 describe("lib/env-public (client-safe)", () => {
