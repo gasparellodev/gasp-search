@@ -16,8 +16,16 @@ const serviceMocks = vi.hoisted(() => ({
   createServiceSupabase: vi.fn(),
 }));
 
+const presenceMocks = vi.hoisted(() => ({
+  setLeadPresence: vi.fn(),
+}));
+
 vi.mock("@/lib/supabase/service", () => ({
   createServiceSupabase: serviceMocks.createServiceSupabase,
+}));
+
+vi.mock("@/lib/whatsapp/presence", () => ({
+  setLeadPresence: presenceMocks.setLeadPresence,
 }));
 
 function makeBody(payload: Record<string, unknown>): string {
@@ -104,6 +112,11 @@ function makeServiceClient(handlers: TableHandlers) {
 beforeEach(() => {
   vi.resetModules();
   serviceMocks.createServiceSupabase.mockReset();
+  presenceMocks.setLeadPresence.mockReset();
+  presenceMocks.setLeadPresence.mockResolvedValue({
+    presence: "typing",
+    lastSeen: "2026-05-12T12:00:00.000Z",
+  });
 });
 
 describe("POST /api/whatsapp/webhook", () => {
@@ -295,6 +308,50 @@ describe("POST /api/whatsapp/webhook", () => {
         table: "leads",
         op: "update",
         payload: { stage: "in_conversation" },
+      }),
+    );
+  });
+
+  it("presence.update resolve lead por telefone e grava presença volátil no Redis", async () => {
+    const body = makeBody({
+      event: "presence.update",
+      instance: "user_aabbccdd",
+      data: {
+        id: "5511999998888@s.whatsapp.net",
+        presences: {
+          "5511999998888@s.whatsapp.net": {
+            lastKnownPresence: "composing",
+          },
+        },
+      },
+    });
+    const { client } = makeServiceClient({
+      whatsapp_instances: {
+        select: { data: { user_id: "u1", status: "connected" } },
+      },
+      leads: {
+        select: {
+          data: [
+            {
+              id: "lead-1",
+              stage: "contacted",
+              phone: "5511999998888",
+              whatsapp: null,
+            },
+          ],
+        },
+      },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
+    const { POST } = await import("@/app/api/whatsapp/webhook/route");
+    const res = await POST(makeReq(body, sigHeader(body)));
+
+    expect(res.status).toBe(200);
+    expect(presenceMocks.setLeadPresence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "u1",
+        leadId: "lead-1",
+        presence: "typing",
       }),
     );
   });

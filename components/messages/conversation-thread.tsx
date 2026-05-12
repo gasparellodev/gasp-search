@@ -12,6 +12,26 @@ type Props = {
   leadId: string;
 };
 
+type Presence = "typing" | "paused" | "online" | "offline";
+
+type PresenceSnapshot = {
+  presence: Presence;
+  lastSeen: string | null;
+};
+
+function presenceText(snapshot: PresenceSnapshot | null): string | null {
+  if (!snapshot) return null;
+  if (snapshot.presence === "typing") return "digitando...";
+  if (snapshot.presence === "online") return "Online agora";
+  if (snapshot.lastSeen) {
+    const diffMs = Date.now() - new Date(snapshot.lastSeen).getTime();
+    const minutes = Math.max(1, Math.floor(diffMs / 60_000));
+    if (minutes < 60) return `Visto há ${minutes}min`;
+  }
+  if (snapshot.presence === "paused") return "Visto recentemente";
+  return "Offline";
+}
+
 function StatusIcon({ status }: { status: LeadMessage["status"] }) {
   switch (status) {
     case "queued":
@@ -48,6 +68,7 @@ function StatusIcon({ status }: { status: LeadMessage["status"] }) {
 
 export function ConversationThread({ leadId }: Props) {
   const [messages, setMessages] = useState<LeadMessage[] | null>(null);
+  const [presence, setPresence] = useState<PresenceSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -71,10 +92,24 @@ export function ConversationThread({ leadId }: Props) {
         if (active) setError("Falha ao carregar conversa.");
       }
     };
+    const loadPresence = async () => {
+      try {
+        const res = await fetch(
+          `/api/whatsapp/presence/${encodeURIComponent(leadId)}`,
+          { cache: "no-store" },
+        );
+        if (!res.ok) return;
+        const body = (await res.json()) as PresenceSnapshot;
+        if (active) setPresence(body);
+      } catch {
+        // Presença é volátil; falha não bloqueia o histórico da conversa.
+      }
+    };
     void load();
+    void loadPresence();
 
     const supabase = createBrowserSupabase();
-    const channel = supabase
+    const messagesChannel = supabase
       .channel(`lead_messages:thread:${leadId}`)
       .on(
         "postgres_changes",
@@ -89,9 +124,33 @@ export function ConversationThread({ leadId }: Props) {
         },
       )
       .subscribe();
+    const presenceChannel = supabase
+      .channel(`whatsapp-presence:${leadId}`)
+      .on(
+        "broadcast",
+        { event: "presence" },
+        (payload: { payload?: Partial<PresenceSnapshot> & { leadId?: string } }) => {
+          const next = payload.payload;
+          if (!next || next.leadId !== leadId) return;
+          if (
+            next.presence !== "typing" &&
+            next.presence !== "paused" &&
+            next.presence !== "online" &&
+            next.presence !== "offline"
+          ) {
+            return;
+          }
+          setPresence({
+            presence: next.presence,
+            lastSeen: typeof next.lastSeen === "string" ? next.lastSeen : null,
+          });
+        },
+      )
+      .subscribe();
     return () => {
       active = false;
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(messagesChannel);
+      void supabase.removeChannel(presenceChannel);
     };
   }, [leadId]);
 
@@ -132,6 +191,14 @@ export function ConversationThread({ leadId }: Props) {
   return (
     <ScrollArea className="h-full" data-testid="conversation-thread">
       <div className="flex flex-col gap-2 p-4">
+        {presenceText(presence) ? (
+          <div
+            className="self-center rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground"
+            data-testid="conversation-presence"
+          >
+            {presenceText(presence)}
+          </div>
+        ) : null}
         {messages.map((m) => {
           const out = m.direction === "outbound";
           return (
