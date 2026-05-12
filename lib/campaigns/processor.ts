@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { generateMessage, type LeadForMessage } from "@/lib/ai/anthropic";
+import { EVOLUTION_DEFAULT_THROTTLE_MS } from "@/lib/evolution/rate-limit";
 import { sendWhatsAppMessage } from "@/lib/evolution/send";
 import { renderTemplate } from "@/lib/evolution/templates";
 import {
@@ -40,8 +41,6 @@ export type ProcessOptions = {
   serviceClient?: SupabaseClient<Database>;
 };
 
-const DEFAULT_THROTTLE_MS = 3_000;
-
 const defaultSleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -62,7 +61,7 @@ export async function processCampaign({
   supabase,
   userId,
   campaignId,
-  throttleMs = DEFAULT_THROTTLE_MS,
+  throttleMs = EVOLUTION_DEFAULT_THROTTLE_MS,
   sleep = defaultSleep,
   sendImpl = sendWhatsAppMessage,
   generateMessageImpl = generateMessage,

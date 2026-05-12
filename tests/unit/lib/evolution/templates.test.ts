@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LeadForMessage } from "@/lib/ai/anthropic";
 import {
-  extractPlaceholders,
   renderTemplate,
   SUPPORTED_PLACEHOLDERS,
   validateTemplate,
@@ -91,22 +90,15 @@ describe("renderTemplate", () => {
   });
 });
 
-describe("extractPlaceholders", () => {
-  it("retorna lista única e ordenada", () => {
-    const list = extractPlaceholders("{{nome}} {{cidade}} {{nome}} {{xpto}}");
-    expect(list).toEqual(["cidade", "nome", "xpto"]);
+describe("validateTemplate (extractPlaceholders interno)", () => {
+  // `extractPlaceholders` virou private em #138a — não tinha importer
+  // externo (era dead-export). Garantimos via `validateTemplate` que a
+  // extração interna mantém dedup/lowercase/ordenação que ela espera.
+  it("dedupe e lowercase ao listar desconhecidos", () => {
+    const r = validateTemplate("{{NOME}} {{xpto}} {{Xpto}} {{Outro}}");
+    expect(r.unknownPlaceholders).toEqual(["outro", "xpto"]);
   });
 
-  it("retorna vazio quando não há placeholders", () => {
-    expect(extractPlaceholders("plain text")).toEqual([]);
-  });
-
-  it("normaliza para lowercase", () => {
-    expect(extractPlaceholders("{{NOME}} {{Nome}}")).toEqual(["nome"]);
-  });
-});
-
-describe("validateTemplate", () => {
   it("valid=true quando todos placeholders são suportados", () => {
     const r = validateTemplate("Olá {{nome}} de {{cidade}}");
     expect(r.valid).toBe(true);

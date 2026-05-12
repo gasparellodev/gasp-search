@@ -262,13 +262,18 @@ export function InstanceCard() {
               Aguardando você ler o QR Code no celular...
             </p>
             {qrcode ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrcode}
-                alt="QR Code do WhatsApp"
-                className="size-64 rounded-md border bg-white p-2"
-                data-testid="whatsapp-qrcode"
-              />
+              <div
+                className="bg-card p-4 rounded-lg w-fit"
+                data-testid="whatsapp-qrcode-wrap"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={qrcode}
+                  alt="QR Code do WhatsApp"
+                  className="size-64 rounded-md"
+                  data-testid="whatsapp-qrcode"
+                />
+              </div>
             ) : (
               <Skeleton className="size-64 rounded-md" />
             )}

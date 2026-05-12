@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createEvolutionClient, EvolutionApiError } from "@/lib/evolution/client";
+import { normalizePhone } from "@/lib/evolution/phone";
 import type { Database } from "@/types/database";
 
 // Função pura de envio reutilizada por:
@@ -42,13 +43,6 @@ export type SendInput = {
   campaignId?: string | null;
   aiGenerated?: boolean;
 };
-
-function normalizePhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d]/g, "");
-  if (digits.length < 8) return null;
-  return digits;
-}
 
 export async function sendWhatsAppMessage({
   supabase,

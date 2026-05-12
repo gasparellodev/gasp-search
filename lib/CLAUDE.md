@@ -31,7 +31,8 @@ Código server-side e utilitários compartilhados (não-componentes). Inclui cli
 | `validators/search.ts` | Schemas Zod para entradas das buscas Apify |
 | `validators/whatsapp.ts` | Schemas Zod para envio WhatsApp e respostas do Evolution API |
 | `evolution/client.ts` | Wrapper REST do Evolution API (`createEvolutionClient`) + `EvolutionApiError` |
-| `evolution/templates.ts` | `renderTemplate`/`extractPlaceholders`/`validateTemplate` para campanhas modo template |
+| `evolution/templates.ts` | `renderTemplate`/`validateTemplate` para campanhas modo template (`extractPlaceholders` é interno desde #138a) |
+| `evolution/phone.ts` | `normalizePhone(raw)` canônico — 8–15 dígitos, E.164 sem `+`. Reusado por `send.ts` e `webhook.ts` (#138a) |
 | `campaigns/processor.ts` | `processCampaign(...)` — itera `campaign_targets`, render/IA por lead, send com throttle, atualiza counters |
 | `validators/campaigns.ts` | Schemas Zod de criação (com refine por modo) e atualização (cancel) de campanhas |
 | `ai/anthropic.ts` | **Server-only.** Singleton Anthropic + `generateMessage()` com system prompt cacheado e payload whitelisted do lead |

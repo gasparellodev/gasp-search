@@ -3,6 +3,13 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { nanoid } from "nanoid";
 
+import { normalizePhone } from "@/lib/evolution/phone";
+
+// Reexport pra manter compat com importers existentes (`route.ts` do webhook
+// e specs antigos). A implementação canônica vive em `@/lib/evolution/phone`
+// — ver #138a. Evita reintroduzir critério divergente entre send/webhook.
+export { normalizePhone };
+
 // ----------------------------------------------------------------------------
 // Parser e validação de webhooks do Evolution API.
 // ----------------------------------------------------------------------------
@@ -84,13 +91,6 @@ export function verifyHmac(
   } catch {
     return false;
   }
-}
-
-export function normalizePhone(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d]/g, "");
-  if (digits.length < 8 || digits.length > 15) return null;
-  return digits;
 }
 
 const STATUS_MAP: Record<string, "sent" | "delivered" | "read" | "failed"> = {
