@@ -14,6 +14,22 @@ CRUD + start de campanhas WhatsApp (Phase 5). Processor inline na rota POST.
 ## Regras
 
 - Auth obrigatória (401).
+- **Rate-limit por usuário invariant (#134).** Antes de qualquer escrita,
+  `POST /api/campaigns` aplica duas defesas:
+  1. **Uma campanha `running` por user.** `select('id', { count: 'exact',
+     head: true }).eq('user_id', user.id).eq('status', 'running')`. Se
+     `count > 0` → 409 `{ error: 'campaign_already_running' }`.
+     Evita concorrência no processor (Anthropic + Evolution) e batches
+     sobrepostos no mesmo user.
+  2. **Hard cap por hora.** `select('id', { count: 'exact', head: true })
+     .eq('user_id', user.id).gte('created_at', now - 1h)`. Se
+     `count >= env.MAX_CAMPAIGNS_PER_HOUR` (default 5) → 429
+     `{ error: 'rate_limited' }` + header `Retry-After: 60`. Protege
+     budget Anthropic + quota WhatsApp contra flooding.
+
+  Ordem importa: rate-limit ANTES da validação de leads e do insert. Casa
+  com #122 (BullMQ): quando `processCampaign` migrar para fila, o limite
+  continua válido no enqueue.
 - Validação zod via `@/lib/validators/campaigns` (mín 1 / máx 50 leads, payload por modo).
 - **Dedup defensivo de `leadIds` antes de tudo (#129).** O backend aplica
   `[...new Set(parsed.data.leadIds)]` antes de validar e inserir. Razões:
