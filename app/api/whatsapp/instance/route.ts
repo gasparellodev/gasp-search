@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { apiErrorResponse } from "@/lib/api/errors";
 import { createEvolutionClient, EvolutionApiError } from "@/lib/evolution/client";
+import { generateInstanceSlug } from "@/lib/evolution/webhook";
 import { createServerSupabase } from "@/lib/supabase/server";
 
-// Slug estável e curto. evita expor o UUID inteiro do user no Evolution.
-function instanceSlug(userId: string): string {
-  return `user_${userId.slice(0, 8)}`;
-}
+// **#130 — slug não-previsível:** o slug legado era `user_<userId.slice(0,8)>`
+// (32 bits = enumerável em poucos minutos via /api/whatsapp/webhook). Agora
+// usamos `generateInstanceSlug()` (nanoid 16 chars / ~95 bits) e persistimos
+// em `whatsapp_instances.evo_instance_v2` (migration 0022). `evo_instance`
+// continua sendo escrito pra cobrir o ciclo de transição com o Evolution.
 
 type InstanceStatusResponse = {
   status: "disconnected" | "qr_pending" | "connecting" | "connected" | "error";
@@ -63,7 +65,7 @@ export async function POST() {
     return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
   }
 
-  const evoInstance = instanceSlug(user.id);
+  const evoInstance = generateInstanceSlug();
   try {
     const evolution = createEvolutionClient();
     const created = await evolution.createInstance(evoInstance);
@@ -79,7 +81,11 @@ export async function POST() {
       .upsert(
         {
           user_id: user.id,
+          // Pareamos os dois — `evo_instance` (legado, DEPRECATED via #130) e
+          // `evo_instance_v2` (canônico). O upsert mantém o slug consistente
+          // entre os dois pontos enquanto o Evolution não restartar.
           evo_instance: created.instanceName,
+          evo_instance_v2: created.instanceName,
           status: initialStatus,
           qr_code: created.qrcode,
         },

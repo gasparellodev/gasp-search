@@ -1,6 +1,8 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { nanoid } from "nanoid";
+
 // ----------------------------------------------------------------------------
 // Parser e validação de webhooks do Evolution API.
 // ----------------------------------------------------------------------------
@@ -12,9 +14,33 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 //      e compara constante-time).
 //   2. Parsear o payload bruto pra um union type discriminado fácil de consumir.
 //   3. Normalizar phones (remove +, espaços, etc.) pra E.164 sem +.
+//   4. Gerar slug não-previsível (`generateInstanceSlug`) para novas
+//      instâncias Evolution — fecha o vetor de enumeração descrito em #130.
 //
 // A função pura aqui não toca DB nem Evolution — apenas decodifica.
 // ----------------------------------------------------------------------------
+
+/**
+ * Tamanho do slug de instância em chars. 16 chars do alfabeto URL-safe
+ * nanoid (`A-Za-z0-9_-`) = 64^16 ≈ 7.9e28 combinações (~95 bits). Resiste
+ * a enumeração mesmo com taxas absurdas (1M req/s levariam ~10^15 anos).
+ *
+ * **Por que não usar `user_${userId.slice(0, 8)}`?** O slug legado tinha
+ * 32 bits efetivos (8 hex chars), enumerável em minutos por um atacante
+ * com acesso ao webhook público (#130).
+ */
+const INSTANCE_SLUG_LENGTH = 16;
+
+/**
+ * Gera um slug seguro para uma nova instância Evolution.
+ *
+ * Persiste em `whatsapp_instances.evo_instance_v2` (migration 0022).
+ * Não inclui informação derivável do `user_id`: o lookup contra o DB é o
+ * que liga o slug ao tenant via `lookupUserByInstance` no route handler.
+ */
+export function generateInstanceSlug(): string {
+  return nanoid(INSTANCE_SLUG_LENGTH);
+}
 
 export type ParsedWebhookEvent =
   | {
@@ -37,7 +63,7 @@ export type ParsedWebhookEvent =
       status: "open" | "close" | "connecting" | "qrReadError";
       phoneNumber: string | null;
     }
-  | { type: "unknown"; raw: unknown };
+  | { type: "unknown"; instance: string | null; raw: unknown };
 
 export function verifyHmac(
   rawBody: string,
@@ -104,23 +130,47 @@ function asObject(value: unknown): Record<string, unknown> | undefined {
 }
 
 /**
+ * Extrai o nome da instância Evolution do envelope raiz, aceitando tanto
+ * a forma string (`instance: "slug"`) quanto a forma objeto que algumas
+ * versões do Evolution mandam (`instance: { instanceName: "slug" }`).
+ *
+ * Exportado e usado pelo route handler para `lookupUserByInstance` em
+ * todos os tipos de evento, **inclusive `unknown`**. Sem isso, o caminho
+ * de unknown short-circuita antes do lookup e vaza presença de HMAC
+ * para atacantes não autenticados (#130).
+ */
+export function extractInstanceFromRoot(json: unknown): string | null {
+  const root = asObject(json);
+  if (!root) return null;
+  const direct = asString(root.instance);
+  if (direct) return direct;
+  const nested = asObject(root.instance);
+  if (nested) {
+    const name = asString(nested.instanceName);
+    if (name) return name;
+  }
+  return null;
+}
+
+/**
  * Decodifica o payload bruto do webhook em um evento tipado.
- * Eventos não reconhecidos viram `{ type: 'unknown', raw }` — o handler
- * deve loggar e retornar 200 (acknowledgment).
+ * Eventos não reconhecidos viram `{ type: 'unknown', instance, raw }` —
+ * o handler do route faz `lookupUserByInstance(instance)` ANTES de
+ * acknowledgement (#130).
  */
 export function parseWebhookPayload(json: unknown): ParsedWebhookEvent {
   const root = asObject(json);
-  if (!root) return { type: "unknown", raw: json };
+  if (!root) return { type: "unknown", instance: null, raw: json };
 
   // Evolution costuma usar `event` ou `eventType` no envelope.
   const event = asString(root.event) ?? asString(root.eventType);
-  const instance =
-    asString(root.instance) ??
-    asString(asObject(root.instance)?.instanceName) ??
-    "";
+  const instanceCandidate = extractInstanceFromRoot(root);
+  const instance = instanceCandidate ?? "";
   const data = asObject(root.data);
 
-  if (!event || !data) return { type: "unknown", raw: json };
+  if (!event || !data) {
+    return { type: "unknown", instance: instanceCandidate, raw: json };
+  }
 
   if (event === "messages.upsert" || event === "message.upsert") {
     const key = asObject(data.key);
@@ -133,7 +183,9 @@ export function parseWebhookPayload(json: unknown): ParsedWebhookEvent {
       asString(asObject(message?.extendedTextMessage)?.text) ??
       "";
     const phone = jidPhone(remoteJid);
-    if (!messageId || !phone || !content) return { type: "unknown", raw: json };
+    if (!messageId || !phone || !content) {
+      return { type: "unknown", instance: instanceCandidate, raw: json };
+    }
     return {
       type: "message.upsert",
       instance,
@@ -152,9 +204,13 @@ export function parseWebhookPayload(json: unknown): ParsedWebhookEvent {
     const key = asObject(data.key);
     const messageId = asString(key?.id) ?? asString(data.messageId);
     const rawStatus = asString(data.status) ?? asString(data.update);
-    if (!messageId || !rawStatus) return { type: "unknown", raw: json };
+    if (!messageId || !rawStatus) {
+      return { type: "unknown", instance: instanceCandidate, raw: json };
+    }
     const status = normalizeStatus(rawStatus);
-    if (!status) return { type: "unknown", raw: json };
+    if (!status) {
+      return { type: "unknown", instance: instanceCandidate, raw: json };
+    }
     return { type: "message.status", instance, messageId, status };
   }
 
@@ -174,8 +230,8 @@ export function parseWebhookPayload(json: unknown): ParsedWebhookEvent {
         phoneNumber: jidPhone(owner),
       };
     }
-    return { type: "unknown", raw: json };
+    return { type: "unknown", instance: instanceCandidate, raw: json };
   }
 
-  return { type: "unknown", raw: json };
+  return { type: "unknown", instance: instanceCandidate, raw: json };
 }

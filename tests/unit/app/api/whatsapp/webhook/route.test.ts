@@ -65,13 +65,29 @@ function makeServiceClient(handlers: TableHandlers) {
     const t: TableHandler = handlers[table] ?? {};
     return {
       select: () => buildSelect(t.select?.data ?? null),
-      update: vi.fn((payload: unknown) => ({
-        eq: vi.fn(async () => {
-          calls.push({ table, op: "update", payload });
-          if (t.update) t.update(payload);
-          return { error: null };
-        }),
-      })),
+      update: vi.fn((payload: unknown) => {
+        // Supabase `.update(...).eq(...).eq(...)` é chainable até o await:
+        // o builder retornado por `.update()` precisa expor `.eq()` que
+        // devolve ele mesmo, e só ao await registramos a chamada (uma vez).
+        let recorded = false;
+        const builder: {
+          eq: (column: string, value: unknown) => typeof builder;
+          then: (resolve: (v: { error: null }) => void) => void;
+        } = {
+          eq() {
+            return builder;
+          },
+          then(resolve) {
+            if (!recorded) {
+              recorded = true;
+              calls.push({ table, op: "update", payload });
+              if (t.update) t.update(payload);
+            }
+            resolve({ error: null });
+          },
+        };
+        return builder;
+      }),
       insert: vi.fn(async (payload: unknown) => {
         calls.push({ table, op: "insert", payload });
         if (t.insert) {
