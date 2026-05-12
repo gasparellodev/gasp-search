@@ -1,48 +1,47 @@
 # Gasp Search — Handoff Doc
 
-> Documento de handoff para retomar o desenvolvimento do projeto. Escrito ao final da sessão de bootstrap (Fase 0 + Fase 1 + parte da Fase 2 entregues). Use este doc como ponto de entrada para qualquer agente (Codex, Claude, Cursor, etc.) ou desenvolvedor humano que continue o trabalho.
+> Documento de handoff para retomar o desenvolvimento do projeto. Use este doc como ponto de entrada para qualquer agente (Codex, Claude, Cursor, etc.) ou desenvolvedor humano que continue o trabalho.
 
 ---
 
-## Estado em 7 de maio de 2026
+## Estado em 12 de maio de 2026
 
-### Mergeado em `main` (15 PRs)
+Phases 0-5 entregues integralmente. Phase 6 (Local hardening & Insights) e Phase 7 (Site Generator — Concessionárias) em finalização.
 
-| # | Tema | PR |
+### Mergeado em `main` (113 PRs)
+
+| Phase | Range | Status |
 |---|---|---|
-| Phase 0 | Repo + CI workflow | #41 |
-| Phase 0 | PR/Issue templates + CODEOWNERS | #43 |
-| Phase 0 | CONTRIBUTING.md | #44 |
-| #5 | Bootstrap Next.js 16 + shadcn | #45 |
-| #6 | Setup Vitest + Playwright | #46 |
-| #7 | Env validator (Zod, server-only) | #47 |
-| #8 | Migration SQL + types/database.ts | #48 |
-| #9 | Supabase clients + auth gate (proxy.ts) | #49 |
-| #10 | /login (email + Google) + /callback | #50 |
-| #11 | App shell (Sidebar/Topbar/ThemeToggle) | #51 |
-| #12 | shadcn primitives mínimos | #52 |
-| #13 | Apify client + runAndPersist util | #53 |
-| #14 | Google Maps mapper + normalizeWebsite | #54 |
+| 0 — Repo & CI | #41-#44 | ✅ 5/5 fechadas |
+| 1 — Foundation | #5-#14 | ✅ 8/8 fechadas |
+| 2 — Search Engine | #15-#28 | ✅ 16/16 fechadas |
+| 3 — CRM Tools | #29-#35 | ✅ 7/7 fechadas |
+| 4 — Polish | #36-#40 | ✅ 12/12 fechadas |
+| 6 — Local hardening & Insights | #122-#138 | 🔄 11 fechadas / 13 abertas |
+| 7 — Site Generator (Concessionárias) | #150-#233 | 🔄 44 fechadas / 7 abertas |
 
-### Métricas
+### Plano ativo
 
-- **76 unit tests** verdes, **5 e2e tests** verdes
-- **Coverage**: 93% lines, 76% branches em scope (`lib/`, `app/api/`, `components/{layout,search,leads,pipeline,ai}/`)
-- **CI**: 5 status checks (`lint`, `typecheck`, `unit`, `e2e`, `build`) — todos verdes
-- **Branch protection** ativa em `main`, squash-only
+**Spec**: [`docs/superpowers/specs/2026-05-12-finalize-all-open-issues-design.md`](./docs/superpowers/specs/2026-05-12-finalize-all-open-issues-design.md)
 
-### Issues abertas (26 restantes)
+**Plano executável**: [`docs/superpowers/plans/2026-05-12-finalize-all-open-issues-plan.md`](./docs/superpowers/plans/2026-05-12-finalize-all-open-issues-plan.md)
 
-Veja `gh issue list --state open --limit 30` para o backlog completo.
+Estrutura: 7 waves sequenciais, 28 PRs (24 issues + 4 adjacentes), subagent-driven-development em paralelo dentro de cada wave. Critérios go/no-go entre waves, riscos mapeados, métricas de sucesso verificáveis.
 
-| Phase | Range | Tema |
+### Issues abertas (22 restantes)
+
+```bash
+gh issue list --state open --limit 50
+```
+
+| Bucket | Issues | Wave |
 |---|---|---|
-| 2 — Search Engine | #15–#28 | API GMaps, página /search, tabela de leads, filtros, drawer, tags, Instagram, enriquecimento |
-| 3 — CRM Tools | #29–#35 | Kanban, IA (Anthropic), CSV export, dashboard |
-| 4 — Polish | #36–#40 | Skeletons, toasts, error UX, README, audit |
-| Follow-up | #42 | Pin actions por SHA + permissions block (security) |
-
-> **Importante:** issue #6 (TaskList interno) é "Apply migration 0001_init.sql no Supabase" — precisa ser executado **manualmente** pelo dono do projeto antes que `auth` funcione end-to-end. Veja seção "Manual Steps" abaixo.
+| Bugs CRITICAL/HIGH (Phase 6) | #129, #130, #131, #132 | 1 |
+| Bugs MEDIUM + tech-debt rollup (#138 split) | #133, #134, #135, #138 | 2 |
+| Lead UI convergência | #136, #137 | 3 |
+| Phase 6 features | #122, #123, #124 | 4 |
+| Phase 7 institucionais + Detail trio | #226-#231 | 5 |
+| Phase 7 polish + baseline | #233, #204 | 6 |
 
 ---
 
@@ -219,30 +218,18 @@ Não usar uma key real de produção em branch/PR público antes de decidir se o
 
 ## Próximos passos sugeridos (ordem recomendada)
 
-### Fase 2 (Search Engine) — 14 issues
+Seguir o plano em [`docs/superpowers/plans/2026-05-12-finalize-all-open-issues-plan.md`](./docs/superpowers/plans/2026-05-12-finalize-all-open-issues-plan.md).
 
-1. **#15** API `POST /api/apify/google-maps` — handler que valida body + chama `runAndPersist` + retorna `{ jobId, status, leadsCount }`. Use `lib/apify/run-and-persist.ts` + `lib/apify/google-maps.ts` já prontos. Adicione `export const maxDuration = 300`.
-2. **#16** Página `/search` — Form com tabs (GMaps/Instagram), inputs de termos (chip) + cidade/estado. RTL + E2E.
-3. **#17** Componente `SearchProgress` — spinner + tempo + nome do actor.
-4. **#18** Página `/leads` — TanStack Table + paginação server-side. Substitui placeholder.
-5. **#19** `FiltersBar` — sincronizado com URL searchParams.
-6. **#20** `LeadDetailDrawer` — sheet com tabs.
-7. **#21** API `/api/leads`, `/api/leads/[id]` — GET/PATCH/DELETE.
-8. **#22** Tags CRUD + Combobox.
-9. **#23–#28** Instagram + Enrichment (mesmo padrão da fonte 1).
+**Estado em 2026-05-12**: Wave 0 em execução (housekeeping). Próximas:
 
-### Fase 3 (CRM Tools) — 7 issues
+- **Wave 1** — Bugs CRITICAL/HIGH (#129, #130, #131, #132): rate-limit AI, webhook auth hardening, terminal status, dedupe leadIds.
+- **Wave 2** — Bugs MEDIUM + tech-debt (#133, #134, #135, #138 split): cascade delete, rate-limit campaigns, STAGE_LABEL extract, normalize phone, types regen, SSRF guard.
+- **Wave 3** — Lead UI convergência (#136 → #137): `<LeadTabs>` unificado + cross-links.
+- **Wave 4** — Phase 6 features (#124 ∥ #122 → #123): dashboard insights, BullMQ + Redis, real-time indicators.
+- **Wave 5** — Phase 7 (#229/#230/#231 ∥ #226 → #227 → #228): Sobre/Contato/Anunciar redesign + Detail trio.
+- **Wave 6** — Phase 7 polish (#233 ∥ #204): Analytics + visual baseline 12-fixture.
 
-10. **#29** Kanban `/pipeline` com `@dnd-kit`.
-11. **#30** `lib/ai/anthropic.ts` — usar prompt caching, `claude-sonnet-4-6`.
-12. **#31** API `/api/ai/generate-message`.
-13. **#32–#33** UI da geração + histórico.
-14. **#34** CSV export.
-15. **#35** Dashboard real (substitui placeholder).
-
-### Fase 4 (Polish) — 5 issues
-
-16. **#36–#40** Skeletons, toasts consistentes, error UX, README, audit final.
+Cada wave executa subagent-driven-development com TDD obrigatório, code-review + security-review, squash merge `Closes #N`. Quality gates definidos no [`CLAUDE.md`](./CLAUDE.md) raiz e [`CONTRIBUTING.md`](./CONTRIBUTING.md).
 
 ---
 
