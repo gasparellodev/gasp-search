@@ -156,17 +156,18 @@ async function handleEvent(
       ai_generated: false,
     });
     if (insertErr) {
-      // Se já existe, OK — idempotência via UNIQUE. Outros erros logamos.
-      if (!String(insertErr.message ?? "").includes("duplicate")) {
-        console.warn(
-          JSON.stringify({
-            level: "warn",
-            route: "POST /api/whatsapp/webhook",
-            message: insertErr.message,
-          }),
-        );
+      // #138b — detecção por PG error code (`23505` = unique_violation), não
+      // por string match. `error.message` pode estar localizada ou ser
+      // reescrita por um proxy, então `includes('duplicate')` era frágil.
+      // Outros codes (ex.: `23502` not_null_violation) viram throw para que
+      // a outer catch retorne 500 e o Evolution retransmita.
+      const code = (insertErr as { code?: string }).code;
+      if (code === "23505") {
+        return;
       }
-      return;
+      throw new Error(
+        `lead_messages insert failed (code=${code ?? "unknown"}): ${insertErr.message ?? ""}`,
+      );
     }
 
     if (lead.stage === "new" || lead.stage === "contacted") {

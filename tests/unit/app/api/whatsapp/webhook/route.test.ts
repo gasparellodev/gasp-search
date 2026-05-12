@@ -299,6 +299,159 @@ describe("POST /api/whatsapp/webhook", () => {
     );
   });
 
+  it("message.upsert: erro de insert com code 23505 (PG unique violation) → 200 silencioso (#138b)", async () => {
+    // #138b — trocamos detecção por string match (`includes('duplicate')`)
+    // por checagem do PG error code `23505`. Garante que mensagens de erro
+    // localizadas / reescritas pelo Postgres não furam o silenciamento da
+    // colisão idempotente esperada (UNIQUE em whatsapp_msg_id).
+    const body = makeBody({
+      event: "messages.upsert",
+      instance: "user_aabbccdd",
+      data: {
+        key: {
+          id: "evo-dup",
+          remoteJid: "5511999998888@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "duplicate inbound" },
+      },
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { client, calls } = makeServiceClient({
+      whatsapp_instances: {
+        select: { data: { user_id: "u1", status: "connected" } },
+      },
+      leads: {
+        select: {
+          data: [
+            {
+              id: "lead-1",
+              stage: "contacted",
+              phone: "5511999998888",
+              whatsapp: null,
+            },
+          ],
+        },
+      },
+      lead_messages: {
+        insert: () => ({
+          error: {
+            code: "23505",
+            message: "duplicate key value violates unique constraint",
+          },
+        }),
+      },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
+    const { POST } = await import("@/app/api/whatsapp/webhook/route");
+    const res = await POST(makeReq(body, sigHeader(body)));
+    expect(res.status).toBe(200);
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(
+      calls.find((c) => c.table === "leads" && c.op === "update"),
+    ).toBeUndefined();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+  });
+
+  it("message.upsert: erro de insert com code 23505 ainda funciona mesmo se message não tem 'duplicate' (#138b)", async () => {
+    // Reforça que a detecção é por CODE, não pela string. Em alguns locales
+    // a `message` do Postgres pode estar traduzida e não conter "duplicate".
+    const body = makeBody({
+      event: "messages.upsert",
+      instance: "user_aabbccdd",
+      data: {
+        key: {
+          id: "evo-dup-ptbr",
+          remoteJid: "5511999998888@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "ola" },
+      },
+    });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { client } = makeServiceClient({
+      whatsapp_instances: {
+        select: { data: { user_id: "u1", status: "connected" } },
+      },
+      leads: {
+        select: {
+          data: [
+            {
+              id: "lead-1",
+              stage: "in_conversation",
+              phone: "5511999998888",
+              whatsapp: null,
+            },
+          ],
+        },
+      },
+      lead_messages: {
+        insert: () => ({
+          error: {
+            code: "23505",
+            message: "valor duplicado viola restrição de unicidade",
+          },
+        }),
+      },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
+    const { POST } = await import("@/app/api/whatsapp/webhook/route");
+    const res = await POST(makeReq(body, sigHeader(body)));
+    expect(res.status).toBe(200);
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("message.upsert: erro com outro code PG (23502 not null) → 500 (Evolution retransmite) (#138b)", async () => {
+    const body = makeBody({
+      event: "messages.upsert",
+      instance: "user_aabbccdd",
+      data: {
+        key: {
+          id: "evo-broken",
+          remoteJid: "5511999998888@s.whatsapp.net",
+          fromMe: false,
+        },
+        message: { conversation: "oi" },
+      },
+    });
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { client } = makeServiceClient({
+      whatsapp_instances: {
+        select: { data: { user_id: "u1", status: "connected" } },
+      },
+      leads: {
+        select: {
+          data: [
+            {
+              id: "lead-1",
+              stage: "contacted",
+              phone: "5511999998888",
+              whatsapp: null,
+            },
+          ],
+        },
+      },
+      lead_messages: {
+        insert: () => ({
+          error: {
+            code: "23502",
+            message: "null value in column violates not-null constraint",
+          },
+        }),
+      },
+    });
+    serviceMocks.createServiceSupabase.mockReturnValue(client);
+    const { POST } = await import("@/app/api/whatsapp/webhook/route");
+    const res = await POST(makeReq(body, sigHeader(body)));
+    expect(res.status).toBe(500);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
+  });
+
   it("message.upsert: ignora se phone não bate com nenhum lead", async () => {
     const body = makeBody({
       event: "messages.upsert",
