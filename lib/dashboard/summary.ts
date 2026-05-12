@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { LEAD_STAGES, type LeadStage } from "@/lib/validators/leads";
-import type { DashboardSummary } from "@/lib/dashboard/types";
+import type { DashboardCounters } from "@/lib/dashboard/types";
 
 function emptyStageCounts(): Record<LeadStage, number> {
   return {
@@ -32,7 +32,7 @@ export async function getDashboardSummary({
 }: {
   supabase: SupabaseClient<Database>;
   now?: Date;
-}): Promise<DashboardSummary> {
+}): Promise<DashboardCounters> {
   const sevenDaysAgo = new Date(now);
   sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
 

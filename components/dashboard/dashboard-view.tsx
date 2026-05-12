@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Funnel } from "@/components/dashboard/funnel";
+import { SourceBreakdown } from "@/components/dashboard/source-breakdown";
 import type {
   DashboardSummary,
   RecentSearch,
@@ -277,6 +279,11 @@ export function DashboardView() {
             icon={Clock3}
           />
         ))}
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SourceBreakdown data={summary.sourceBreakdown} />
+        <Funnel data={summary.funnel} />
       </div>
 
       <Card>
