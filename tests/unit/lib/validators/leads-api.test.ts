@@ -239,6 +239,21 @@ describe("createLeadSchema — website SSRF guard", () => {
   it("rejeita CGNAT 100.64.0.0/10", () => {
     expectWebsite("http://100.64.0.1", false);
   });
+
+  // O construtor URL normaliza notações IPv4 alternativas (hex, octal,
+  // decimal único) para a forma dotted-decimal. Garantimos que o guard
+  // captura todas elas — vetor clássico de bypass de regex naive.
+  it("rejeita IPv4 em notação hex (0x7f.0.0.1 → 127.0.0.1)", () => {
+    expectWebsite("http://0x7f.0.0.1", false);
+  });
+
+  it("rejeita IPv4 em notação decimal única (2130706433 → 127.0.0.1)", () => {
+    expectWebsite("http://2130706433", false);
+  });
+
+  it("rejeita IPv4 em notação octal (0177.0.0.1 → 127.0.0.1)", () => {
+    expectWebsite("http://0177.0.0.1", false);
+  });
 });
 
 describe("updateLeadSchema — website SSRF guard", () => {
