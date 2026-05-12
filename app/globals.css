@@ -289,6 +289,7 @@
   --z-floating-cta: 50;
   --z-installment-bar: 45;
   --z-cookie-banner: 80;
+  --z-lightbox: 90;
 
   /* --- Typography families (DESIGN.md §Typography) ------------------------- */
   --auto-font-display: var(--font-geist), -apple-system, BlinkMacSystemFont,
