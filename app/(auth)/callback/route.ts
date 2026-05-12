@@ -17,7 +17,24 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type");
-  const redirectTo = searchParams.get("redirectTo") ?? "/dashboard";
+
+  // #138b — guard contra open redirect via `?redirectTo=`.
+  //
+  // Sem isso, valores como `//evil.com`, `/\evil.com` ou `https://evil.com`
+  // são interpretados pelo browser como cross-origin (protocol-relative ou
+  // absoluto), permitindo que um atacante phishing roube a sessão recém-
+  // emitida ao redirecionar o usuário pra um clone do app.
+  //
+  // Aceitamos APENAS path relativo iniciado por `/` e seguido de char
+  // diferente de `/` ou `\` (que browsers podem normalizar para `//`).
+  const requestedRedirect = searchParams.get("redirectTo");
+  const isSafeRedirect =
+    typeof requestedRedirect === "string" &&
+    requestedRedirect.length > 1 &&
+    requestedRedirect.startsWith("/") &&
+    !requestedRedirect.startsWith("//") &&
+    !requestedRedirect.startsWith("/\\");
+  const redirectTo = isSafeRedirect ? requestedRedirect : "/dashboard";
 
   // Ambiente Next 16: response será mutada pelo cookie handler.
   let response = NextResponse.redirect(`${origin}${redirectTo}`);

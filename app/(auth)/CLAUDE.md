@@ -25,6 +25,12 @@ Route group para fluxos de autenticação. Rotas aqui são **públicas** (não e
 1. **Forms validados via Zod** (`lib/validators/auth.ts`). Mensagens em PT-BR.
 2. **Senha mínima 8 caracteres** (alinhado ao default do Supabase Auth).
 3. **OAuth `redirectTo`** sempre relativo ao `publicEnv.NEXT_PUBLIC_APP_URL` — sem hardcode de host.
+   - **Guard contra open redirect (#138b).** `callback/route.ts` aceita o
+     query param `redirectTo` APENAS se for path relativo (`/...`) com mais
+     de um char, **rejeitando** `//evil.com` (protocol-relative), `/\evil.com`
+     (browsers normalizam `\` → `/`) e qualquer URL absoluta. Fallback é
+     `/dashboard`. Sem isso, um atacante consegue exfiltrar a sessão recém
+     emitida ao linkar `…/callback?redirectTo=//evil.com`.
 4. **Erros do Supabase** vão para toast (`sonner`) E `?error=...` na URL para casos de redirect.
 5. **`emailRedirectTo` no signUp** aponta para `/callback` para confirmar e-mail antes de ativar.
 6. **Após sign-in com sucesso**: `router.push(redirectTo)` + `router.refresh()` para revalidar Server Components com a nova sessão.
