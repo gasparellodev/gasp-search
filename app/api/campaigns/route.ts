@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 import { apiErrorResponse } from "@/lib/api/errors";
-import { processCampaign } from "@/lib/campaigns/processor";
+import { enqueueCampaign } from "@/lib/queue/campaigns";
 import { env } from "@/lib/env";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createCampaignSchema } from "@/lib/validators/campaigns";
 
-export const maxDuration = 300;
+// #122: rota agora apenas enfileira em BullMQ. Processamento real acontece
+// no worker (`lib/queue/worker.ts`) — `maxDuration` baixo basta porque o
+// caminho crítico aqui é "INSERT campaign + INSERT targets + enqueue".
+export const maxDuration = 30;
 export const dynamic = "force-dynamic";
 
 const ONE_HOUR_MS = 3_600_000;
@@ -147,7 +150,12 @@ export async function POST(request: Request) {
         ai_tone: parsed.data.aiTone ?? null,
         ai_goal: parsed.data.aiGoal ?? null,
         total_count: leadIds.length,
-        status: "draft",
+        // status='running' já no INSERT (#122): a campanha está "running" do
+        // ponto de vista do usuário a partir do momento em que os jobs estão
+        // na fila aguardando o worker. Antes de #122 isso ocorria dentro do
+        // processor inline; agora é parte do contrato da rota.
+        status: "running",
+        started_at: new Date().toISOString(),
       })
       .select("id")
       .single();
@@ -175,14 +183,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Processor inline (mesma request, com maxDuration=300 acomodando até 50 leads * ~3s).
-    await processCampaign({
-      supabase,
-      userId: user.id,
+    // Enfileira N jobs (1 por target). Worker dedicado consome respeitando
+    // throttle anti-ban (#122). NÃO bloqueia a request.
+    // `(campaign_id, lead_id)` é a PK composta — sem coluna `id` sintética.
+    const { queuedTargets } = await enqueueCampaign({
       campaignId: created.id,
+      userId: user.id,
+      targets: leadIds.map((leadId) => ({ leadId })),
     });
 
-    return NextResponse.json({ campaignId: created.id }, { status: 201 });
+    return NextResponse.json(
+      { campaignId: created.id, queuedTargets },
+      { status: 201 },
+    );
   } catch (error) {
     return apiErrorResponse(
       error,
