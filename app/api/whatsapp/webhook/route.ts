@@ -142,6 +142,22 @@ async function handleEvent(
     if (!lead) {
       // Mensagem de número que não está nos leads do user — ignoramos no MVP.
       // Fase futura: criar lead automático ou inbox "outros números".
+      //
+      // #133: até então o drop acontecia em silêncio. Log estruturado pra
+      // observabilidade (auditoria, alerta de número novo, debug de
+      // normalização de phone). Não logamos `content` pra não vazar
+      // mensagem do remetente em logs.
+      console.warn(
+        JSON.stringify({
+          level: "warn",
+          route: "POST /api/whatsapp/webhook",
+          event: "inbound_dropped",
+          reason: "no_matching_lead",
+          remoteJid: event.from,
+          instance: event.instance,
+          userId: ctx.userId,
+        }),
+      );
       return;
     }
     // INSERT idempotente pelo UNIQUE de whatsapp_msg_id.
