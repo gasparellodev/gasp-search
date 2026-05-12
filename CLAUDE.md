@@ -95,6 +95,7 @@ Ver `.env.local.example` para a lista canônica. Todas validadas via Zod em `lib
 | `EVOLUTION_WEBHOOK_SECRET` | server-only (mín 16 chars; obrigatório se WhatsApp habilitado) |
 | `NEXT_PUBLIC_WHATSAPP_ENABLED` | client + server (`'0'` \| `'1'`, default `'0'`) |
 | `NEXT_PUBLIC_SITE_FORMS_ENABLED` | client + server (`'0'` \| `'1'`, default `'0'`) — Phase 7 #H3 contact form persistence gate |
+| `REDIS_URL` | server-only (default `redis://localhost:6380`) — Phase 6 #122. Conexão BullMQ + ioredis para fila durável `campaign-targets`. Aceita `rediss://` (TLS/auth) em V2 prod. |
 | `INDEXNOW_KEY` | server-only, opcional — Phase 7 #232. Quando preenchida, `signLeadSite()` dispara IndexNow para URLs públicas assinadas; exige `public/<INDEXNOW_KEY>.txt` publicado manualmente. |
 
 ## Onde está o quê
