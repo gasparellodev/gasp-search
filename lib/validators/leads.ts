@@ -203,6 +203,70 @@ const uuidArraySchema = z.array(z.string().uuid()).max(50);
 const optionalString = (max: number) =>
   z.string().trim().max(max).optional().nullable();
 
+// SSRF guard para campo `website` (issue #138). Bloqueia hosts privados,
+// loopback, link-local, CGNAT e schemes não-http(s). Defense-in-depth:
+// mesmo que código consumidor passe a URL para `fetch`, validator rejeita
+// vetores comuns de SSRF (AWS metadata 169.254.169.254, RFC1918, etc).
+//
+// NOTE: Validação estática (parse-time). Não cobre DNS rebinding (host
+// público que resolve para IP privado em runtime). Caso o uso evolua para
+// fetch server-side, exigir resolução DNS + revalidação por request.
+export function isPrivateOrReservedHost(hostname: string): boolean {
+  const lc = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (lc === "localhost" || lc === "::1" || lc === "::") return true;
+
+  const ipv4 = /^(\d+)\.(\d+)\.(\d+)\.(\d+)$/.exec(lc);
+  if (ipv4) {
+    const octets = [
+      Number(ipv4[1]),
+      Number(ipv4[2]),
+      Number(ipv4[3]),
+      Number(ipv4[4]),
+    ];
+    if (!octets.every((n) => Number.isFinite(n) && n >= 0 && n <= 255)) {
+      return true;
+    }
+    const [a, b] = octets as [number, number, number, number];
+    if (a === 0) return true;
+    if (a === 127) return true;
+    if (a === 10) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a >= 224) return true;
+  }
+
+  if (lc.startsWith("fc") || lc.startsWith("fd")) return true;
+  if (lc.startsWith("fe80:")) return true;
+
+  return false;
+}
+
+function isPublicHttpUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (!url.hostname) return false;
+  if (isPrivateOrReservedHost(url.hostname)) return false;
+  return true;
+}
+
+const websiteSchema = z
+  .string()
+  .trim()
+  .max(200)
+  .refine(
+    (value) => value === "" || isPublicHttpUrl(value),
+    "URL inválida ou aponta para host privado",
+  )
+  .optional()
+  .nullable();
+
 export const createLeadSchema = z
   .object({
     name: z.string().trim().min(2).max(120),
@@ -213,7 +277,7 @@ export const createLeadSchema = z
     country: optionalString(40),
     phone: optionalString(40),
     email: optionalString(160),
-    website: optionalString(200),
+    website: websiteSchema,
     instagram_handle: optionalString(60),
     whatsapp: optionalString(40),
     has_website: z.boolean().optional().nullable(),
@@ -235,7 +299,7 @@ export const updateLeadSchema = z
     country: optionalString(40),
     phone: optionalString(40),
     email: optionalString(160),
-    website: optionalString(200),
+    website: websiteSchema,
     instagram_handle: optionalString(60),
     whatsapp: optionalString(40),
     has_website: z.boolean().optional().nullable(),
