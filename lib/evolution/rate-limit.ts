@@ -13,7 +13,17 @@ type Bucket = { lastSentAt: number };
 
 const buckets = new Map<string, Bucket>();
 
-const DEFAULT_INTERVAL_MS = 3_000;
+/**
+ * Throttle default (em ms) entre envios outbound do Evolution API.
+ *
+ * Compartilhado por:
+ *   - `checkRateLimit` (rate-limit 1-a-1 da rota `/api/whatsapp/send`).
+ *   - `processCampaign` (sleep entre targets no processor de campanha).
+ *
+ * Single source para evitar magic `3_000` espalhado (#138a). 3s mantém
+ * margem confortável vs ban heurístico do WhatsApp (~1msg/s sustentado).
+ */
+export const EVOLUTION_DEFAULT_THROTTLE_MS = 3_000;
 
 export type RateLimitResult =
   | { ok: true }
@@ -21,7 +31,7 @@ export type RateLimitResult =
 
 export function checkRateLimit(
   userId: string,
-  intervalMs: number = DEFAULT_INTERVAL_MS,
+  intervalMs: number = EVOLUTION_DEFAULT_THROTTLE_MS,
 ): RateLimitResult {
   const now = Date.now();
   const bucket = buckets.get(userId);
