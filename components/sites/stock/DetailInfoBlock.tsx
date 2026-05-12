@@ -1,6 +1,5 @@
 import "server-only";
 
-import { formatBRL } from "@/lib/finance";
 import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
 import { AICitableHero } from "../AICitableHero";
@@ -55,13 +54,6 @@ export function DetailInfoBlock({ variables, car }: DetailInfoBlockProps) {
           ),
         )}
       </ul>
-
-      <p
-        data-testid="car-detail-price"
-        className="text-3xl font-bold text-foreground md:text-4xl"
-      >
-        {car.price === null ? "Sob consulta" : formatBRL(car.price)}
-      </p>
 
       <div>
         <h2 className="text-sm font-medium uppercase text-foreground/60">

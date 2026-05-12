@@ -1,6 +1,5 @@
 import "server-only";
 
-import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteCar, SiteVariablesV2 } from "@/types/lead-site";
 
 import { SiteForm } from "../SiteForm";
@@ -8,6 +7,7 @@ import { SiteForm } from "../SiteForm";
 import { DetailBreadcrumb } from "./DetailBreadcrumb";
 import { DetailGalleryCinema } from "./DetailGalleryCinema";
 import { DetailInfoBlock } from "./DetailInfoBlock";
+import { DetailPriceBlock } from "./DetailPriceBlock";
 import { DetailSpecGrid } from "./DetailSpecGrid";
 
 type CarDetailVariables = Pick<
@@ -36,9 +36,10 @@ interface CarDetailSectionProps {
  * Layout:
  *   - Breadcrumb visual shared (`<Breadcrumb>`).
  *   - Gallery cinema scroll-snap + lightbox Radix.
- *   - Info: model+year, GEO passage, badges, preço e descrição.
+ *   - Info: model+year, GEO passage, badges e descrição.
+ *   - Bloco de preço sticky (`<DetailPriceBlock>`): parcela, calculadora,
+ *     selos e CTAs WhatsApp.
  *   - Spec grid híbrido top-level + datasheet permitido.
- *   - WhatsApp CTA: gerado via `buildWhatsAppLink` (template `vehicle`).
  *   - `<SiteForm variant="car-detail" prefillModel="<brand> <model>">` inline.
  *
  * Per spec §13: zero `dangerouslySetInnerHTML`. URLs externas com
@@ -50,20 +51,6 @@ export function CarDetailSection({
   siteId,
   slug,
 }: CarDetailSectionProps) {
-  const whatsappHref = buildWhatsAppLink({
-    template: "vehicle",
-    phone: variables.whatsapp,
-    businessName: variables.business_name,
-    siteSlug: variables.business_slug,
-    component: "car-detail",
-    vehicle: {
-      brand: car.brand,
-      model: car.model,
-      year: car.year,
-      price: car.price,
-      carSlug: car.slug,
-    },
-  });
   const prefillModel = `${car.brand} ${car.model}`;
 
   return (
@@ -79,7 +66,7 @@ export function CarDetailSection({
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.75fr)] lg:gap-10">
           <DetailGalleryCinema car={car} />
 
-          <aside className="flex flex-col gap-6 lg:sticky lg:top-[calc(var(--site-header-h,72px)+2rem)] lg:self-start">
+          <aside className="flex flex-col gap-6 lg:self-start">
             <DetailInfoBlock
               variables={{
                 business_name: variables.business_name,
@@ -89,16 +76,14 @@ export function CarDetailSection({
               car={car}
             />
 
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-testid="car-detail-cta-whatsapp"
-              aria-label={`Falar no WhatsApp sobre ${car.brand} ${car.model} ${car.year}`}
-              className="inline-flex h-12 items-center justify-center rounded-full bg-foreground px-8 text-sm font-medium text-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
-            >
-              Falar no WhatsApp
-            </a>
+            <DetailPriceBlock
+              variables={{
+                business_name: variables.business_name,
+                business_slug: variables.business_slug,
+                whatsapp: variables.whatsapp,
+              }}
+              car={car}
+            />
           </aside>
         </div>
 

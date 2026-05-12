@@ -105,6 +105,11 @@ export const SiteCar = z.object({
   photos: z.array(imageUrlOrPath).min(3).max(8).optional(),
   vin: z.string().regex(/^[A-HJ-NPR-Z0-9]{17}$/).optional(),
   plates_visible: z.literal(false).optional(),
+
+  /** Disponibilidade comercial (opcional — default disponível). */
+  available: z.boolean().optional(),
+  /** Status de venda (opcional — `sold` trata como indisponível). */
+  status: z.enum(["available", "sold"]).optional(),
 });
 export type SiteCar = z.infer<typeof SiteCar>;
 
