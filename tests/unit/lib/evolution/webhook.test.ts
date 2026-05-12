@@ -5,9 +5,12 @@ vi.mock("@/lib/env", () => ({
   env: { EVOLUTION_API_URL: "http://x", EVOLUTION_API_KEY: "k" },
 }));
 
-const { normalizePhone, parseWebhookPayload, verifyHmac } = await import(
-  "@/lib/evolution/webhook"
-);
+const {
+  generateInstanceSlug,
+  normalizePhone,
+  parseWebhookPayload,
+  verifyHmac,
+} = await import("@/lib/evolution/webhook");
 
 describe("verifyHmac", () => {
   it("aceita assinatura válida (com prefixo sha256=)", () => {
@@ -163,5 +166,61 @@ describe("parseWebhookPayload", () => {
     expect(parseWebhookPayload({ data: {} }).type).toBe("unknown");
     expect(parseWebhookPayload(null).type).toBe("unknown");
     expect(parseWebhookPayload("string").type).toBe("unknown");
+  });
+
+  it("expõe instance no envelope mesmo quando event é unknown (defesa anti-leak HMAC #130)", () => {
+    const r1 = parseWebhookPayload({
+      event: "unknown.event",
+      instance: "abcdef0123456789",
+      data: {},
+    });
+    expect(r1.type).toBe("unknown");
+    if (r1.type === "unknown") {
+      expect(r1.instance).toBe("abcdef0123456789");
+    }
+
+    const r2 = parseWebhookPayload({
+      event: "messages.upsert",
+      instance: "abcdef0123456789",
+      data: { key: {}, message: {} },
+    });
+    expect(r2.type).toBe("unknown");
+    if (r2.type === "unknown") {
+      expect(r2.instance).toBe("abcdef0123456789");
+    }
+
+    expect(parseWebhookPayload(null)).toEqual({
+      type: "unknown",
+      instance: null,
+      raw: null,
+    });
+  });
+
+  it("extrai instance do objeto envelope.instance.instanceName", () => {
+    const r = parseWebhookPayload({
+      event: "foo",
+      instance: { instanceName: "nested-slug-1234" },
+      data: {},
+    });
+    expect(r.type).toBe("unknown");
+    if (r.type === "unknown") {
+      expect(r.instance).toBe("nested-slug-1234");
+    }
+  });
+});
+
+describe("generateInstanceSlug", () => {
+  it("retorna string de 16 chars do alfabeto URL-safe nanoid", () => {
+    const slug = generateInstanceSlug();
+    expect(slug).toHaveLength(16);
+    expect(slug).toMatch(/^[A-Za-z0-9_-]{16}$/);
+  });
+
+  it("retorna valores distintos em chamadas sucessivas (entropia suficiente)", () => {
+    const set = new Set<string>();
+    for (let i = 0; i < 256; i += 1) {
+      set.add(generateInstanceSlug());
+    }
+    expect(set.size).toBe(256);
   });
 });

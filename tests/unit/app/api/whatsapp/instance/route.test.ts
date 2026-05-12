@@ -175,26 +175,33 @@ describe("POST /api/whatsapp/instance", () => {
     expect(res.status).toBe(401);
   });
 
-  it("cria instância e faz upsert com status qr_pending", async () => {
+  it("cria instância com slug nanoid não-previsível e faz upsert com status qr_pending (#130)", async () => {
     supabaseMocks.getUser.mockResolvedValue({
       data: { user: { id: "11111111-2222-3333-4444-555555555555" } },
       error: null,
     });
     const { client, spies } = makeSupabase({});
     supabaseMocks.createServerSupabase.mockResolvedValue(client);
-    evolutionMocks.createInstance.mockResolvedValue({
-      instanceName: "user_11111111",
+    evolutionMocks.createInstance.mockImplementation(async (slug: string) => ({
+      instanceName: slug,
       status: "qr_pending",
       qrcode: "data:image/png;base64,xxx",
-    });
+    }));
     const { POST } = await import("@/app/api/whatsapp/instance/route");
     const res = await POST();
     expect(res.status).toBe(201);
-    expect(evolutionMocks.createInstance).toHaveBeenCalledWith("user_11111111");
+
+    // Slug deve seguir o alfabeto nanoid (`A-Za-z0-9_-`) com 16 chars.
+    // Sem o `user_` prefix legado — esse era o vetor enumerável de #130.
+    const slugArg = evolutionMocks.createInstance.mock.calls[0]?.[0];
+    expect(slugArg).toMatch(/^[A-Za-z0-9_-]{16}$/);
+    expect(slugArg).not.toMatch(/^user_/);
+
     expect(spies.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         user_id: "11111111-2222-3333-4444-555555555555",
-        evo_instance: "user_11111111",
+        evo_instance: slugArg,
+        evo_instance_v2: slugArg,
         status: "qr_pending",
         qr_code: "data:image/png;base64,xxx",
       }),
@@ -214,11 +221,11 @@ describe("POST /api/whatsapp/instance", () => {
     });
     const { client, spies } = makeSupabase({});
     supabaseMocks.createServerSupabase.mockResolvedValue(client);
-    evolutionMocks.createInstance.mockResolvedValue({
-      instanceName: "user_11111111",
+    evolutionMocks.createInstance.mockImplementation(async (slug: string) => ({
+      instanceName: slug,
       status: "connected",
       qrcode: null,
-    });
+    }));
     const { POST } = await import("@/app/api/whatsapp/instance/route");
     await POST();
     expect(spies.upsert).toHaveBeenCalledWith(

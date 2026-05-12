@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import {
+  extractInstanceFromRoot,
   normalizePhone,
   parseWebhookPayload,
   verifyHmac,
@@ -8,14 +9,24 @@ import {
 } from "@/lib/evolution/webhook";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
-// Endpoint público — sem cookie de sessão. Autenticidade vem do HMAC do header
-// "x-evolution-signature" (sha256 do raw body com EVOLUTION_WEBHOOK_SECRET).
-// Usa service_role pra escrever mas SEMPRE filtra por user_id resolvido via
-// `whatsapp_instances.evo_instance` lookup.
+// Endpoint público — sem cookie de sessão. Autenticidade vem de dois caminhos:
 //
-// Sempre retorna 200 quando o payload é válido, mesmo se evento for unknown
-// ou sem efeito — Evolution retransmite em qualquer não-2xx, o que vai gerar
-// duplicatas idempotência depende mas barulho desnecessário também.
+//   1. HMAC do header de assinatura (originador assina o raw body com
+//      EVOLUTION_WEBHOOK_SECRET). Caminho preferido em produção.
+//   2. Fallback compatível com Evolution v2 que não assina nativamente:
+//      o `instance` do payload precisa bater com uma row de
+//      `whatsapp_instances` criada via rota autenticada
+//      `POST /api/whatsapp/instance`.
+//
+// **#130 — auth hardening:** o lookup de `lookupUserByInstance` agora
+// roda ANTES do short-circuit de eventos `unknown`. Sem isso, o handler
+// vazava presença/ausência de HMAC para qualquer atacante. Todos os
+// updates persistem `.eq('user_id', ctx.userId)` para defender contra
+// IDOR cross-tenant (e.g. flipar `message.status` de outro tenant).
+//
+// Sempre retornamos 200 quando o payload é válido E autenticado, mesmo
+// se o evento for unknown ou sem efeito — Evolution retransmite em
+// qualquer não-2xx, o que gera duplicatas.
 
 const SIGNATURE_HEADERS = [
   "x-evolution-signature",
@@ -35,13 +46,27 @@ async function lookupUserByInstance(
   supabase: ReturnType<typeof createServiceSupabase>,
   instance: string,
 ): Promise<{ userId: string; status: string } | null> {
-  const { data } = await supabase
+  // Caminho preferido pós-#130: slug nanoid em `evo_instance_v2`. O índice
+  // UNIQUE em (evo_instance_v2) garante 0 ou 1 row.
+  const v2 = await supabase
+    .from("whatsapp_instances")
+    .select("user_id, status")
+    .eq("evo_instance_v2", instance)
+    .maybeSingle();
+  if (v2.data) {
+    return { userId: v2.data.user_id, status: v2.data.status };
+  }
+
+  // Fallback para instâncias legadas ainda pareadas no Evolution com o
+  // slug antigo `user_<8hex>`. Drop após restart cycle (migration 0022
+  // marca `evo_instance` como DEPRECATED).
+  const legacy = await supabase
     .from("whatsapp_instances")
     .select("user_id, status")
     .eq("evo_instance", instance)
     .maybeSingle();
-  if (!data) return null;
-  return { userId: data.user_id, status: data.status };
+  if (!legacy.data) return null;
+  return { userId: legacy.data.user_id, status: legacy.data.status };
 }
 
 async function resolveLeadForInbound(
@@ -68,10 +93,9 @@ async function resolveLeadForInbound(
 async function handleEvent(
   supabase: ReturnType<typeof createServiceSupabase>,
   event: ParsedWebhookEvent,
+  ctx: { userId: string; status: string } | null,
 ) {
   if (event.type === "unknown") return;
-
-  const ctx = await lookupUserByInstance(supabase, event.instance);
 
   if (event.type === "connection.update") {
     if (!ctx) return; // instância não conhecida — descartar
@@ -94,16 +118,20 @@ async function handleEvent(
         phone_number: event.phoneNumber,
         last_seen_at: new Date().toISOString(),
       })
-      .eq("evo_instance", event.instance);
+      .eq("user_id", ctx.userId);
     return;
   }
 
   if (event.type === "message.status") {
-    // Status update — não exige user lookup, basta whatsapp_msg_id.
+    if (!ctx) return; // sem dono conhecido — não toca status de ninguém.
+    // ⚠️ #130 fix: o `.eq('user_id', ctx.userId)` é o que impede um
+    // atacante (com qualquer instance válida) de flipar status de mensagens
+    // de outros tenants conhecendo só o `whatsapp_msg_id`.
     await supabase
       .from("lead_messages")
       .update({ status: event.status })
-      .eq("whatsapp_msg_id", event.messageId);
+      .eq("whatsapp_msg_id", event.messageId)
+      .eq("user_id", ctx.userId);
     return;
   }
 
@@ -142,10 +170,14 @@ async function handleEvent(
     }
 
     if (lead.stage === "new" || lead.stage === "contacted") {
+      // Defense-in-depth: lead.id já é único, mas escopamos por user_id
+      // pra alinhar com o pattern dos outros updates e proteger contra
+      // qualquer cenário onde a resolução de lead retorne id alheio.
       await supabase
         .from("leads")
         .update({ stage: "in_conversation" })
-        .eq("id", lead.id);
+        .eq("id", lead.id)
+        .eq("user_id", ctx.userId);
     }
     return;
   }
@@ -170,42 +202,44 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
 
-  const event = parseWebhookPayload(payload);
-  if (event.type === "unknown") {
-    // Aceita mas não processa — evita retransmissão.
-    return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
-  }
-
   try {
     const supabase = createServiceSupabase();
 
-    // Fallback de auth para Evolution v2.x, que não assina webhooks
-    // nativamente: aceita só quando o `instance` do payload bate com uma row
-    // de `whatsapp_instances` (criada via /api/whatsapp/instance autenticado).
-    if (!signature) {
-      const known = await lookupUserByInstance(supabase, event.instance);
-      if (!known) {
-        return NextResponse.json(
-          { error: "unauthorized" },
-          { status: 401 },
-        );
-      }
+    // #130: SEMPRE resolvemos o `userId` via lookup ANTES de qualquer
+    // processamento (inclusive eventos `unknown`). Caso contrário o
+    // short-circuit anterior vazava "HMAC está configurado" — sinal útil
+    // para atacantes que recebem 401 em assinatura inválida vs 200 em
+    // payload qualquer.
+    const instanceCandidate = extractInstanceFromRoot(payload);
+    const ctx = instanceCandidate
+      ? await lookupUserByInstance(supabase, instanceCandidate)
+      : null;
+
+    if (!signature && !ctx) {
+      // Sem HMAC e sem instância conhecida — sem caminho de auth válido.
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
 
-    await handleEvent(supabase, event);
+    const event = parseWebhookPayload(payload);
+    if (event.type === "unknown") {
+      // Aceita mas não processa — evita retransmissão. Importante: só
+      // chegamos aqui após HMAC válido OU lookup do `instance` ter
+      // sucedido, então o 200 não vaza configuração de HMAC.
+      return NextResponse.json({ ok: true, ignored: true }, { status: 200 });
+    }
+
+    await handleEvent(supabase, event, ctx);
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch (error) {
     console.error(
       JSON.stringify({
         level: "error",
         route: "POST /api/whatsapp/webhook",
-        message: error instanceof Error ? error.message : "webhook handler failed",
+        message:
+          error instanceof Error ? error.message : "webhook handler failed",
       }),
     );
     // Retornamos 500 pra Evolution retransmitir.
-    return NextResponse.json(
-      { error: "internal" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "internal" }, { status: 500 });
   }
 }
