@@ -992,6 +992,192 @@ function buildIndexNowUrls(args: {
   return urls;
 }
 
+// ---------------------------------------------------------------------------
+// uploadLeadSiteLogo (WP5 — issue #313)
+// ---------------------------------------------------------------------------
+
+const LOGO_MIME_TYPES = [
+  "image/png",
+  "image/svg+xml",
+  "image/jpeg",
+  "image/webp",
+] as const;
+
+const LOGO_MIME_TO_EXT: Record<(typeof LOGO_MIME_TYPES)[number], string> = {
+  "image/png": "png",
+  "image/svg+xml": "svg",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
+
+export type UploadLeadSiteLogoResult =
+  | { ok: true; logo_url: string }
+  | {
+      ok: false;
+      error:
+        | "auth"
+        | "not_found"
+        | "empty_file"
+        | "invalid_mime"
+        | "too_large"
+        | "storage_error"
+        | "db_error";
+      message: string;
+    };
+
+function randomHashHex(bytes: number): string {
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/**
+ * Server Action `uploadLeadSiteLogo(leadSiteId, FormData)` — recebe o
+ * arquivo de logo via FormData (campo `file`), valida MIME/size, sobe
+ * pro bucket `visual-identity/<slug>/logo-<hash>.<ext>` via service_role
+ * e atualiza `variables.brand_assets.logo_url`.
+ *
+ * Ownership check: lookup do site via Supabase auth-client (RLS filtra por
+ * `auth.uid()`) ANTES de operar com service_role — defesa contra IDOR.
+ *
+ * Cache: `updateTag('site:<slug>')` invalida páginas públicas e o cache
+ * do editor de lead.
+ */
+export async function uploadLeadSiteLogo(
+  leadSiteId: string,
+  formData: FormData,
+): Promise<UploadLeadSiteLogoResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para enviar a logo.",
+    };
+  }
+
+  // Step 2: Extract + validate file
+  const fileEntry = formData.get("file");
+  if (!(fileEntry instanceof File) || fileEntry.size === 0) {
+    return {
+      ok: false,
+      error: "empty_file",
+      message: "Nenhum arquivo enviado.",
+    };
+  }
+  const file = fileEntry;
+
+  if (
+    !LOGO_MIME_TYPES.includes(
+      file.type as (typeof LOGO_MIME_TYPES)[number],
+    )
+  ) {
+    return {
+      ok: false,
+      error: "invalid_mime",
+      message: "Formato inválido. Use PNG, SVG, JPEG ou WEBP.",
+    };
+  }
+
+  if (file.size > MAX_LOGO_SIZE_BYTES) {
+    return {
+      ok: false,
+      error: "too_large",
+      message: "Arquivo maior que 2 MB. Tente uma imagem menor.",
+    };
+  }
+
+  // Step 3: Ownership check via RLS (auth-client)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, slug, variables")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Site não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 4: Upload via service_role
+  const ext = LOGO_MIME_TO_EXT[file.type as (typeof LOGO_MIME_TYPES)[number]];
+  const destPath = `${existing.slug}/logo-${randomHashHex(4)}.${ext}`;
+
+  const service = createServiceSupabase();
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const { error: uploadError } = await service.storage
+    .from("visual-identity")
+    .upload(destPath, buffer, {
+      upsert: true,
+      contentType: file.type,
+    });
+  if (uploadError) {
+    console.error("uploadLeadSiteLogo.upload", {
+      action: "uploadLeadSiteLogo",
+      step: "upload",
+      leadSiteId,
+      message:
+        uploadError instanceof Error ? uploadError.message : String(uploadError),
+    });
+    return {
+      ok: false,
+      error: "storage_error",
+      message: "Falha no upload do arquivo. Tente novamente.",
+    };
+  }
+
+  const { data: publicData } = service.storage
+    .from("visual-identity")
+    .getPublicUrl(destPath);
+  const publicUrl = publicData.publicUrl;
+
+  // Step 5: Persist logo_url no JSONB (merge profundo em brand_assets)
+  const currentVars = (existing.variables ?? {}) as Record<string, unknown>;
+  const currentBrand = (currentVars.brand_assets ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const nextVars = {
+    ...currentVars,
+    brand_assets: { ...currentBrand, logo_url: publicUrl },
+  };
+
+  const { error: updateError } = await service
+    .from("lead_sites")
+    .update({ variables: nextVars })
+    .eq("id", leadSiteId);
+  if (updateError) {
+    console.error("uploadLeadSiteLogo.db", {
+      action: "uploadLeadSiteLogo",
+      step: "db",
+      leadSiteId,
+      message:
+        updateError instanceof Error
+          ? updateError.message
+          : String(updateError),
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao salvar a logo. Tente novamente.",
+    };
+  }
+
+  // Step 6: Cache invalidation
+  updateTag(`site:${existing.slug}`);
+
+  return { ok: true, logo_url: publicUrl };
+}
+
 /**
  * Server Action `signLeadSite(leadSiteId)` — marca contrato assinado e
  * dispara IndexNow best-effort quando `signed_at` muda de null para valor.
