@@ -37,6 +37,7 @@ import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { env } from "@/lib/env";
 import { buildBreadcrumbSchema } from "@/lib/sites/schema";
 import { SitePage } from "@/components/sites/SitePage";
+import { resolveVisualIdentity } from "@/lib/sites/default-visual-identity";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
@@ -101,14 +102,14 @@ export default async function SobrePage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="sobre"
-      manifest={site.visual_identity}
+      manifest={resolveVisualIdentity(site.visual_identity)}
       rating={site.lead_rating}
       reviewsCount={site.lead_reviews_count}
     >
       <SiteSchema schemas={breadcrumbSchema} />
       <AboutHeroEditorial
         variables={parsed.data}
-        manifestAboutUrl={site.visual_identity?.about_url ?? null}
+        manifestAboutUrl={resolveVisualIdentity(site.visual_identity).about_url}
       />
       <AboutMissionVision variables={parsed.data} />
       <AboutWarrantyDeepdive />
