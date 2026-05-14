@@ -150,18 +150,15 @@ export function HomeHero({
       >
         <div
           data-testid="home-hero-card"
-          className="w-[min(92vw,800px)] rounded-3xl border border-white/15 bg-zinc-950/45 p-6 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-zinc-950/80"
+          className="w-[min(92vw,800px)] rounded-3xl border border-white/50 bg-white/65 p-6 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-white/90"
         >
           <h1
-            className="font-bold leading-[0.95] tracking-tight text-white"
+            className="font-bold leading-[0.95] tracking-tight text-zinc-900"
             style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
           >
             {heroH1}
           </h1>
-          {/* AI passage em texto branco/80 — o componente usa
-              text-muted-foreground por default; sobrescrevemos com
-              children-aware text-white/80 via wrapper de classe. */}
-          <div className="mt-3 text-white/85 [&_*]:!text-white/85 md:mt-4">
+          <div className="mt-3 md:mt-4">
             <AICitableHero
               variables={{ business_name, address, cars }}
               page="home"

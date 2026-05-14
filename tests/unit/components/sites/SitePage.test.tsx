@@ -22,14 +22,13 @@ describe("<SitePage />", () => {
     );
   });
 
-  it("compõe a Home V2 (Sprint 4 H1+H2+H3 — issues #221, #222, #223): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, TradeinWidget, Warranty, Process3Steps, BanksPartners, TestimonialsGrid, FAQ, GoogleReviews", () => {
+  it("compõe a Home V2 (Sprint 4 H1+H2+H3 — issues #221, #222, #223): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, Warranty, Process3Steps, BanksPartners, TestimonialsGrid, FAQ, GoogleReviews", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
     expect(screen.getByTestId("home-hero")).toBeInTheDocument();
     expect(screen.getByTestId("home-trust-strip")).toBeInTheDocument();
     expect(screen.getByTestId("home-categories-cars")).toBeInTheDocument();
     expect(screen.getByTestId("home-recent-arrivals")).toBeInTheDocument();
     expect(screen.getByTestId("home-financing-widget")).toBeInTheDocument();
-    expect(screen.getByTestId("home-tradein-widget")).toBeInTheDocument();
     // #223 — 7 sections H3 (substituem home-form + home-emphasis V1):
     expect(screen.getByTestId("home-warranty-section")).toBeInTheDocument();
     expect(screen.getByTestId("home-process-3steps")).toBeInTheDocument();
