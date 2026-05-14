@@ -55,6 +55,7 @@ disparo de pipelines caros (OpenAI/Apify) com cost gate humano.
 | `open-browser-poliguara.ts` | Abre o site Poliguara local em Playwright (smoke visual). |
 | `parse-poliguara.ts` | Parse + dump do `variables` do site Poliguara. |
 | `run-visual-identity.ts` | **Write (gated).** `<slug> [--force] [--dry-run]` → dispara pipeline `regenerateVisualIdentity` via service-role (bypassa `requireUser()` da action). Cost cap $2 USD + prompt interativo y/N. Persiste manifest em `lead_sites.visual_identity`. `--dry-run` imprime os prompts renderizados sem chamar OpenAI nem escrever no DB (útil quando precisa gerar imagens manualmente fora do pipeline). Exporta `assembleManifest({uploads, specs, estimate, model, generatedAt}): VisualIdentityManifest` (pura, testada). |
+| `seed-default-visual-identity.ts` | **Write (idempotente).** `[--dry-run]` → replica os arquivos de `visual-identity/4t3xswas-ducarmo-veiculos/*` pra `visual-identity/_defaults/v1/*` com nomes limpos (sem timestamps), criando a fonte estável dos defaults runtime consumidos por `lib/sites/default-visual-identity.ts`. Imprime o `DefaultManifest` (hero/about/contact/categories) pronto pra colar. Re-rodar é no-op via `upsert:true`. Exporta `parseSourceFilename`, `buildDestinationPath`, `buildDefaultManifest`, `parseSeedArgs` (puras, testadas). |
 | `seed-poliguara.ts` | Seed/upsert `lead_sites` da Poliguara para validar UI premium. |
 | `set-visual-identity.ts` | **Write (gated).** Alternativa ao runner OpenAI: sobe PNGs locais (já gerados manualmente em ChatGPT/Midjourney/etc) pro bucket `visual-identity/<slug>/*` e persiste o manifest. Uso: `npm run vi:set -- <slug> --hero=<path> --about=<path> --contact=<path> --category-<X>=<path> [--category-<Y>=<path>]`. Validações: hero/about/contact obrigatórios + ≥1 category; aceita as 6 categorias do `AssetVariant`. Modelo no manifest é fixado em `gpt-image-2-2026-04-21` (schema só aceita os 2 modelos pinados, indistinguível do output do pipeline). Exporta `parseSetArgs(argv)` (pura, testada). |
 | `validate-ducarmo.ts` | Smoke Playwright headless do site Ducarmo após `vi:set` — verifica `visual-identity/<slug>/*` URLs renderizando, console limpo, flags pra `placehold.co` / `googleusercontent.com` (informativos). |
@@ -75,6 +76,11 @@ ter cobertura em `tests/unit/scripts/<name>.test.ts`. Hoje:
   missing required variant, fallback model).
 - `parseSetArgs` em `set-visual-identity.ts` (5 casos: slug + 4 paths,
   múltiplas categorias, missing slug, unknown flag, flag sem `=`).
+- `parseSourceFilename` + `buildDestinationPath` + `buildDefaultManifest`
+  + `parseSeedArgs` em `seed-default-visual-identity.ts` (14 casos:
+  parsing de timestamps, multi-segment variants, sem extensão, paths
+  aninhados, normalização hyphen/underscore, ordering canônico de
+  categorias, fallback null quando arquivos ausentes).
 
 I/O (Supabase, OpenAI, storage) **não é testado** aqui — já é testado
 através das action tests em `tests/unit/app/actions/lead-site.test.ts` via
