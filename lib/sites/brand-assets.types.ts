@@ -37,6 +37,14 @@ export interface AssetSources {
   hero_image_url: string;
   /** URL absoluta da foto da página "Sobre". */
   about_image_url: string;
+  /**
+   * URL absoluta da foto editorial dedicada do `<HomeTradeinWidget>` (#298).
+   * Optional: pipeline `extractBrandAssets` ainda NÃO popula este campo em
+   * V1 — segue null por padrão até admin setar manualmente ou regen futura
+   * adicionar slot dedicado. Quando null, widget cai no fallback local
+   * desacoplado de `about_image_url`.
+   */
+  tradein_image_url?: string | null;
   /** URL absoluta da foto do hero da página "Contato". */
   contact_hero_image_url: string;
   /** URLs absolutas dos 6 carros placeholder (length === 6 sempre). */

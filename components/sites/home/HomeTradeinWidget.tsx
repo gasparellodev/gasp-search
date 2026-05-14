@@ -8,20 +8,23 @@ import { buildWhatsAppLink } from "@/lib/whatsapp";
 
 interface HomeTradeinWidgetProps {
   /**
-   * URL pré-resolvida do manifest AI (`manifest.about_url`). Caller
-   * (`SitePage`) já fez `manifest?.about_url ?? null`.
+   * URL pré-resolvida do manifest AI (`manifest.tradein_url`). Caller
+   * (`SitePage`) já fez `manifest?.tradein_url ?? null`.
    *
-   * **PO decision B1** (issue #222): não há slot dedicado `tradein_editorial`
-   * no `VisualIdentityManifest` (verificado em `lib/sites/visual-identity.ts`).
-   * Reusamos `about_url` que já é uma foto editorial gerada por AI (showroom/
-   * oficina) — semantica casa com o split de avaliação de troca.
+   * **Issue #298 (WP-A):** campo dedicado em `VisualIdentityManifest`,
+   * separado de `about_url` que continua sendo consumido por
+   * `<HomeWarrantySection>`. Resolve a duplicação visual reportada pelo
+   * cliente (mesma foto editorial aparecia em "Seu carro" e "Por que
+   * comprar").
    */
-  manifestAboutUrl: string | null;
+  manifestTradeinUrl: string | null;
   /**
-   * URL canon do brand asset `brand_assets.about_image_url` — segundo
-   * tier do chain de fallback.
+   * URL canon do brand asset `brand_assets.tradein_image_url` (#298) —
+   * segundo tier do chain de fallback. Optional + nullable porque o
+   * campo é novo no schema e ainda não populado por sites legados;
+   * widget cai no fallback local quando ausente.
    */
-  aboutImageUrl: string;
+  tradeinImageUrl: string | null | undefined;
   /** Slug do site (link interno `/sites/<slug>/anunciar`). */
   siteSlug: string;
   /** Telefone E.164 BR sem `+`. */
@@ -40,13 +43,17 @@ interface HomeTradeinWidgetProps {
 const FALLBACK_PHOTO = "/assets/about/porsche-model.png";
 
 /**
- * Bloco "Seu carro vale entrada" da Home (Phase 7 / Sprint 4 / #H2 — issue #222).
+ * Bloco "Seu carro vale entrada" da Home (Phase 7 / Sprint 4 / #H2 — issue #222;
+ * separação Trade-in/About — issue #298).
  *
  * Server Component. Split 6/6 desktop: foto editorial à esquerda, copy + 2 CTAs
  * à direita.
  *
- * **Foto** (PO decision B1): chain `manifestAboutUrl ?? aboutImageUrl ??
- * FALLBACK_PHOTO`. Zero impacto no pipeline AI — reusa slot already-generated.
+ * **Foto** (#298): chain `manifestTradeinUrl ?? tradeinImageUrl ??
+ * FALLBACK_PHOTO`. Não consome `about_url` / `about_image_url` —
+ * `<HomeWarrantySection>` continua dono desse slot. Quando os dois primeiros
+ * tiers estão null/undefined (legado sem regen + admin não setou o brand
+ * asset novo), cai no fallback local que é distinto da imagem de Warranty.
  *
  * **CTAs**:
  *   - Primary: "Avaliar meu carro" → `/sites/<slug>/anunciar` (página de
@@ -55,13 +62,13 @@ const FALLBACK_PHOTO = "/assets/about/porsche-model.png";
  *     pré-fill PT-BR mencionando troca).
  */
 export function HomeTradeinWidget({
-  manifestAboutUrl,
-  aboutImageUrl,
+  manifestTradeinUrl,
+  tradeinImageUrl,
   siteSlug,
   whatsappPhone,
   businessName,
 }: HomeTradeinWidgetProps) {
-  const photoUrl = manifestAboutUrl ?? aboutImageUrl ?? FALLBACK_PHOTO;
+  const photoUrl = manifestTradeinUrl ?? tradeinImageUrl ?? FALLBACK_PHOTO;
 
   // Template `tradein` requer brand/model/year do carro do usuário —
   // não temos ainda. Usamos `general` aqui mas mantemos utm_campaign=tradein

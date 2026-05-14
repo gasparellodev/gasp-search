@@ -226,6 +226,13 @@ export const BrandAssets = z.object({
   hero_image_url: imageUrlOrPath,
   about_image_url: imageUrlOrPath,
   contact_image_url: imageUrlOrPath,
+  /**
+   * Imagem editorial dedicada do `<HomeTradeinWidget>` (#298). Optional +
+   * nullable: sites legados continuam parseando sem o campo; quando
+   * null/ausente, o widget usa fallback local independente de
+   * `about_image_url` — separando visualmente Trade-in de Warranty.
+   */
+  tradein_image_url: imageUrlOrPath.nullable().optional(),
   car_placeholders: z.array(imageUrlOrPath).max(6).default([]),
 });
 export type BrandAssets = z.infer<typeof BrandAssets>;

@@ -109,6 +109,30 @@ describe("VisualIdentityManifestSchema — happy path", () => {
     });
     expect(parsed.cost_estimate_brl).toBe(0);
   });
+
+  it("parsea manifest legado sem tradein_url (#298 backward compat)", () => {
+    // validManifest não inclui tradein_url — deve passar sem erro
+    const parsed = VisualIdentityManifestSchema.parse(validManifest);
+    expect(parsed.tradein_url).toBeUndefined();
+  });
+
+  it("aceita tradein_url quando provido (#298 — separação Trade-in/About)", () => {
+    const parsed = VisualIdentityManifestSchema.parse({
+      ...validManifest,
+      tradein_url: "https://cdn.example.com/sites/abc/tradein.webp",
+    });
+    expect(parsed.tradein_url).toBe(
+      "https://cdn.example.com/sites/abc/tradein.webp",
+    );
+  });
+
+  it("aceita tradein_url null (#298 — admin pode setar null explicitamente)", () => {
+    const parsed = VisualIdentityManifestSchema.parse({
+      ...validManifest,
+      tradein_url: null,
+    });
+    expect(parsed.tradein_url).toBeNull();
+  });
 });
 
 describe("VisualIdentityManifestSchema — invalid inputs", () => {

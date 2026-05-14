@@ -214,6 +214,11 @@ export function mergeSiteVariables(
       hero_image_url: assets.hero_image_url,
       about_image_url: assets.about_image_url,
       contact_image_url: assets.contact_hero_image_url,
+      // #298: campo novo, opcional. Pipeline `extractBrandAssets` ainda
+      // não popula `tradein_image_url` (AssetSources marca optional) — passa
+      // null aqui pra permitir admin setar via DB sem regen. Quando ausente,
+      // `<HomeTradeinWidget>` cai em fallback local distinto de about.
+      tradein_image_url: assets.tradein_image_url ?? null,
       car_placeholders: carPlaceholders,
     },
 

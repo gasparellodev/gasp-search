@@ -77,6 +77,12 @@ export const VisualIdentityManifestSchema = z.object({
   categories_urls: z.array(imageUrlOrPath).min(1).max(6),
   about_url: imageUrlOrPath,
   contact_url: imageUrlOrPath,
+  /**
+   * Imagem editorial dedicada do bloco Trade-in da home (#298). Optional +
+   * nullable porque manifests legados foram persistidos antes da separação
+   * Trade-in/About; o caller decide a chain de fallback.
+   */
+  tradein_url: imageUrlOrPath.nullable().optional(),
   generated_at: z.string().datetime({ offset: true }),
   model: VisualIdentityModelSchema,
   cost_estimate_brl: z.number().nonnegative(),
