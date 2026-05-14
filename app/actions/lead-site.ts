@@ -1049,6 +1049,27 @@ export async function uploadLeadSiteLogo(
   leadSiteId: string,
   formData: FormData,
 ): Promise<UploadLeadSiteLogoResult> {
+  try {
+    return await uploadLeadSiteLogoInner(leadSiteId, formData);
+  } catch (error) {
+    console.error("uploadLeadSiteLogo.fatal", {
+      action: "uploadLeadSiteLogo",
+      leadSiteId,
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : undefined,
+    });
+    return {
+      ok: false,
+      error: "storage_error",
+      message: "Falha inesperada no upload. Tente novamente.",
+    };
+  }
+}
+
+async function uploadLeadSiteLogoInner(
+  leadSiteId: string,
+  formData: FormData,
+): Promise<UploadLeadSiteLogoResult> {
   // Step 1: Auth
   const server = await createServerSupabase();
   const {
@@ -1225,6 +1246,31 @@ export type UploadLeadSiteHeroResult =
  * Size: ≤ 4 MB.
  */
 export async function uploadLeadSiteHero(
+  leadSiteId: string,
+  formData: FormData,
+): Promise<UploadLeadSiteHeroResult> {
+  try {
+    return await uploadLeadSiteHeroInner(leadSiteId, formData);
+  } catch (error) {
+    // Defesa em profundidade: qualquer exceção não-tratada (env missing,
+    // network failure, sharp throw, etc.) é capturada aqui pra evitar que
+    // a Server Action propague erro pro cliente — o que em Next 16 causa
+    // "page reset" / redirect inesperado no browser.
+    console.error("uploadLeadSiteHero.fatal", {
+      action: "uploadLeadSiteHero",
+      leadSiteId,
+      message: error instanceof Error ? error.message : String(error),
+      name: error instanceof Error ? error.name : undefined,
+    });
+    return {
+      ok: false,
+      error: "storage_error",
+      message: "Falha inesperada no upload. Tente novamente.",
+    };
+  }
+}
+
+async function uploadLeadSiteHeroInner(
   leadSiteId: string,
   formData: FormData,
 ): Promise<UploadLeadSiteHeroResult> {
