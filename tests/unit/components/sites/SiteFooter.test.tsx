@@ -2,7 +2,6 @@ import { axe, toHaveNoViolations } from "jest-axe";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { BanksStrip } from "@/components/sites/BanksStrip";
 import { SiteFooter } from "@/components/sites/SiteFooter";
 
 import { SITE_FIXTURE } from "./site-fixtures";
@@ -65,23 +64,23 @@ describe("<SiteFooter />", () => {
     ).toBeInTheDocument();
   });
 
-  it("renderiza banks-strip e microbranding (PaymentStrip removido — #295)", () => {
+  it("renderiza microbranding sem BanksStrip nem PaymentStrip (#299/#295)", () => {
     render(<SiteFooter variables={footerVars} />);
 
-    expect(screen.getByRole("group", { name: "Bancos parceiros" })).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Santander" })).toHaveAttribute(
-      "src",
-      "/assets/banks/santander.png",
-    );
-    expect(screen.getByRole("img", { name: "Porto Bank" })).toHaveAttribute(
-      "width",
-      "40",
-    );
-    // #295: PaymentStrip removido — não deve mais renderizar group "Métodos de pagamento"
+    // #299: BanksStrip consolidado em `<HomeBanksPartners>` — footer não
+    // renderiza mais a strip.
+    expect(
+      screen.queryByRole("group", { name: /Bancos parceiros/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "Santander" }),
+    ).not.toBeInTheDocument();
+    // #295: PaymentStrip removido — guard mantido.
     expect(
       screen.queryByRole("group", { name: /Métodos de pagamento/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "Pix" })).not.toBeInTheDocument();
+    // Microbranding GaspLab permanece.
     expect(screen.getByRole("link", { name: "Site por GaspLab" })).toHaveAttribute(
       "href",
       "https://gasplab.com",
@@ -187,24 +186,4 @@ describe("<SiteFooter />", () => {
   });
 });
 
-describe("<BanksStrip />", () => {
-  it("renderiza os 7 bancos com assets SVG estáveis", () => {
-    render(<BanksStrip />);
-
-    const banks = [
-      "Santander",
-      "Bradesco",
-      "Itaú",
-      "BV",
-      "Banco PAN",
-      "Caixa",
-      "Porto Bank",
-    ];
-    for (const bank of banks) {
-      const icon = screen.getByRole("img", { name: bank });
-      expect(icon).toHaveAttribute("width", "40");
-      expect(icon).toHaveAttribute("height", "40");
-    }
-  });
-});
 

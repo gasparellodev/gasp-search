@@ -38,6 +38,12 @@ describe("<HomeBanksPartners />", () => {
     expect(banks.length).toBeGreaterThan(0);
   });
 
+  it("tem id='bancos-parceiros' pra link âncora do HomeFinancingWidget (#299)", () => {
+    render(<HomeBanksPartners />);
+    const region = screen.getByRole("region", { name: /bancos parceiros/i });
+    expect(region.id).toBe("bancos-parceiros");
+  });
+
   it("zero violations a11y (axe-core)", async () => {
     const { container } = render(<HomeBanksPartners />);
     const results = await axe(container);
