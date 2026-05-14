@@ -1,6 +1,5 @@
 import "server-only";
 
-import { PaymentStrip } from "@/components/sites/PaymentStrip";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { SiteForm } from "../SiteForm";
@@ -104,8 +103,6 @@ export function ContactSection({
           </div>
         </section>
       )}
-
-      <PaymentStrip />
 
       <section className="w-full bg-background py-16 md:py-24">
         <div className="mx-auto max-w-4xl px-4 md:px-8">

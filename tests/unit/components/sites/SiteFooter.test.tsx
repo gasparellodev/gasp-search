@@ -3,7 +3,6 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { BanksStrip } from "@/components/sites/BanksStrip";
-import { PaymentStrip } from "@/components/sites/PaymentStrip";
 import { SiteFooter } from "@/components/sites/SiteFooter";
 
 import { SITE_FIXTURE } from "./site-fixtures";
@@ -66,7 +65,7 @@ describe("<SiteFooter />", () => {
     ).toBeInTheDocument();
   });
 
-  it("renderiza banks-strip, payment-methods e microbranding", () => {
+  it("renderiza banks-strip e microbranding (PaymentStrip removido — #295)", () => {
     render(<SiteFooter variables={footerVars} />);
 
     expect(screen.getByRole("group", { name: "Bancos parceiros" })).toBeInTheDocument();
@@ -78,13 +77,11 @@ describe("<SiteFooter />", () => {
       "width",
       "40",
     );
+    // #295: PaymentStrip removido — não deve mais renderizar group "Métodos de pagamento"
     expect(
-      screen.getByRole("group", { name: "Métodos de pagamento" }),
-    ).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Pix" })).toHaveAttribute(
-      "src",
-      "/assets/payment/pix.svg",
-    );
+      screen.queryByRole("group", { name: /Métodos de pagamento/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Pix" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Site por GaspLab" })).toHaveAttribute(
       "href",
       "https://gasplab.com",
@@ -211,22 +208,3 @@ describe("<BanksStrip />", () => {
   });
 });
 
-describe("<PaymentStrip />", () => {
-  it("renderiza os 6 métodos de pagamento com assets SVG estáveis", () => {
-    render(<PaymentStrip />);
-
-    const methods = [
-      "Pix",
-      "Cartão",
-      "Financiamento",
-      "Troca",
-      "Boleto",
-      "Dinheiro",
-    ];
-    for (const method of methods) {
-      const icon = screen.getByRole("img", { name: method });
-      expect(icon).toHaveAttribute("width", "40");
-      expect(icon).toHaveAttribute("height", "40");
-    }
-  });
-});

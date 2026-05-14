@@ -106,11 +106,12 @@ describe("<ContactSection />", () => {
     expect(screen.queryByTestId("contact-socials")).toBeNull();
   });
 
-  it("renderiza PaymentStrip e SiteForm variant contact", () => {
+  it("renderiza SiteForm variant contact sem PaymentStrip (#295)", () => {
     renderContact();
+    // #295: PaymentStrip removido — não deve mais renderizar
     expect(
-      screen.getByRole("group", { name: /Métodos de pagamento/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("group", { name: /Métodos de pagamento/i }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("site-form")).toHaveAttribute(
       "data-variant",
       "contact",
