@@ -227,6 +227,48 @@
    =========================================================================== */
 
 [data-theme="auto-showroom"] {
+  /* === Force light theme on public sites ====================================
+     Sites públicos (Phase 7) são SEMPRE light. Ressetamos os tokens shadcn
+     (--background, --foreground, --card, --primary, etc.) aqui pra cancelar
+     a propagação do `.dark` do next-themes do admin — se o usuário GaspLab
+     liga dark no painel, o `<html class="dark">` aplica `--background: #000`
+     no body, mas o wrapper público (`<div data-theme="auto-showroom">`)
+     reseta tudo. Resultado: público sempre branco, independente do toggle
+     interno do app.
+     ====================================================================== */
+  --background: #ffffff;
+  --foreground: #1d1d1f;
+  --card: #f5f5f7;
+  --card-foreground: #1d1d1f;
+  --popover: #ffffff;
+  --popover-foreground: #1d1d1f;
+  --primary: #0071e3;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: #6e6e73;
+  --accent: #f5f5f7;
+  --accent-foreground: #1d1d1f;
+  --destructive: #b64400;
+  --destructive-foreground: #ffffff;
+  --border: #d2d2d7;
+  --input: #d2d2d7;
+  --ring: #0071e3;
+
+  /* Site público (Phase 7) — Light mode forçado. */
+  --site-surface-page: #ffffff;
+  --site-surface-card: #ffffff;
+  --site-surface-elevated: #fafafa;
+  --site-surface-feature: #0a0a0a; /* dark card no light mode (intencional) */
+  --site-text-primary: #1d1d1f;
+  --site-text-secondary: rgba(29, 29, 31, 0.7);
+  --site-text-muted: rgba(29, 29, 31, 0.4);
+  --site-text-on-feature: #ffffff;
+  --site-border-subtle: rgba(29, 29, 31, 0.10);
+  --site-border-default: rgba(29, 29, 31, 0.20);
+  --site-border-strong: rgba(29, 29, 31, 0.40);
+
   /* --- 27 cores light (DESIGN.md §Colors) ---------------------------------- */
   --auto-background: #fafafa;
   --auto-foreground: #0a0a0a;
@@ -304,22 +346,6 @@
   [data-theme="auto-showroom"] .site-header-glass[data-scrolled="true"] {
     background-color: var(--auto-surface);
   }
-}
-
-/* Auto Showroom dark — paleta neutra escura (DESIGN.md §Colors). Triggera
-   tanto pela classe `.dark` no `<html>` (next-themes default) quanto por
-   `.dark` ancestor para suportar pseudo-isolated cases. */
-[data-theme="auto-showroom"].dark,
-[data-theme="auto-showroom"] .dark {
-  --auto-background: #0a0a0a;
-  --auto-foreground: #fafafa;
-  --auto-surface: #141414;
-  --auto-surface-elevated: #1a1a1a;
-  --auto-border: #262626;
-  --auto-border-strong: #525252;
-  --auto-muted: #171717;
-  --auto-muted-foreground: #a3a3a3;
-  --auto-destructive: #ef4444;
 }
 
 @layer base {

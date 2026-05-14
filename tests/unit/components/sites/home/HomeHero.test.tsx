@@ -66,15 +66,15 @@ describe("<HomeHero />", () => {
     });
   });
 
-  describe("Empty state hero (PO refinement #221)", () => {
-    it("sem hero_image: aplica linear-gradient com primary_color (graceful, NÃO branco)", () => {
+  describe("Empty state hero (WP1 #309 — graceful, glass card por cima)", () => {
+    it("sem hero_image: aplica linear-gradient com primary_color (NÃO branco)", () => {
       render(<HomeHero {...baseProps} hero_image_url={null} />);
       const fallback = screen.getByTestId("home-hero-empty-state");
       expect(fallback).toBeInTheDocument();
-      // Empty state contém monogram centralizado (1ª letra do business_name).
-      expect(fallback.textContent).toContain(
-        SITE_FIXTURE.business_name.charAt(0).toUpperCase(),
-      );
+      // O gradient agora é só fundo (sem monogram avulso — o card carrega
+      // o branding via H1). Verifica a presença do background-image inline.
+      const styleAttr = fallback.getAttribute("style") ?? "";
+      expect(styleAttr).toMatch(/linear-gradient/i);
     });
 
     it("sem hero_image: NÃO renderiza <img>", () => {
@@ -83,13 +83,42 @@ describe("<HomeHero />", () => {
         screen.queryByAltText(`Hero — ${SITE_FIXTURE.business_name}`),
       ).not.toBeInTheDocument();
     });
+
+    it("sem hero_image: glass card ainda renderiza (branding preservado)", () => {
+      render(<HomeHero {...baseProps} hero_image_url={null} />);
+      expect(screen.getByTestId("home-hero-card")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+    });
   });
 
-  describe("Layout 90dvh mobile / split 6/6 desktop", () => {
-    it("aplica min-h-[90dvh] no container mobile (NÃO usa vh — lição sections-catalog)", () => {
+  describe("Layout fullscreen + glass card (WP1 #309)", () => {
+    it("aplica min-h-[100dvh] no container (fullscreen, NÃO vh)", () => {
       render(<HomeHero {...baseProps} />);
       const container = screen.getByTestId("home-hero");
-      expect(container.className).toMatch(/min-h-\[90dvh\]/);
+      expect(container.className).toMatch(/min-h-\[100dvh\]/);
+    });
+
+    it("renderiza glass card com backdrop-blur centro-baixo (dark frosted, vidro fumê)", () => {
+      render(<HomeHero {...baseProps} />);
+      const card = screen.getByTestId("home-hero-card");
+      expect(card).toBeInTheDocument();
+      expect(card.className).toMatch(/backdrop-blur/);
+      expect(card.className).toMatch(/backdrop-saturate/);
+      // Vidro fumê escuro transparente — bg-black com opacidade baixa pra
+      // revelar a imagem por trás + dar contraste pro texto branco.
+      expect(card.className).toMatch(/bg-black\/(2[0-9]|3[0-9]|4[0-9])/);
+    });
+
+    it("H1 + AI passage + search bar todos dentro do glass card", () => {
+      render(<HomeHero {...baseProps} />);
+      const card = screen.getByTestId("home-hero-card");
+      expect(card.contains(screen.getByRole("heading", { level: 1 }))).toBe(
+        true,
+      );
+      expect(card.contains(screen.getByTestId("ai-citable-hero"))).toBe(true);
+      expect(card.contains(screen.getByTestId("home-quick-search-bar"))).toBe(
+        true,
+      );
     });
   });
 

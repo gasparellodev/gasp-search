@@ -120,16 +120,27 @@ export function HomeQuickSearchBar({
         />
       </div>
 
-      <button
-        type="submit"
-        style={{
-          backgroundColor: safePrimary,
-          color: safeTextOnPrimary,
-        }}
-        className="inline-flex h-11 items-center justify-center rounded-full px-6 text-sm font-semibold tracking-wide transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 md:h-11 md:px-6"
-      >
-        Buscar
-      </button>
+      {/* Coluna do botão — espelha a estrutura "label + control" dos 3
+          inputs (label invisible spacer em md+ pra alinhar verticalmente
+          com items-end). Em mobile (stacked), só o botão renderiza. */}
+      <div className="flex flex-col gap-1.5">
+        <span
+          aria-hidden="true"
+          className="hidden text-xs font-medium uppercase tracking-wide md:block"
+        >
+          &#8203;
+        </span>
+        <button
+          type="submit"
+          style={{
+            backgroundColor: safePrimary,
+            color: safeTextOnPrimary,
+          }}
+          className="inline-flex h-11 w-full items-center justify-center rounded-full px-8 text-sm font-semibold tracking-wide transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 md:h-9 md:px-6"
+        >
+          Buscar
+        </button>
+      </div>
     </form>
   );
 }

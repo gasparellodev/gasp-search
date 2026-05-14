@@ -81,7 +81,10 @@ export default async function AutoShowroomLayout({
   const sitewideGraph = variables ? buildSitewideGraph(variables) : null;
 
   return (
-    <div data-theme="auto-showroom" className="min-h-dvh">
+    <div
+      data-theme="auto-showroom"
+      className="min-h-dvh overflow-x-clip bg-background text-foreground"
+    >
       {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
       {variables && <WhatsAppFloatingCTA variables={variables} slug={slug} />}

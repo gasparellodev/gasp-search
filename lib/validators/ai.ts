@@ -25,7 +25,7 @@ export const generateMessageSchema = z
       .string()
       .trim()
       .min(3)
-      .max(240)
+      .max(2000)
       .optional()
       .default("iniciar uma conversa comercial"),
   })

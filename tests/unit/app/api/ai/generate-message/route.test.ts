@@ -82,12 +82,24 @@ function makeSupabaseMock({
   const messageSelect = vi.fn(() => ({ single: messageSingle }));
   const messageInsert = vi.fn(() => ({ select: messageSelect }));
 
+  // lead_sites query (novo — pra incluir site URL na mensagem IA).
+  // Default: nenhum site associado. Tests podem sobrescrever via spies.
+  const siteMaybeSingle = vi.fn(() =>
+    Promise.resolve({ data: null, error: null }),
+  );
+  const siteIn = vi.fn(() => ({ maybeSingle: siteMaybeSingle }));
+  const siteEq = vi.fn(() => ({ in: siteIn }));
+  const siteSelect = vi.fn(() => ({ eq: siteEq }));
+
   const from = vi.fn((table: string) => {
     if (table === "leads") {
       return { select: leadSelect };
     }
     if (table === "lead_messages") {
       return { insert: messageInsert };
+    }
+    if (table === "lead_sites") {
+      return { select: siteSelect };
     }
     throw new Error(`unexpected table: ${table}`);
   });
@@ -216,6 +228,9 @@ describe("POST /api/ai/generate-message", () => {
         channel: "whatsapp",
         tone: "consultivo",
         goal: "agendar uma conversa",
+        // siteUrl null quando lead não tem site published/sent
+        // (mock default em makeSupabaseMock retorna data: null)
+        siteUrl: null,
       },
     );
     expect(supabase.spies.messageInsert).toHaveBeenCalledWith({
