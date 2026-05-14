@@ -13,13 +13,13 @@ exports[`<SiteFooter /> > mantém snapshot estrutural do footer global 1`] = `
     >
       <img
         alt="Touring Cars"
-        class="h-10 w-auto object-contain"
+        class="max-h-10 max-w-[10rem] object-contain"
         data-nimg="1"
         decoding="async"
         height="40"
         loading="lazy"
         src="https://cdn.example.com/touring/logo.png"
-        style="color: transparent;"
+        style="color: transparent; width: auto; height: auto;"
         width="140"
       />
       <p
