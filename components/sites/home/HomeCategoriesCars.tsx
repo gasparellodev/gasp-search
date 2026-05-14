@@ -92,6 +92,7 @@ export function HomeCategoriesCars({
   return (
     <section
       data-testid="home-categories-cars"
+      data-reveal
       className="w-full bg-background"
       aria-labelledby="home-categories-cars-title"
     >

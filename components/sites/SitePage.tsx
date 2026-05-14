@@ -13,6 +13,7 @@ import { SiteHeader } from "./SiteHeader";
 import { HomeBanksPartners } from "./home/HomeBanksPartners";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
 import { HomeContactFormQuick } from "./home/HomeContactFormQuick";
+import { HomeMotion } from "./home/HomeMotion";
 import { HomeFAQSection } from "./home/HomeFAQSection";
 import { HomeFinancingWidget } from "./home/HomeFinancingWidget";
 import { HomeGoogleReviewsEmbed } from "./home/HomeGoogleReviewsEmbed";
@@ -198,6 +199,7 @@ export function SitePage({
               businessName={variables.business_name}
               slug={slug}
             />
+            <HomeMotion />
           </>
         )}
       </main>
