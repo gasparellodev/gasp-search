@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   ANNOUNCEMENT_TEXT_MAX,
   DEFAULT_HEX,
+  isLikelyGoogleMapsPhoto,
   safeUrl,
   sanitizeAnnouncementText,
   sanitizeHex,
@@ -189,5 +190,67 @@ describe("sanitizeAnnouncementText() (#291)", () => {
 
   it("ANNOUNCEMENT_TEXT_MAX é 140 (espelha schema Zod)", () => {
     expect(ANNOUNCEMENT_TEXT_MAX).toBe(140);
+  });
+});
+
+describe("isLikelyGoogleMapsPhoto() — heurística de classificação", () => {
+  it("detecta lh3.googleusercontent.com (host canônico Maps photos)", () => {
+    expect(
+      isLikelyGoogleMapsPhoto("https://lh3.googleusercontent.com/places/abc=s256"),
+    ).toBe(true);
+  });
+
+  it("detecta variações lh4/lh5/lh6.googleusercontent.com", () => {
+    for (const host of ["lh4", "lh5", "lh6"]) {
+      expect(
+        isLikelyGoogleMapsPhoto(`https://${host}.googleusercontent.com/x=s256`),
+      ).toBe(true);
+    }
+  });
+
+  it("detecta maps.googleapis.com (Places API / Static Maps)", () => {
+    expect(
+      isLikelyGoogleMapsPhoto(
+        "https://maps.googleapis.com/maps/api/place/photo?ref=xyz",
+      ),
+    ).toBe(true);
+  });
+
+  it("detecta maps.gstatic.com (assets estáticos Maps)", () => {
+    expect(
+      isLikelyGoogleMapsPhoto("https://maps.gstatic.com/mapfiles/x.png"),
+    ).toBe(true);
+  });
+
+  it("retorna false para CDNs alternativos (Vercel Blob, Cloudinary)", () => {
+    expect(
+      isLikelyGoogleMapsPhoto("https://blob.vercel-storage.com/x.svg"),
+    ).toBe(false);
+    expect(
+      isLikelyGoogleMapsPhoto("https://res.cloudinary.com/demo/image/abc.png"),
+    ).toBe(false);
+  });
+
+  it("retorna false para data URI / path local", () => {
+    expect(
+      isLikelyGoogleMapsPhoto("data:image/svg+xml;base64,PHN2Zw=="),
+    ).toBe(false);
+    expect(isLikelyGoogleMapsPhoto("/assets/logo.svg")).toBe(false);
+  });
+
+  it("retorna false para empty/null/undefined/não-string", () => {
+    expect(isLikelyGoogleMapsPhoto("")).toBe(false);
+    expect(isLikelyGoogleMapsPhoto(null)).toBe(false);
+    expect(isLikelyGoogleMapsPhoto(undefined)).toBe(false);
+    expect(isLikelyGoogleMapsPhoto(42)).toBe(false);
+  });
+
+  it("não confunde subdomínio adversarial (`fake-googleusercontent.com`)", () => {
+    expect(
+      isLikelyGoogleMapsPhoto("https://fake-googleusercontent.com/x.png"),
+    ).toBe(false);
+    expect(
+      isLikelyGoogleMapsPhoto("https://lh3-googleusercontent.com/x.png"),
+    ).toBe(false);
   });
 });
