@@ -8,6 +8,7 @@ import type { VisualIdentityManifest } from "@/types/visual-identity";
 import { cn } from "@/lib/utils";
 
 import { SiteFooter } from "./SiteFooter";
+import { AnnouncementBar } from "./AnnouncementBar";
 import { SiteHeader } from "./SiteHeader";
 import { HomeBanksPartners } from "./home/HomeBanksPartners";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
@@ -126,6 +127,7 @@ export function SitePage({
       data-site-slug={slug}
       style={cssVars}
     >
+      <AnnouncementBar text={manifest?.announcement_text} />
       <SiteHeader variables={variables} slug={slug} activePage={activePage} />
       <main className={cn(mainClassName)}>
         <div

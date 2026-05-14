@@ -83,6 +83,13 @@ export const VisualIdentityManifestSchema = z.object({
    * Trade-in/About; o caller decide a chain de fallback.
    */
   tradein_url: imageUrlOrPath.nullable().optional(),
+  /**
+   * Texto curto exibido em marquee no `<AnnouncementBar>` acima do header
+   * (#291). Optional: quando ausente/vazio, o bar não renderiza. Limite
+   * 140 chars (espelha `ANNOUNCEMENT_TEXT_MAX` em `lib/sites/sanitize.ts`).
+   * Defesa em profundidade contra payloads grandes via Supabase Admin.
+   */
+  announcement_text: z.string().trim().max(140).optional(),
   generated_at: z.string().datetime({ offset: true }),
   model: VisualIdentityModelSchema,
   cost_estimate_brl: z.number().nonnegative(),
