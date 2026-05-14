@@ -13,9 +13,10 @@ import { BanksStrip } from "../BanksStrip";
 export function HomeBanksPartners() {
   return (
     <section
+      id="bancos-parceiros"
       data-testid="home-banks-partners"
       aria-label="Bancos parceiros"
-      className="w-full bg-background py-16 md:py-20"
+      className="scroll-mt-24 w-full bg-background py-16 md:py-20"
     >
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <header className="mb-8 flex flex-col gap-3 text-center md:mb-12">
