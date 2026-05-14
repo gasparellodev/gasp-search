@@ -83,7 +83,8 @@ export function SiteFooter({ variables }: SiteFooterProps) {
             alt={variables.business_name}
             width={140}
             height={40}
-            className="h-10 w-auto object-contain"
+            style={{ width: "auto", height: "auto" }}
+            className="max-h-10 max-w-[10rem] object-contain"
             unoptimized
           />
           <p className="text-sm text-foreground/70">
