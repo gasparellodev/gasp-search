@@ -1,13 +1,11 @@
-import Image from "next/image";
-
 const BANKS = [
-  { name: "Santander", src: "/assets/banks/santander.svg" },
-  { name: "Bradesco", src: "/assets/banks/bradesco.svg" },
-  { name: "Itaú", src: "/assets/banks/itau.svg" },
-  { name: "BV", src: "/assets/banks/bv.svg" },
-  { name: "Banco PAN", src: "/assets/banks/pan.svg" },
-  { name: "Caixa", src: "/assets/banks/caixa.svg" },
-  { name: "Porto Bank", src: "/assets/banks/porto.svg" },
+  { name: "Santander", src: "/assets/banks/santander.png" },
+  { name: "Bradesco", src: "/assets/banks/bradesco.png" },
+  { name: "Itaú", src: "/assets/banks/itau.png" },
+  { name: "BV", src: "/assets/banks/bv.png" },
+  { name: "Banco PAN", src: "/assets/banks/banco-pan.png" },
+  { name: "Caixa", src: "/assets/banks/caixa.png" },
+  { name: "Porto Bank", src: "/assets/banks/porto-bank.png" },
 ] as const;
 
 export function BanksStrip() {
@@ -25,22 +23,16 @@ export function BanksStrip() {
           {BANKS.map((bank) => (
             <li key={bank.src}>
               <div className="flex min-h-20 flex-col items-center justify-center gap-2 rounded-md border border-foreground/10 bg-foreground/[0.02] px-3 py-3 text-center">
-                <Image
+                {/* eslint-disable-next-line @next/next/no-img-element -- ícone local pequeno; <img> evita warnings de aspect ratio do next/image e suporta PNG transparente sem srcset. */}
+                <img
                   src={bank.src}
                   alt={bank.name}
                   width={40}
                   height={40}
                   loading="lazy"
-                  unoptimized
                   decoding="async"
                   className="size-10 object-contain"
                 />
-                <span
-                  aria-hidden="true"
-                  className="text-xs font-medium text-foreground/60"
-                >
-                  {bank.name}
-                </span>
               </div>
             </li>
           ))}
