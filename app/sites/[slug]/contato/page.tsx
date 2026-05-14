@@ -20,6 +20,7 @@ import type { Metadata } from "next";
 import { ContactSection } from "@/components/sites/contact/ContactSection";
 import { SitePage } from "@/components/sites/SitePage";
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
+import { resolveVisualIdentity } from "@/lib/sites/default-visual-identity";
 import { getSite } from "@/lib/sites/get-site";
 import { buildSiteMetadata } from "@/lib/sites/metadata";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
@@ -140,7 +141,7 @@ export default async function ContatoPage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="contato"
-      manifest={site.visual_identity}
+      manifest={resolveVisualIdentity(site.visual_identity)}
     >
       <SiteSchema schemas={breadcrumbSchema} />
       <ContactSection
