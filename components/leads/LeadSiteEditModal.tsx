@@ -67,6 +67,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+import { LogoUploadField } from "./LogoUploadField";
 import type { LeadSiteCardData } from "./lead-site-card-types";
 
 type FormValues = Partial<SiteVariablesV2Type>;
@@ -414,15 +415,26 @@ export function LeadSiteEditModal({
               Identidade visual
             </h3>
             <Field
-              id={`${baseId}-logo-url`}
-              label="URL do logo"
+              id={`${baseId}-logo-upload`}
+              label="Logo"
               error={e.brand_assets?.logo_url?.message}
             >
-              <Input
-                id={`${baseId}-logo-url`}
-                type="url"
-                placeholder="https://..."
-                aria-invalid={!!e.brand_assets?.logo_url}
+              <LogoUploadField
+                leadSiteId={leadSite.id}
+                currentLogoUrl={
+                  leadSite.variables?.brand_assets?.logo_url ?? null
+                }
+                onUploaded={(url) =>
+                  setValue("brand_assets.logo_url", url, {
+                    shouldDirty: false,
+                    shouldValidate: false,
+                    shouldTouch: false,
+                  })
+                }
+              />
+              <input
+                type="hidden"
+                aria-hidden="true"
                 {...register("brand_assets.logo_url")}
               />
             </Field>
