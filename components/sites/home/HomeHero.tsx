@@ -2,6 +2,7 @@ import "server-only";
 
 import Image from "next/image";
 
+import { getOptimizedSourcesForDefault } from "@/lib/sites/default-visual-identity";
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
@@ -74,6 +75,10 @@ export function HomeHero({
     : `${business_name} — Carros seminovos`;
 
   const hasHeroImage = Boolean(hero_image_url && hero_image_url.length > 0);
+  // WP8 #316 — quando hero_image_url é um asset default conhecido em
+  // `_defaults/v1/`, serve via `<picture>` com AVIF/WebP srcset (~84KB
+  // vs PNG 2MB). Sites com VI própria caem no `<Image unoptimized>`.
+  const optimizedSources = getOptimizedSourcesForDefault(hero_image_url);
 
   return (
     <section
@@ -81,7 +86,26 @@ export function HomeHero({
       className="relative w-full min-h-[100dvh] overflow-hidden bg-background"
     >
       {/* Camada de fundo: imagem cover OU gradient empty state. */}
-      {hasHeroImage && hero_image_url ? (
+      {hasHeroImage && hero_image_url && optimizedSources ? (
+        <picture data-testid="home-hero-picture" className="absolute inset-0">
+          <source
+            type="image/avif"
+            srcSet={optimizedSources.avifSrcset}
+            sizes="100vw"
+          />
+          <source
+            type="image/webp"
+            srcSet={optimizedSources.webpSrcset}
+            sizes="100vw"
+          />
+          <img
+            src={optimizedSources.fallbackPngUrl}
+            alt={`Hero — ${business_name}`}
+            fetchPriority="high"
+            className="absolute inset-0 size-full object-cover object-center"
+          />
+        </picture>
+      ) : hasHeroImage && hero_image_url ? (
         <Image
           src={hero_image_url}
           alt={`Hero — ${business_name}`}
