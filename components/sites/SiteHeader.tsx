@@ -11,7 +11,6 @@ import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { MobileNav } from "./MobileNav";
-import { SiteThemeToggle } from "./SiteThemeToggle";
 import { buildSiteNavLinks, type ActivePage } from "./site-nav-links";
 
 type HeaderVariables = Pick<
@@ -159,7 +158,7 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
           )}
         </Link>
 
-        {/* Nav desktop + theme toggle */}
+        {/* Nav desktop */}
         <div className="hidden items-center gap-2 md:flex">
           <nav aria-label="Navegação principal">
             <ul className="flex items-center gap-1">
@@ -203,12 +202,10 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
             <MessageCircle className="size-4" aria-hidden />
             WhatsApp
           </a>
-          <SiteThemeToggle />
         </div>
 
-        {/* Hambúrguer mobile + theme toggle */}
+        {/* Hambúrguer mobile */}
         <div className="flex items-center gap-1 md:hidden">
-          <SiteThemeToggle />
           <MobileNav
             links={links}
             activePage={currentPage}
