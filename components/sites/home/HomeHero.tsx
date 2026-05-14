@@ -2,6 +2,7 @@ import "server-only";
 
 import Image from "next/image";
 
+import { getOptimizedSourcesForDefault } from "@/lib/sites/default-visual-identity";
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
@@ -13,17 +14,18 @@ interface HomeHeroProps {
   /** Nome do negócio (usado no `<h1>` + alt da imagem + AI passage). */
   business_name: string;
   /**
-   * URL/path da imagem hero. Quando ausente, renderiza empty state com
-   * gradient + monogram (decisão PO #221 — NÃO branco, graceful).
+   * URL/path da imagem hero. Quando ausente, fundo cai em gradient
+   * `primary_color → #0C0C0C` e o glass card continua renderizando por
+   * cima (carrega o branding — não há mais monogram avulso).
    *
-   * **Resolução (Sprint 2 / #A3 / #217)**: o caller (`SitePage`) já aplica
-   * a precedência `manifest?.hero_url ?? variables.brand_assets.hero_image_url`
-   * antes de passar pra cá. Este componente permanece thin.
+   * **Resolução upstream**: o caller (`SitePage`) recebe o manifest já
+   * via `resolveVisualIdentity(site.visual_identity)` (WP4 #312), então
+   * `hero_image_url` chega populado mesmo em sites sem VI própria.
    */
   hero_image_url: string | null | undefined;
-  /** Cor primária do site (hex sanitizado) — bg do CTA pill + empty state gradient. */
+  /** Cor primária do site (hex sanitizado) — empty-state gradient + accent. */
   primary_color: string;
-  /** Cor de texto sobre primário — texto do CTA pill. */
+  /** Cor de texto sobre primário — propagada ao `<HomeQuickSearchBar>`. */
   text_on_primary: string;
   /** Slug do site, usado pra construir o href do quick search redirect. */
   slug: string;
@@ -41,19 +43,21 @@ interface HomeHeroProps {
 }
 
 /**
- * Hero da Home V2 (Phase 7 / Sprint 4 / #H1 — issue #221).
+ * Hero fullscreen da Home V2 (Phase 7 / WP1 — issue #309).
  *
- * Server Component. Layout:
- *   - **Mobile**: `min-h-[90dvh]` (NÃO `vh` — lição sections-catalog).
- *   - **Desktop**: split 6/6 (`md:grid-cols-2`).
- *   - **Imagem**: `<Image priority fetchPriority="high" sizes="100vw" quality={85}>` — LCP target.
- *   - **H1 PT-BR canônico**: `${business_name} — Carros seminovos em ${city}`.
- *   - **Empty state**: linear-gradient com `primary_color` + monogram (1ª letra) centralizado.
+ * Server Component. Layout glass-card-on-image:
+ *   - **Container**: `min-h-[100dvh]`, imagem `<Image fill>` cover full-bleed
+ *     atrás de tudo (LCP target via `priority` + `fetchPriority="high"`).
+ *   - **Scrim**: gradient bottom (`black/45 → transparent`) que garante
+ *     contraste do card em qualquer foto.
+ *   - **Glass card**: `bottom-6 md:bottom-10`, `bg-white/85 backdrop-blur-md`,
+ *     `w-[min(92vw,800px)]`. Conteúdo: H1, AI passage, search bar.
+ *   - **Empty state**: quando `hero_image_url` é null/vazio, fundo vira
+ *     gradient `linear-gradient(135deg, primary, #0C0C0C)`. Card mantém
+ *     o branding por cima — graceful, NÃO branco vazio.
  *
- * Embute `<HomeQuickSearchBar>` (Client) abaixo do H1 — submit redireciona
- * pra `/estoque?m=...&model=...&p=...` via short-keys compartilhadas com #224.
- *
- * `AICitableHero` (#214) injetado após o H1, sempre visível mobile (AI crawlers).
+ * `<HomeQuickSearchBar>` (Client) embutido dentro do card; `<AICitableHero>`
+ * (#214) injetado após o H1 dentro do card, sempre visível mobile.
  */
 export function HomeHero({
   business_name,
@@ -66,76 +70,99 @@ export function HomeHero({
 }: HomeHeroProps) {
   const safePrimary = sanitizeHex(primary_color);
 
-  // H1 PT-BR canônico (PO refinement #221): "<biz> — Carros seminovos em <city>"
-  // Fallback gracioso quando address null: omite o "em <city>".
   const heroH1 = address?.city
     ? `${business_name} — Carros seminovos em ${address.city}`
     : `${business_name} — Carros seminovos`;
 
   const hasHeroImage = Boolean(hero_image_url && hero_image_url.length > 0);
-  const monogram = business_name.trim().charAt(0).toUpperCase() || "•";
+  // WP8 #316 — quando hero_image_url é um asset default conhecido em
+  // `_defaults/v1/`, serve via `<picture>` com AVIF/WebP srcset (~84KB
+  // vs PNG 2MB). Sites com VI própria caem no `<Image unoptimized>`.
+  const optimizedSources = getOptimizedSourcesForDefault(hero_image_url);
 
   return (
     <section
       data-testid="home-hero"
-      className="relative w-full bg-background min-h-[90dvh]"
+      className="relative w-full min-h-[100dvh] overflow-hidden bg-background"
     >
-      <div className="mx-auto grid min-h-[90dvh] max-w-7xl grid-cols-1 items-center gap-8 px-4 py-10 md:grid-cols-2 md:gap-12 md:px-8 md:py-16 lg:gap-16">
-        <div className="flex flex-col items-start gap-8 md:gap-10">
+      {/* Camada de fundo: imagem cover OU gradient empty state. */}
+      {hasHeroImage && hero_image_url && optimizedSources ? (
+        <picture data-testid="home-hero-picture" className="absolute inset-0">
+          <source
+            type="image/avif"
+            srcSet={optimizedSources.avifSrcset}
+            sizes="100vw"
+          />
+          <source
+            type="image/webp"
+            srcSet={optimizedSources.webpSrcset}
+            sizes="100vw"
+          />
+          <img
+            src={optimizedSources.fallbackPngUrl}
+            alt={`Hero — ${business_name}`}
+            fetchPriority="high"
+            className="absolute inset-0 size-full object-cover object-center"
+          />
+        </picture>
+      ) : hasHeroImage && hero_image_url ? (
+        <Image
+          src={hero_image_url}
+          alt={`Hero — ${business_name}`}
+          fill
+          sizes="100vw"
+          className="object-cover object-center"
+          placeholder="empty"
+          priority
+          fetchPriority="high"
+          unoptimized
+        />
+      ) : (
+        <div
+          data-testid="home-hero-empty-state"
+          aria-hidden="true"
+          role="presentation"
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${safePrimary} 0%, #0C0C0C 100%)`,
+          }}
+        />
+      )}
+
+      {/* Scrim sutil de baixo pra cima — contraste do card em qualquer foto. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/45 via-black/15 to-transparent"
+      />
+
+      {/* Glass card flutuante no fundo. */}
+      <div
+        className="absolute inset-x-0 bottom-6 z-10 flex justify-center px-4 md:bottom-10 md:px-8"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div
+          data-testid="home-hero-card"
+          className="w-[min(92vw,800px)] rounded-3xl border border-white/40 bg-white/85 p-6 shadow-2xl backdrop-blur-md md:p-8"
+        >
           <h1
             className="font-bold leading-[0.95] tracking-tight text-foreground"
-            style={{ fontSize: "clamp(2.25rem, 6vw, 4.5rem)" }}
+            style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
           >
             {heroH1}
           </h1>
-          {/*
-            AI passage-citable (#214). Imediatamente após <h1>, sempre
-            visível mobile (AI crawlers mobile-first). Estilo discreto
-            via text-muted-foreground.
-          */}
-          <AICitableHero
-            variables={{ business_name, address, cars }}
-            page="home"
-          />
-          <HomeQuickSearchBar
-            slug={slug}
-            primary_color={primary_color}
-            text_on_primary={text_on_primary}
-          />
-        </div>
-
-        <div className="relative aspect-[4/3] w-full md:aspect-auto md:h-[520px] lg:h-[600px]">
-          {hasHeroImage && hero_image_url ? (
-            <Image
-              src={hero_image_url}
-              alt={`Hero — ${business_name}`}
-              fill
-              sizes="100vw"
-              className="object-cover object-center"
-              placeholder="empty"
-              priority
-              fetchPriority="high"
-              unoptimized
-              // `quality={85}` is desired (AC #221) but next/image v16 emits a
-              // dev-time warning when not present in `images.qualities`. We use
-              // `unoptimized` here (image hosts are not whitelisted), so quality
-              // is dead-letter at runtime — drop the prop to silence the noise.
+          <div className="mt-3 md:mt-4">
+            <AICitableHero
+              variables={{ business_name, address, cars }}
+              page="home"
             />
-          ) : (
-            <div
-              data-testid="home-hero-empty-state"
-              aria-hidden="true"
-              role="presentation"
-              className="flex h-full w-full items-center justify-center rounded-3xl"
-              style={{
-                backgroundImage: `linear-gradient(135deg, ${safePrimary} 0%, #0C0C0C 100%)`,
-              }}
-            >
-              <span className="text-9xl font-bold tracking-tight text-white/85 select-none">
-                {monogram}
-              </span>
-            </div>
-          )}
+          </div>
+          <div className="mt-5 md:mt-6">
+            <HomeQuickSearchBar
+              slug={slug}
+              primary_color={primary_color}
+              text_on_primary={text_on_primary}
+            />
+          </div>
         </div>
       </div>
     </section>

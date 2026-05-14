@@ -55,3 +55,51 @@ export function resolveVisualIdentity(
 ): VisualIdentityManifest {
   return visualIdentity ?? DEFAULT_VISUAL_IDENTITY;
 }
+
+/**
+ * Larguras geradas pelo `scripts/optimize-default-assets.ts` (WP8 #316).
+ * Mantém em sync com o array `WIDTHS` daquele script.
+ */
+const DEFAULT_OPTIMIZED_WIDTHS = [640, 1280, 1920] as const;
+
+/**
+ * Nome base (sem extensão) dos arquivos default conhecidos. Usado pra
+ * matchear `hero_url`/`about_url`/etc. contra URLs do bucket `_defaults/v1/`.
+ */
+const DEFAULT_OPTIMIZED_NAMES = ["hero", "about", "contact"] as const;
+
+export interface OptimizedSources {
+  avifSrcset: string;
+  webpSrcset: string;
+  fallbackPngUrl: string;
+}
+
+/**
+ * Se a URL aponta pra um dos assets default em `_defaults/v1/`, retorna
+ * o set otimizado (AVIF + WebP + PNG fallback) pra `<picture>` markup.
+ *
+ * Retorna `null` quando a URL não é um default conhecido — o consumer
+ * cai no `<Image>` legado sem mudança.
+ *
+ * Os arquivos otimizados são produzidos por
+ * `scripts/optimize-default-assets.ts` (WP8 #316) em 3 larguras (640/
+ * 1280/1920) × 2 formatos (AVIF/WebP). PNG original fica como fallback
+ * pra browsers sem AVIF/WebP support.
+ */
+export function getOptimizedSourcesForDefault(
+  url: string | null | undefined,
+): OptimizedSources | null {
+  if (!url) return null;
+  for (const name of DEFAULT_OPTIMIZED_NAMES) {
+    const expectedPng = `${DEFAULT_VISUAL_IDENTITY_BASE}/${name}.png`;
+    if (url !== expectedPng) continue;
+    const avifSrcset = DEFAULT_OPTIMIZED_WIDTHS.map(
+      (w) => `${DEFAULT_VISUAL_IDENTITY_BASE}/${name}-${w}.avif ${w}w`,
+    ).join(", ");
+    const webpSrcset = DEFAULT_OPTIMIZED_WIDTHS.map(
+      (w) => `${DEFAULT_VISUAL_IDENTITY_BASE}/${name}-${w}.webp ${w}w`,
+    ).join(", ");
+    return { avifSrcset, webpSrcset, fallbackPngUrl: expectedPng };
+  }
+  return null;
+}
