@@ -46,7 +46,7 @@ Sub-componentes que compõem a página Contato do site público
 
 | Path | Propósito |
 |---|---|
-| `ContactSection.tsx` | Orquestrador da página Contato (#230): `<ContactDualPane>`, sociais, `<PaymentStrip>` e `<SiteForm variant="contact">`. Recebe `staticMapUrl` opcional + `mapsHref` já resolvidos pela rota. |
+| `ContactSection.tsx` | Orquestrador da página Contato (#230; PaymentStrip removida em #295): `<ContactDualPane>`, sociais e `<SiteForm variant="contact">`. Recebe `staticMapUrl` opcional + `mapsHref` já resolvidos pela rota. |
 | `ContactDualPane.tsx` | Layout dual-pane: copy/canais/horário/WhatsApp à esquerda e mapa estático/fallback à direita. Não busca dados; apenas renderiza props sanitizadas upstream. |
 | `BusinessHours.tsx` | Bloco visual de horários. Consome `hours: string \| null`, split por `\n` ou `|`, fallback canônico V1. |
 | `WhatsAppDirectCard.tsx` | Card de atendimento direto por WhatsApp usando `buildWhatsAppLink({ template: 'general', component: 'contact-section' })`. |
@@ -55,7 +55,6 @@ Sub-componentes que compõem a página Contato do site público
 
 ```
 ContactSection (server) ───┬─ ContactDualPane (server)
-                           ├─ PaymentStrip (server)
                            └─ delega ao <SiteForm> (client) ── react-hook-form
 ```
 

@@ -6,7 +6,6 @@ import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { BanksStrip } from "./BanksStrip";
-import { PaymentStrip } from "./PaymentStrip";
 import {
   FacebookIcon,
   InstagramIcon,
@@ -243,7 +242,6 @@ export function SiteFooter({ variables }: SiteFooterProps) {
       </div>
 
       <BanksStrip />
-      <PaymentStrip />
 
       <div className="border-t border-foreground/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-6 text-center text-sm text-foreground/60 md:flex-row md:px-8 md:text-left">
