@@ -1,8 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const submitMock = vi.hoisted(() => vi.fn());
+const uploadUrlMock = vi.hoisted(() => vi.fn());
+const compressionMock = vi.hoisted(() => vi.fn(async (file: File) => file));
 const toastMocks = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
@@ -10,6 +12,11 @@ const toastMocks = vi.hoisted(() => ({
 
 vi.mock("@/app/actions/site-announcement", () => ({
   submitAnnouncement: submitMock,
+  requestUploadUrl: uploadUrlMock,
+}));
+
+vi.mock("browser-image-compression", () => ({
+  default: compressionMock,
 }));
 
 vi.mock("sonner", () => ({
@@ -28,118 +35,177 @@ function setup() {
       slug={SLUG}
       primary_color="#0C0C0C"
       text_on_primary="#FFFFFF"
+      targetCarSlug="bmw-m2-2023"
+      formSignature="signed-context"
     />,
+  );
+}
+
+async function fillCarStep(user: ReturnType<typeof userEvent.setup>) {
+  fireEvent.change(screen.getByLabelText(/Marca/i), {
+    target: { value: "Toyota" },
+  });
+  fireEvent.change(screen.getByLabelText(/Modelo/i), {
+    target: { value: "Corolla XEi" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Ano$/i), {
+    target: { value: "2022" },
+  });
+  fireEvent.change(screen.getByLabelText(/Quilometragem/i), {
+    target: { value: "35000" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Combustível$/i), {
+    target: { value: "Flex" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Câmbio$/i), {
+    target: { value: "Automático" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Cor$/i), {
+    target: { value: "Prata" },
+  });
+  fireEvent.change(screen.getByLabelText(/^Motor$/i), {
+    target: { value: "2.0 16V" },
+  });
+  await user.click(screen.getByRole("button", { name: /Continuar/i }));
+}
+
+async function fillOwnerStep(user: ReturnType<typeof userEvent.setup>) {
+  fireEvent.change(screen.getByLabelText(/Seu nome/i), {
+    target: { value: "Maria Silva" },
+  });
+  fireEvent.change(screen.getByLabelText(/Telefone/i), {
+    target: { value: "(11) 98765-4321" },
+  });
+  fireEvent.change(screen.getByLabelText(/E-mail/i), {
+    target: { value: "maria@example.com" },
+  });
+  await user.click(screen.getByRole("button", { name: /Continuar/i }));
+}
+
+function makeJpegFile(name: string) {
+  return new File(
+    [new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0x10, 0x4a, 0x46, 0x49, 0x46, 0, 1])],
+    name,
+    { type: "image/jpeg" },
   );
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  submitMock.mockResolvedValue({
+    ok: true,
+    leadId: "lead-1",
+    uploadToken: "upload-token",
+  });
+  uploadUrlMock.mockResolvedValue({
+    ok: true,
+    path: "lead-1/0-1.jpg",
+    signedUrl: "https://storage.example/upload",
+  });
+  vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true })));
 });
 
 describe("<AnnounceForm />", () => {
-  it("renderiza todos os campos esperados (marca, modelo, ano, km, preço, nome, telefone, email, mensagem)", () => {
+  it("renderiza stepper com 4 passos e honeypot", () => {
     setup();
-    expect(screen.getByLabelText(/Marca/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Modelo/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Ano$/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Quilometragem/i)).toBeInTheDocument();
+    expect(screen.getByTestId("announce-stepper")).toHaveTextContent("Carro");
+    expect(screen.getByTestId("announce-stepper")).toHaveTextContent("Proprietário");
+    expect(screen.getByTestId("announce-stepper")).toHaveTextContent("Fotos");
+    expect(screen.getByTestId("announce-stepper")).toHaveTextContent("Revisão+LGPD");
     expect(
-      screen.getByLabelText(/Preço pretendido/i),
-    ).toBeInTheDocument();
-    expect(screen.getByLabelText(/Seu nome/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Telefone/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/E-mail/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Mensagem/i)).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(/De acordo com a LGPD/i),
+      document.querySelector("input[name='_hp_company']"),
     ).toBeInTheDocument();
   });
 
-  it("bloqueia submit com campos vazios e mostra erros (role=alert)", async () => {
+  it("bloqueia avanço no primeiro passo com campos vazios", async () => {
     const user = userEvent.setup();
     setup();
-    await user.click(
-      screen.getByRole("button", { name: /Enviar anúncio/i }),
-    );
+
+    await user.click(screen.getByRole("button", { name: /Continuar/i }));
 
     await waitFor(() => {
-      const alerts = screen.getAllByRole("alert");
-      expect(alerts.length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
     });
+    expect(screen.getByRole("heading", { name: "Carro" })).toBeInTheDocument();
     expect(submitMock).not.toHaveBeenCalled();
   });
 
-  it("bloqueia submit quando LGPD não marcada", async () => {
+  it("bloqueia Step Fotos quando há menos de 2 fotos", async () => {
     const user = userEvent.setup();
     setup();
 
-    await user.type(screen.getByLabelText(/Marca/i), "Toyota");
-    await user.type(screen.getByLabelText(/Modelo/i), "Corolla XEi");
-    await user.type(screen.getByLabelText(/^Ano$/i), "2022");
-    await user.type(screen.getByLabelText(/Quilometragem/i), "35000");
-    await user.type(screen.getByLabelText(/Seu nome/i), "Maria Silva");
-    await user.type(
-      screen.getByLabelText(/Telefone/i),
-      "(11) 98765-4321",
-    );
-    await user.type(
-      screen.getByLabelText(/E-mail/i),
-      "maria@example.com",
-    );
+    await fillCarStep(user);
+    await fillOwnerStep(user);
+    expect(screen.getByText(/Borre a placa antes de enviar/i)).toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: /Enviar anúncio/i }),
-    );
+    await user.upload(screen.getByLabelText(/Fotos do veículo/i), [
+      makeJpegFile("frente.jpg"),
+    ]);
+    await user.click(screen.getByRole("button", { name: /Continuar/i }));
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/aceitar a Política de Privacidade/i),
-      ).toBeInTheDocument();
-    });
-    expect(submitMock).not.toHaveBeenCalled();
+    expect(
+      await screen.findByText("Adicione pelo menos 2 fotos do veículo para continuar."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Fotos" })).toBeInTheDocument();
   });
 
-  it("envia payload válido e mostra toast de sucesso", async () => {
+  it("envia payload válido, comprime e sobe 2 fotos", async () => {
     const user = userEvent.setup();
-    submitMock.mockResolvedValue({ ok: true });
     setup();
 
-    await user.type(screen.getByLabelText(/Marca/i), "Toyota");
-    await user.type(screen.getByLabelText(/Modelo/i), "Corolla XEi");
-    await user.type(screen.getByLabelText(/^Ano$/i), "2022");
-    await user.type(screen.getByLabelText(/Quilometragem/i), "35000");
-    await user.type(screen.getByLabelText(/Seu nome/i), "Maria Silva");
-    await user.type(
-      screen.getByLabelText(/Telefone/i),
-      "(11) 98765-4321",
-    );
-    await user.type(
-      screen.getByLabelText(/E-mail/i),
-      "maria@example.com",
-    );
-    await user.click(screen.getByLabelText(/De acordo com a LGPD/i));
+    await fillCarStep(user);
+    await fillOwnerStep(user);
+    await user.upload(screen.getByLabelText(/Fotos do veículo/i), [
+      makeJpegFile("frente.jpg"),
+      makeJpegFile("painel.jpg"),
+    ]);
+    await user.click(screen.getByRole("button", { name: /Continuar/i }));
+
+    expect(
+      screen.getByText(/Concordo com o tratamento dos meus dados pessoais/i),
+    ).toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: /Enviar anúncio/i }),
+      screen.getByLabelText(/Concordo com o tratamento dos meus dados pessoais/i),
     );
+    await user.click(screen.getByRole("button", { name: /Enviar anúncio/i }));
 
     await waitFor(() => {
       expect(submitMock).toHaveBeenCalledTimes(1);
     });
-    const [siteIdArg, payloadArg] = submitMock.mock.calls[0]!;
-    expect(siteIdArg).toBe(SITE_ID);
-    expect(payloadArg).toMatchObject({
-      marca: "Toyota",
-      modelo: "Corolla XEi",
-      ano: 2022,
-      km: 35000,
-      nome: "Maria Silva",
-      email: "maria@example.com",
-      lgpd_consent: true,
-    });
+    expect(submitMock).toHaveBeenCalledWith(
+      SITE_ID,
+      expect.objectContaining({
+        marca: "Toyota",
+        modelo: "Corolla XEi",
+        ano: 2022,
+        km: 35000,
+        combustivel: "Flex",
+        cambio: "Automático",
+        cor: "Prata",
+        motor: "2.0 16V",
+        email: "maria@example.com",
+        car_target_slug: "bmw-m2-2023",
+        lgpd_consent: true,
+      }),
+      { honeypot: "", formSignature: "signed-context" },
+    );
 
     await waitFor(() => {
-      expect(toastMocks.success).toHaveBeenCalled();
+      expect(uploadUrlMock).toHaveBeenCalledTimes(2);
     });
+    expect(compressionMock).toHaveBeenCalledTimes(2);
+    expect(uploadUrlMock).toHaveBeenCalledWith(
+      SITE_ID,
+      expect.objectContaining({
+        leadId: "lead-1",
+        uploadToken: "upload-token",
+        ext: "jpg",
+        mimeType: "image/jpeg",
+        magicHeader: "ffd8ffe000104a4649460001",
+      }),
+    );
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    expect(toastMocks.success).toHaveBeenCalled();
   });
 
   it("mostra toast.error quando Server Action retorna { ok: false }", async () => {
@@ -147,23 +213,21 @@ describe("<AnnounceForm />", () => {
     submitMock.mockResolvedValue({ ok: false, error: "Falha qualquer" });
     setup();
 
-    await user.type(screen.getByLabelText(/Marca/i), "Toyota");
-    await user.type(screen.getByLabelText(/Modelo/i), "Corolla");
-    await user.type(screen.getByLabelText(/^Ano$/i), "2022");
-    await user.type(screen.getByLabelText(/Quilometragem/i), "10000");
-    await user.type(screen.getByLabelText(/Seu nome/i), "João");
-    await user.type(screen.getByLabelText(/Telefone/i), "11987654321");
-    await user.type(
-      screen.getByLabelText(/E-mail/i),
-      "joao@example.com",
-    );
-    await user.click(screen.getByLabelText(/De acordo com a LGPD/i));
+    await fillCarStep(user);
+    await fillOwnerStep(user);
+    await user.upload(screen.getByLabelText(/Fotos do veículo/i), [
+      makeJpegFile("frente.jpg"),
+      makeJpegFile("painel.jpg"),
+    ]);
+    await user.click(screen.getByRole("button", { name: /Continuar/i }));
     await user.click(
-      screen.getByRole("button", { name: /Enviar anúncio/i }),
+      screen.getByLabelText(/Concordo com o tratamento dos meus dados pessoais/i),
     );
+    await user.click(screen.getByRole("button", { name: /Enviar anúncio/i }));
 
     await waitFor(() => {
       expect(toastMocks.error).toHaveBeenCalledWith("Falha qualquer");
     });
+    expect(uploadUrlMock).not.toHaveBeenCalled();
   });
 });

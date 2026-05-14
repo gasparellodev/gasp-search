@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { submitSiteForm } from "@/app/actions/site-form";
+import { trackEvent } from "@/lib/analytics/track-event";
 import { publicEnv } from "@/lib/env-public";
 import {
   SiteFormSchema,
@@ -148,6 +149,7 @@ function HomeContactFormQuickInner({
           toast.success(
             "Mensagem enviada! Em breve entraremos em contato.",
           );
+          trackEvent("form_submit", { form_variant: "home_quick" });
           setSubmitted(true);
           reset({
             model: "Contato pela home",

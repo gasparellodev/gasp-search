@@ -12,6 +12,7 @@
  *   - `preco`: preço pretendido (≥ 0; opcional).
  *   - `nome`/`telefone`/`email`: contato.
  *   - `mensagem`: descrição livre (opcional, max 1000).
+ *   - `car_target_slug`: slug opcional do carro alvo da troca.
  *   - `lgpd_consent`: consentimento explícito (`literal(true)`).
  *
  * `telefone` aceita formatação livre (espaços, parênteses, hífens). A
@@ -42,6 +43,11 @@ export const AnnouncementSchema = z.object({
     .number({ error: "KM inválido" })
     .int("KM deve ser inteiro")
     .min(0, "KM não pode ser negativo"),
+  combustivel: z.string().trim().min(1, PT_REQUIRED).max(40),
+  cambio: z.string().trim().min(1, PT_REQUIRED).max(40),
+  cor: z.string().trim().min(1, PT_REQUIRED).max(40),
+  motor: z.string().trim().min(1, PT_REQUIRED).max(80),
+  fipe_codigo: z.string().trim().max(40).optional(),
   preco: z
     .number({ error: "Preço inválido" })
     .min(0, "Preço não pode ser negativo")
@@ -62,6 +68,7 @@ export const AnnouncementSchema = z.object({
     ),
   email: z.string().trim().email("E-mail inválido").max(160),
   mensagem: z.string().trim().max(1000).optional(),
+  car_target_slug: z.string().trim().max(160).optional(),
   lgpd_consent: z.literal(true, {
     error: "É preciso aceitar a Política de Privacidade",
   }),

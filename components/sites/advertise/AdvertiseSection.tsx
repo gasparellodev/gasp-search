@@ -3,6 +3,8 @@ import "server-only";
 import { sanitizeHex } from "@/lib/sites/sanitize";
 
 import { AnnounceForm } from "./AnnounceForm";
+import { AnnounceHero } from "./AnnounceHero";
+import { AnnounceProcessExplanation } from "./AnnounceProcessExplanation";
 
 interface AdvertiseSectionProps {
   siteId: string;
@@ -11,14 +13,16 @@ interface AdvertiseSectionProps {
   primary_color: string;
   text_on_primary: string;
   business_name: string;
+  targetCar?: { brand: string; model: string; year: number } | null;
+  targetCarSlug?: string | null;
+  formSignature?: string | null;
 }
 
 /**
- * Section principal da rota `/sites/[slug]/anunciar` (Phase 7 — issue #163).
+ * Section principal da rota `/sites/[slug]/anunciar` (Phase 7 — #163/#231).
  *
- * Server Component que envolve o `<AnnounceForm>` (Client). Renderiza:
- *   - Header com `<h1>` "Anuncie seu carro aqui" + parágrafo explicativo.
- *   - `<AnnounceForm>` (react-hook-form + Zod + Server Action stub).
+ * Server Component que compõe hero editorial, `<AnnounceForm>` (Client)
+ * e explicação do processo de avaliação.
  *
  * Cores são sanitizadas via `sanitizeHex` antes de serem propagadas pro
  * Client Component — defesa em profundidade contra CSS injection
@@ -30,35 +34,29 @@ export function AdvertiseSection({
   primary_color,
   text_on_primary,
   business_name,
+  targetCar = null,
+  targetCarSlug = null,
+  formSignature = null,
 }: AdvertiseSectionProps) {
   const safePrimary = sanitizeHex(primary_color);
   const safeTextOnPrimary = sanitizeHex(text_on_primary);
 
   return (
-    <section data-testid="advertise-section" className="w-full bg-background">
-      <div className="mx-auto max-w-5xl px-4 py-12 md:px-8 md:py-20">
-        <div className="flex flex-col gap-6">
-          <h1
-            className="font-bold leading-[1.05] tracking-tight text-foreground"
-            style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)" }}
-          >
-            Anuncie seu carro aqui
-          </h1>
-          <p className="text-base text-foreground/70 md:text-lg">
-            Conte para a equipe da {business_name} sobre o seu veículo. Vamos
-            avaliar e retornar o contato com a melhor proposta.
-          </p>
-        </div>
-
-        <div className="mt-10 md:mt-12">
+    <div data-testid="advertise-section" className="w-full bg-background">
+      <AnnounceHero businessName={business_name} targetCar={targetCar} />
+      <section className="w-full bg-background pb-16 md:pb-24">
+        <div className="mx-auto max-w-5xl px-4 md:px-8">
           <AnnounceForm
             siteId={siteId}
             slug={slug}
             primary_color={safePrimary}
             text_on_primary={safeTextOnPrimary}
+            targetCarSlug={targetCarSlug}
+            formSignature={formSignature}
           />
         </div>
-      </div>
-    </section>
+      </section>
+      <AnnounceProcessExplanation />
+    </div>
   );
 }

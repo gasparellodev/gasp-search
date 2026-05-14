@@ -18,12 +18,12 @@ const baseProps = {
 };
 
 describe("<AdvertiseSection />", () => {
-  it("renderiza <h1> 'Anuncie seu carro aqui'", () => {
+  it("renderiza <h1> 'Anuncie seu carro'", () => {
     render(<AdvertiseSection {...baseProps} />);
     expect(
       screen.getByRole("heading", {
         level: 1,
-        name: /Anuncie seu carro aqui/i,
+        name: /Anuncie seu carro$/i,
       }),
     ).toBeInTheDocument();
   });
@@ -31,13 +31,31 @@ describe("<AdvertiseSection />", () => {
   it("inclui o nome do negócio na descrição", () => {
     render(<AdvertiseSection {...baseProps} />);
     expect(
-      screen.getByText(/Conte para a equipe da Touring Cars/i),
+      screen.getByText(/equipe da Touring Cars avaliar/i),
     ).toBeInTheDocument();
   });
 
-  it("renderiza o <AnnounceForm /> aninhado", () => {
+  it("renderiza hero, form e explicação do processo", () => {
     render(<AdvertiseSection {...baseProps} />);
+    expect(screen.getByTestId("announce-hero")).toBeInTheDocument();
     expect(screen.getByTestId("announce-form")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("announce-process-explanation"),
+    ).toBeInTheDocument();
+  });
+
+  it("mostra banner contextual quando há targetCar", () => {
+    render(
+      <AdvertiseSection
+        {...baseProps}
+        targetCar={{ brand: "BMW", model: "M2", year: 2023 }}
+        targetCarSlug="bmw-m2-2023"
+        formSignature="signed-context"
+      />,
+    );
+    expect(screen.getByTestId("announce-target-car")).toHaveTextContent(
+      "BMW M2 2023",
+    );
   });
 
   it("sanitiza cores adversariais antes de propagar pro AnnounceForm", () => {
@@ -47,7 +65,7 @@ describe("<AdvertiseSection />", () => {
         primary_color={"red; background: url(x);"}
       />,
     );
-    const submit = screen.getByRole("button", { name: /Enviar anúncio/i });
+    const submit = screen.getByRole("button", { name: /Continuar/i });
     // sanitizeHex retorna #0C0C0C quando inválido.
     expect(submit).toHaveStyle({ backgroundColor: "#0C0C0C" });
   });

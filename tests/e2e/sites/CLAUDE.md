@@ -19,6 +19,7 @@ tests/e2e/sites/
 ├── header-glass.spec.ts   # #218 — glass-sticky + MobileNav fullscreen
 ├── floating-whatsapp.spec.ts # #220 — CTA flutuante + barra mobile detail
 ├── cookie-consent.spec.ts # #234 — banner LGPD + persistência localStorage
+├── analytics-consent.spec.ts # #233 — GA4 só após opt-in analytics
 ├── stock-filter.spec.ts # #224 — filtros URL/shareable + drawer mobile
 ├── detail-d1.spec.ts     # #226 — breadcrumb, galeria cinema/lightbox, info e spec grid
 ├── detail-d3.spec.ts     # #228 — Tradein widget + Similar vehicles + FAQ contextual + ordem visual
@@ -27,6 +28,9 @@ tests/e2e/sites/
 ```
 
 ## Estratégia de seed
+
+Visual regression v3 (#204) vive em `tests/e2e/visual/sites-routes.spec.ts`
+(baselines em `tests/visual/figma-baseline/v3/` — ver `tests/visual/README.md`).
 
 Os specs usam a **rota test-only** `POST /api/e2e-seed/seed-lead-site`
 em vez de invocar `generateLeadSite` (Anthropic + Apify) ou rodar UI de

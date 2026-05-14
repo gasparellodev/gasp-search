@@ -18,6 +18,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: "**/visual/**",
+      use: { ...devices["Desktop Chrome"] },
+    },
+    {
+      name: "visual-sites",
+      testDir: "./tests/e2e/visual",
+      snapshotPathTemplate: "tests/visual/figma-baseline/v3/{arg}{ext}",
       use: { ...devices["Desktop Chrome"] },
     },
   ],

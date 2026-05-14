@@ -19,6 +19,15 @@ const publicEnvSchema = z.object({
   // Feature flag pra ligar persistência do `<HomeContactFormQuick>` em
   // `lead_form_submissions`. Default `"0"` (off) — deploy gradual.
   NEXT_PUBLIC_SITE_FORMS_ENABLED: z.enum(["0", "1"]).default("0"),
+  // Phase 7 #233 — GA4 (consent-gated no cliente) + GSC verification meta.
+  NEXT_PUBLIC_GA4_ID: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.string().min(1).optional(),
+  ),
+  NEXT_PUBLIC_GSC_VERIFICATION: z.preprocess(
+    (v) => (v === "" || v == null ? undefined : v),
+    z.string().min(1).optional(),
+  ),
 });
 
 export type PublicEnv = z.infer<typeof publicEnvSchema>;
@@ -33,6 +42,8 @@ function load(): PublicEnv {
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_WHATSAPP_ENABLED: process.env.NEXT_PUBLIC_WHATSAPP_ENABLED,
     NEXT_PUBLIC_SITE_FORMS_ENABLED: process.env.NEXT_PUBLIC_SITE_FORMS_ENABLED,
+    NEXT_PUBLIC_GA4_ID: process.env.NEXT_PUBLIC_GA4_ID,
+    NEXT_PUBLIC_GSC_VERIFICATION: process.env.NEXT_PUBLIC_GSC_VERIFICATION,
   });
   if (!parsed.success) {
     const issues = parsed.error.issues
