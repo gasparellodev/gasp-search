@@ -38,6 +38,24 @@ describe("<HomeFinancingWidget />", () => {
     ).toBeInTheDocument();
   });
 
+  it("renderiza copy curto + âncora pra #bancos-parceiros (#299, sem BanksStrip)", () => {
+    render(
+      <HomeFinancingWidget
+        whatsappPhone={PHONE}
+        businessName={BUSINESS}
+        siteSlug={SLUG}
+      />,
+    );
+
+    // #299: BanksStrip foi removido daqui (consolidado em <HomeBanksPartners>).
+    // O componente apresenta uma copy curta + link âncora pra rolar até a
+    // seção canônica.
+    expect(screen.getByTestId("financing-banks-anchor")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /lista completa/i }),
+    ).toHaveAttribute("href", "#bancos-parceiros");
+  });
+
   it("renderiza price input, slider entrada e select prazo (defaults: 50000 / 20% / 48m)", () => {
     render(
       <HomeFinancingWidget

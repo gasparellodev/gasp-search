@@ -2,7 +2,6 @@
 
 import { useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { BanksStrip } from "@/components/sites/BanksStrip";
 import { trackEvent } from "@/lib/analytics/track-event";
 import {
   calculateInstallment,
@@ -153,7 +152,18 @@ export function HomeFinancingWidget({
             Estimativa imediata da parcela com nossos bancos parceiros.
             Aprovação em até 24h — sem burocracia, sem sair de casa.
           </p>
-          <BanksStrip />
+          <p
+            data-testid="financing-banks-anchor"
+            className="text-sm text-foreground/70 md:text-base"
+          >
+            Simulamos em <strong>7 bancos parceiros</strong>.{" "}
+            <a
+              href="#bancos-parceiros"
+              className="font-medium text-foreground underline-offset-4 transition hover:underline focus-visible:underline"
+            >
+              Veja a lista completa →
+            </a>
+          </p>
         </div>
 
         {/* Right — form + output */}
