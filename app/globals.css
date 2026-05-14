@@ -306,22 +306,6 @@
   }
 }
 
-/* Auto Showroom dark — paleta neutra escura (DESIGN.md §Colors). Triggera
-   tanto pela classe `.dark` no `<html>` (next-themes default) quanto por
-   `.dark` ancestor para suportar pseudo-isolated cases. */
-[data-theme="auto-showroom"].dark,
-[data-theme="auto-showroom"] .dark {
-  --auto-background: #0a0a0a;
-  --auto-foreground: #fafafa;
-  --auto-surface: #141414;
-  --auto-surface-elevated: #1a1a1a;
-  --auto-border: #262626;
-  --auto-border-strong: #525252;
-  --auto-muted: #171717;
-  --auto-muted-foreground: #a3a3a3;
-  --auto-destructive: #ef4444;
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
