@@ -166,8 +166,8 @@ export function SitePage({
               siteSlug={slug}
             />
             <HomeTradeinWidget
-              manifestAboutUrl={manifest?.about_url ?? null}
-              aboutImageUrl={brand_assets.about_image_url}
+              manifestTradeinUrl={manifest?.tradein_url ?? null}
+              tradeinImageUrl={brand_assets.tradein_image_url ?? null}
               siteSlug={slug}
               whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
