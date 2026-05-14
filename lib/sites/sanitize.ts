@@ -121,3 +121,31 @@ export function sanitizeAnnouncementText(input: unknown): string | null {
     ? collapsed.slice(0, ANNOUNCEMENT_TEXT_MAX)
     : collapsed;
 }
+
+/**
+ * Hosts canônicos do CDN de fotos do Google Maps. Detecção é
+ * "best-effort": qualquer match indica que a URL veio do pipeline
+ * de scraping de places — geralmente uma foto genérica do local,
+ * NÃO o logo oficial da marca.
+ */
+const GOOGLE_MAPS_PHOTO_HOST_RE =
+  /\b(lh3|lh4|lh5|lh6)\.googleusercontent\.com\b|\bmaps\.googleapis\.com\b|\bmaps\.gstatic\.com\b/i;
+
+/**
+ * Heurística pra distinguir "logo de fato" vs "foto vinda do Google Maps"
+ * em `lead_sites.variables.brand_assets.logo_url` (e variantes). O
+ * pipeline de brand assets (`extractBrandAssets` em #156) cai em fallback
+ * de Maps quando Instagram/website estão ausentes — o resultado é uma foto
+ * geral do estabelecimento, não o brand mark canônico.
+ *
+ * Esta helper alimenta scripts de admin (`scripts/list-sites-needing-vi.ts`)
+ * que listam sites elegíveis pra regen manual de identidade visual.
+ *
+ * Retorna `false` para input não-string, vazio ou `null`. **Não** é
+ * defesa em profundidade contra adversário — é classificação heurística
+ * por host pattern.
+ */
+export function isLikelyGoogleMapsPhoto(input: unknown): boolean {
+  if (typeof input !== "string" || input.length === 0) return false;
+  return GOOGLE_MAPS_PHOTO_HOST_RE.test(input);
+}
