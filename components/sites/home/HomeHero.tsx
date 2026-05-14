@@ -83,7 +83,9 @@ export function HomeHero({
   return (
     <section
       data-testid="home-hero"
-      className="relative w-full min-h-[100dvh] overflow-hidden bg-background"
+      // -mt-16 md:-mt-20 puxa o hero pra baixo do header sticky (que tem
+      // 64px mobile / 80px desktop), garantindo full-bleed da imagem.
+      className="relative -mt-16 w-full min-h-[100dvh] overflow-hidden bg-background md:-mt-20"
     >
       {/* Camada de fundo: imagem cover OU gradient empty state. */}
       {hasHeroImage && hero_image_url && optimizedSources ? (
@@ -129,28 +131,37 @@ export function HomeHero({
         />
       )}
 
-      {/* Scrim sutil de baixo pra cima — contraste do card em qualquer foto. */}
+      {/* Scrim topo — contraste do header sobre imagem clara. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/45 via-black/15 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 via-black/20 to-transparent"
       />
 
-      {/* Glass card flutuante no fundo. */}
+      {/* Scrim bottom — contraste do card em qualquer foto. */}
       <div
-        className="absolute inset-x-0 bottom-6 z-10 flex justify-center px-4 md:bottom-10 md:px-8"
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/60 via-black/25 to-transparent"
+      />
+
+      {/* Glass card flutuante centro-baixo — vidro fumê (dark frosted). */}
+      <div
+        className="absolute inset-x-0 bottom-10 z-10 flex justify-center px-4 md:bottom-16 md:px-8"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div
           data-testid="home-hero-card"
-          className="w-[min(92vw,800px)] rounded-3xl border border-white/40 bg-white/85 p-6 shadow-2xl backdrop-blur-md md:p-8"
+          className="w-[min(92vw,800px)] rounded-3xl border border-white/15 bg-zinc-950/45 p-6 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-zinc-950/80"
         >
           <h1
-            className="font-bold leading-[0.95] tracking-tight text-foreground"
+            className="font-bold leading-[0.95] tracking-tight text-white"
             style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
           >
             {heroH1}
           </h1>
-          <div className="mt-3 md:mt-4">
+          {/* AI passage em texto branco/80 — o componente usa
+              text-muted-foreground por default; sobrescrevemos com
+              children-aware text-white/80 via wrapper de classe. */}
+          <div className="mt-3 text-white/85 [&_*]:!text-white/85 md:mt-4">
             <AICitableHero
               variables={{ business_name, address, cars }}
               page="home"
