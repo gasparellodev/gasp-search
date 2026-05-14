@@ -85,49 +85,59 @@ export function HomeHero({
       data-testid="home-hero"
       className="relative w-full min-h-[100dvh] overflow-hidden bg-background"
     >
-      {/* Camada de fundo: imagem cover OU gradient empty state. */}
-      {hasHeroImage && hero_image_url && optimizedSources ? (
-        <picture data-testid="home-hero-picture" className="absolute inset-0">
-          <source
-            type="image/avif"
-            srcSet={optimizedSources.avifSrcset}
-            sizes="100vw"
-          />
-          <source
-            type="image/webp"
-            srcSet={optimizedSources.webpSrcset}
-            sizes="100vw"
-          />
-          <img
-            src={optimizedSources.fallbackPngUrl}
+      {/* Camada de fundo: imagem cover OU gradient empty state.
+          WP2 #310 — wrapper recebe data-reveal-variant="hero-image" pra
+          ken-burns lite no mount (sem scrollTrigger).
+          WP8 #316 — quando optimizedSources existe, serve via <picture>
+          com AVIF/WebP srcset (~84KB vs PNG 2MB). */}
+      <div
+        data-reveal
+        data-reveal-variant="hero-image"
+        className="absolute inset-0"
+      >
+        {hasHeroImage && hero_image_url && optimizedSources ? (
+          <picture data-testid="home-hero-picture" className="absolute inset-0">
+            <source
+              type="image/avif"
+              srcSet={optimizedSources.avifSrcset}
+              sizes="100vw"
+            />
+            <source
+              type="image/webp"
+              srcSet={optimizedSources.webpSrcset}
+              sizes="100vw"
+            />
+            <img
+              src={optimizedSources.fallbackPngUrl}
+              alt={`Hero — ${business_name}`}
+              fetchPriority="high"
+              className="absolute inset-0 size-full object-cover object-center"
+            />
+          </picture>
+        ) : hasHeroImage && hero_image_url ? (
+          <Image
+            src={hero_image_url}
             alt={`Hero — ${business_name}`}
+            fill
+            sizes="100vw"
+            className="object-cover object-center"
+            placeholder="empty"
+            priority
             fetchPriority="high"
-            className="absolute inset-0 size-full object-cover object-center"
+            unoptimized
           />
-        </picture>
-      ) : hasHeroImage && hero_image_url ? (
-        <Image
-          src={hero_image_url}
-          alt={`Hero — ${business_name}`}
-          fill
-          sizes="100vw"
-          className="object-cover object-center"
-          placeholder="empty"
-          priority
-          fetchPriority="high"
-          unoptimized
-        />
-      ) : (
-        <div
-          data-testid="home-hero-empty-state"
-          aria-hidden="true"
-          role="presentation"
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `linear-gradient(135deg, ${safePrimary} 0%, #0C0C0C 100%)`,
-          }}
-        />
-      )}
+        ) : (
+          <div
+            data-testid="home-hero-empty-state"
+            aria-hidden="true"
+            role="presentation"
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `linear-gradient(135deg, ${safePrimary} 0%, #0C0C0C 100%)`,
+            }}
+          />
+        )}
+      </div>
 
       {/* Scrim sutil de baixo pra cima — contraste do card em qualquer foto. */}
       <div
@@ -142,26 +152,32 @@ export function HomeHero({
       >
         <div
           data-testid="home-hero-card"
+          data-reveal
+          data-reveal-variant="hero-card"
           className="w-[min(92vw,800px)] rounded-3xl border border-white/40 bg-white/85 p-6 shadow-2xl backdrop-blur-md md:p-8"
         >
-          <h1
-            className="font-bold leading-[0.95] tracking-tight text-foreground"
-            style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
-          >
-            {heroH1}
-          </h1>
-          <div className="mt-3 md:mt-4">
-            <AICitableHero
-              variables={{ business_name, address, cars }}
-              page="home"
-            />
-          </div>
-          <div className="mt-5 md:mt-6">
-            <HomeQuickSearchBar
-              slug={slug}
-              primary_color={primary_color}
-              text_on_primary={text_on_primary}
-            />
+          {/* Inner wrapper recebe data-reveal-variant="hero-cta-stagger"
+              pra stagger entrada dos filhos (h1 → passage → search bar). */}
+          <div data-reveal data-reveal-variant="hero-cta-stagger">
+            <h1
+              className="font-bold leading-[0.95] tracking-tight text-foreground"
+              style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
+            >
+              {heroH1}
+            </h1>
+            <div className="mt-3 md:mt-4">
+              <AICitableHero
+                variables={{ business_name, address, cars }}
+                page="home"
+              />
+            </div>
+            <div className="mt-5 md:mt-6">
+              <HomeQuickSearchBar
+                slug={slug}
+                primary_color={primary_color}
+                text_on_primary={text_on_primary}
+              />
+            </div>
           </div>
         </div>
       </div>

@@ -4,25 +4,42 @@ import { useEffect } from "react";
 
 import { loadGsap, prefersReducedMotion } from "@/lib/sites/motion";
 
+type RevealVariant = "hero-image" | "hero-card" | "hero-cta-stagger";
+
+const KNOWN_VARIANTS = new Set<RevealVariant>([
+  "hero-image",
+  "hero-card",
+  "hero-cta-stagger",
+]);
+
+function readVariant(el: HTMLElement): RevealVariant | null {
+  const raw = el.dataset.revealVariant;
+  if (!raw) return null;
+  return KNOWN_VARIANTS.has(raw as RevealVariant)
+    ? (raw as RevealVariant)
+    : null;
+}
+
 /**
- * Side-effect Client Component (Phase 7 / WP7 — issue #296). Sem render
- * visível: ao montar, anima todos elementos `[data-reveal]` com fade+slide
- * via GSAP + ScrollTrigger conforme entram no viewport.
+ * Side-effect Client Component (Phase 7 / WP7 #296 + WP2 #310).
  *
- * **Decisões:**
- *   - Padrão fixo: `y: 32, opacity: 0 → 1, duration: 0.8s, stagger 0.1s` por
- *     grupo `[data-reveal]`. Cada section da home recebe o atributo e roda
- *     como uma timeline isolada (start `"top 80%"`).
- *   - `toggleActions: 'play none none none'` — anima uma vez, não reverte
- *     ao sair do viewport (UX premium, evita "blink" no scroll-up).
- *   - **`prefers-reduced-motion`**: NÃO chama `loadGsap`. Elementos
- *     ficam visíveis imediato (CSS já mostra; `data-reveal` é só anchor).
- *   - **Cleanup no unmount**: kill todos ScrollTriggers criados e limpa
- *     inline styles do GSAP em cada element pra evitar leak entre rotas.
+ * Sem render visível: ao montar, anima elementos `[data-reveal]` via GSAP.
  *
- * **Não conflita com sticky header** porque GSAP só anima `transform` /
- * `opacity` dos elementos `[data-reveal]` — o header glass-sticky e seu
- * sentinel `data-site-header-sentinel` continuam intactos.
+ * **Variants (WP2 #310):**
+ *   - Sem `data-reveal-variant`: comportamento legado WP7 — `y:32, opacity:0→1`
+ *     com `ScrollTrigger` no viewport (toggleActions `play none none none`).
+ *   - `data-reveal-variant="hero-image"`: fade + scale 1.0→1.05 imediato no
+ *     mount (sem scrollTrigger). Ken-burns lite — imagem fica viva.
+ *   - `data-reveal-variant="hero-card"`: slide-up + scale 0.96→1.0 imediato.
+ *     Card glass do Hero entra com peso.
+ *   - `data-reveal-variant="hero-cta-stagger"`: stagger nos filhos diretos
+ *     (`y:12, opacity:0→1`, stagger 0.08s, delay 0.6s).
+ *
+ * **`prefers-reduced-motion`**: early return — todos variants viram no-op.
+ * Elementos ficam visíveis estáticos (CSS já mostra; `data-reveal` é só anchor).
+ *
+ * **Cleanup no unmount**: kill todos ScrollTriggers + limpa inline styles
+ * pra evitar leak entre rotas.
  */
 export function HomeMotion() {
   useEffect(() => {
@@ -38,9 +55,57 @@ export function HomeMotion() {
         const els = Array.from(
           document.querySelectorAll<HTMLElement>("[data-reveal]"),
         );
-        targets = els;
+        // `targets` é um NOVO array (não alias de els) — evita mutação
+        // durante a iteração quando hero-cta-stagger empurra os filhos
+        // pra cleanup.
+        targets = [...els];
 
         for (const el of els) {
+          const variant = readVariant(el);
+
+          if (variant === "hero-image") {
+            gsap.fromTo(
+              el,
+              { scale: 1.0, opacity: 0 },
+              {
+                scale: 1.05,
+                opacity: 1,
+                duration: 1.2,
+                ease: "power2.out",
+              },
+            );
+            continue;
+          }
+
+          if (variant === "hero-card") {
+            gsap.from(el, {
+              y: 48,
+              opacity: 0,
+              scale: 0.96,
+              duration: 0.9,
+              delay: 0.2,
+              ease: "power3.out",
+            });
+            continue;
+          }
+
+          if (variant === "hero-cta-stagger") {
+            const children = Array.from(el.children) as HTMLElement[];
+            if (children.length > 0) {
+              gsap.from(children, {
+                y: 12,
+                opacity: 0,
+                stagger: 0.08,
+                delay: 0.6,
+                duration: 0.5,
+                ease: "power2.out",
+              });
+              targets.push(...children);
+            }
+            continue;
+          }
+
+          // Default (WP7): scrollTrigger fade-up.
           const tween = gsap.from(el, {
             y: 32,
             opacity: 0,
@@ -54,17 +119,17 @@ export function HomeMotion() {
             },
           });
           if (tween.scrollTrigger) {
-            triggers.push(tween.scrollTrigger as unknown as { kill: () => void });
+            triggers.push(
+              tween.scrollTrigger as unknown as { kill: () => void },
+            );
           }
         }
 
-        // Garante que tudo recalcule depois do paint inicial — fontes
-        // assíncronas e imagens lazy podem mudar offsets.
+        // Garante recalculo após paint inicial (fontes async, lazy images).
         ScrollTrigger.refresh();
       })
       .catch(() => {
         // Falha no dynamic import: degradar graciosamente — sem animação.
-        // Não logamos porque é UX cosmético, não erro de aplicação.
       });
 
     return () => {
