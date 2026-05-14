@@ -51,18 +51,9 @@ describe("<StockSection /> — sem filtro", () => {
     );
   });
 
-  it("renderiza <h1> 'Estoque'", () => {
-    render(
-      <StockSection
-        variables={SITE_FIXTURE}
-        categoriaFilter={null}
-        slug={SLUG}
-      />,
-    );
-    expect(
-      screen.getByRole("heading", { level: 1, name: /Estoque/i }),
-    ).toBeInTheDocument();
-  });
+  // h1 "Estoque" removido junto com `<StockHeroMini>` em fix/estoque-light
+  // — section dark contrastava com tema branco do site. /estoque agora
+  // entra direto no client view (search + filters + grid).
 });
 
 describe("<StockSection /> — sort e paginação", () => {

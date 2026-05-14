@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { ZodError } from "zod";
 import { generateMessage } from "@/lib/ai/anthropic";
 import { apiErrorResponse } from "@/lib/api/errors";
+import { publicEnv } from "@/lib/env-public";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { generateMessageSchema } from "@/lib/validators/ai";
 
@@ -124,10 +125,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Lead não encontrado" }, { status: 404 });
     }
 
+    // Fetch site URL pra incluir na mensagem (regra obrigatória do
+    // SYSTEM_PROMPT quando site_preview_url presente no payload). RLS
+    // garante que só o owner do lead vê o site.
+    const { data: siteRow } = await supabase
+      .from("lead_sites")
+      .select("slug, status")
+      .eq("lead_id", parsed.data.leadId)
+      .in("status", ["published", "sent"])
+      .maybeSingle();
+    const siteUrl = siteRow?.slug
+      ? `${publicEnv.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/sites/${siteRow.slug}`
+      : null;
+
     const content = await generateMessage(lead, {
       channel: parsed.data.channel,
       tone: parsed.data.tone,
       goal: parsed.data.goal,
+      siteUrl,
     });
 
     // Rascunho de IA: nasce com `ai_generated=true` e `status='queued'`.
