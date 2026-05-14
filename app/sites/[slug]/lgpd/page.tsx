@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 
 import { SitePage } from "@/components/sites/SitePage";
+import { resolveVisualIdentity } from "@/lib/sites/default-visual-identity";
 import { getSite } from "@/lib/sites/get-site";
 import { readSiteVariablesSafe } from "@/lib/sites/migrate-variables";
 
@@ -61,7 +62,7 @@ export default async function LgpdPage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="lgpd"
-      manifest={site.visual_identity}
+      manifest={resolveVisualIdentity(site.visual_identity)}
     >
       <article className="mx-auto max-w-4xl px-4 py-16 md:px-8 md:py-24">
         <header className="mb-10 space-y-4">
