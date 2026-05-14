@@ -141,7 +141,10 @@ export default async function ContatoPage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="contato"
-      manifest={resolveVisualIdentity(site.visual_identity)}
+      manifest={resolveVisualIdentity(
+        site.visual_identity,
+        parsed.data.brand_assets,
+      )}
     >
       <SiteSchema schemas={breadcrumbSchema} />
       <ContactSection

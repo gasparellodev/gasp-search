@@ -111,7 +111,10 @@ export default async function Page({ params }: PageProps) {
       variables={parsed.data}
       siteId={site.id}
       slug={site.slug}
-      manifest={resolveVisualIdentity(site.visual_identity)}
+      manifest={resolveVisualIdentity(
+        site.visual_identity,
+        parsed.data.brand_assets,
+      )}
       rating={site.lead_rating}
       reviewsCount={site.lead_reviews_count}
     />

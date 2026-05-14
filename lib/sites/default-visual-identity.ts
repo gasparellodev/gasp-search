@@ -1,4 +1,5 @@
 import { publicEnv } from "@/lib/env-public";
+import type { SiteVariablesV2 } from "@/types/lead-site";
 import type { VisualIdentityManifest } from "@/types/visual-identity";
 
 /**
@@ -38,22 +39,72 @@ export const DEFAULT_VISUAL_IDENTITY: VisualIdentityManifest = {
   cost_estimate_brl: 0,
 };
 
+type BrandAssetsForResolution = Pick<
+  SiteVariablesV2["brand_assets"],
+  "hero_image_url" | "about_image_url" | "contact_image_url"
+>;
+
+/**
+ * Heurística pra detectar URLs placeholder (placehold.co) que não devem
+ * sobrescrever os defaults — sites legados foram criados com essas URLs
+ * antes de WP4 e o objetivo é exibir os defaults editoriais no lugar.
+ */
+function isPlaceholderUrl(url: string): boolean {
+  return /placehold(?:\.co|er)/i.test(url);
+}
+
+function preferred(
+  brandUrl: string | null | undefined,
+  defaultUrl: string,
+): string {
+  if (typeof brandUrl !== "string") return defaultUrl;
+  const trimmed = brandUrl.trim();
+  if (trimmed.length === 0) return defaultUrl;
+  if (isPlaceholderUrl(trimmed)) return defaultUrl;
+  return trimmed;
+}
+
 /**
  * Resolve o manifest de identidade visual de um site, com fallback pros
  * defaults quando o site não tem VI própria.
  *
- * Decisão de arquitetura (WP4): a fallback é all-or-nothing por manifest.
- * Quando `visual_identity` é null/undefined, retorna o `DEFAULT_VISUAL_IDENTITY`
- * inteiro (não faz merge per-field com `brand_assets`). Motivo: sites sem VI
- * têm `brand_assets.hero_image_url` apontando pra placeholders genéricos
- * (placehold.co) que ficavam visíveis no Hero/About/Contact — o ponto
- * dessa issue é exatamente substituí-los pelo look ducarmo. Sites com VI
- * já têm tudo populado.
+ * **Cadeia de precedência (per-field, WP4 fix 2026-05-14):**
+ *   1. `visualIdentity.<field>` — quando o site tem manifest AI próprio.
+ *   2. `brandAssets.<field>` — quando admin editou via upload no editor
+ *      (`<HeroUploadField>`, `<LogoUploadField>`, etc.).
+ *   3. `DEFAULT_VISUAL_IDENTITY.<field>` — fallback editorial.
+ *
+ * URLs `placehold.co` em brand_assets são tratadas como ausentes (caem
+ * pra default), preservando o look premium em sites legados que ainda
+ * têm placeholders herdados do pipeline brand-assets v1.
+ *
+ * **Decisão arquitetural revisada:** o WP4 original (all-or-nothing)
+ * quebrava o upload de hero do admin — se o admin trocava o hero via
+ * `<HeroUploadField>`, o `brand_assets.hero_image_url` era atualizado mas
+ * o resolver retornava o DEFAULT inteiro porque `visual_identity` era null.
+ * Per-field fallback resolve isso sem regressão pros sites com placeholder.
  */
 export function resolveVisualIdentity(
   visualIdentity: VisualIdentityManifest | null | undefined,
+  brandAssets?: BrandAssetsForResolution | null,
 ): VisualIdentityManifest {
-  return visualIdentity ?? DEFAULT_VISUAL_IDENTITY;
+  if (visualIdentity) return visualIdentity;
+
+  return {
+    ...DEFAULT_VISUAL_IDENTITY,
+    hero_url: preferred(
+      brandAssets?.hero_image_url,
+      DEFAULT_VISUAL_IDENTITY.hero_url,
+    ),
+    about_url: preferred(
+      brandAssets?.about_image_url,
+      DEFAULT_VISUAL_IDENTITY.about_url,
+    ),
+    contact_url: preferred(
+      brandAssets?.contact_image_url,
+      DEFAULT_VISUAL_IDENTITY.contact_url,
+    ),
+  };
 }
 
 /**

@@ -62,7 +62,10 @@ export default async function LgpdPage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="lgpd"
-      manifest={resolveVisualIdentity(site.visual_identity)}
+      manifest={resolveVisualIdentity(
+        site.visual_identity,
+        variables.brand_assets,
+      )}
     >
       <article className="mx-auto max-w-4xl px-4 py-16 md:px-8 md:py-24">
         <header className="mb-10 space-y-4">
