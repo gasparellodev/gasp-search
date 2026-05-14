@@ -3203,18 +3203,25 @@ function makeStorageMock(opts: {
   publicUrl?: string;
 } = {}) {
   const uploadFn = vi.fn(
-    async (_path: string, _body: unknown, _options?: unknown) => ({
-      data: opts.uploadError ? null : { path: _path },
-      error: opts.uploadError ?? null,
-    }),
+    async (path: string, _body: unknown, _options?: unknown) => {
+      void _body;
+      void _options;
+      return {
+        data: opts.uploadError ? null : { path },
+        error: opts.uploadError ?? null,
+      };
+    },
   );
-  const getPublicUrlFn = vi.fn((_path: string) => ({
-    data: { publicUrl: opts.publicUrl ?? "https://cdn.example.com/logo.png" },
-  }));
-  const fromFn = vi.fn((_bucket: string) => ({
-    upload: uploadFn,
-    getPublicUrl: getPublicUrlFn,
-  }));
+  const getPublicUrlFn = vi.fn((path: string) => {
+    void path;
+    return {
+      data: { publicUrl: opts.publicUrl ?? "https://cdn.example.com/logo.png" },
+    };
+  });
+  const fromFn = vi.fn((bucket: string) => {
+    void bucket;
+    return { upload: uploadFn, getPublicUrl: getPublicUrlFn };
+  });
   return { storage: { from: fromFn }, uploadFn, getPublicUrlFn, fromFn };
 }
 
