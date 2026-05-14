@@ -123,7 +123,7 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
       data-testid="site-header"
       data-scrolled={isScrolled ? "true" : "false"}
       className={cn(
-        "site-header-glass sticky top-0 z-[var(--z-header,50)] transform-gpu transition-[background-color,border-color,backdrop-filter] duration-[var(--auto-duration-base,250ms)] ease-[var(--auto-ease-out,cubic-bezier(0.16,1,0.3,1))]",
+        "site-header-glass group/site-header sticky top-0 z-[var(--z-header,50)] transform-gpu transition-[background-color,border-color,backdrop-filter] duration-[var(--auto-duration-base,250ms)] ease-[var(--auto-ease-out,cubic-bezier(0.16,1,0.3,1))]",
         isScrolled
           ? "border-b border-[var(--auto-border,#e5e5e5)] bg-[rgb(250_250_250_/_0.84)] backdrop-blur-xl"
           : "border-b border-transparent bg-transparent",
@@ -151,7 +151,7 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
           ) : (
             <span
               data-testid="site-header-logo-text"
-              className="truncate font-[family-name:var(--auto-font-display,inherit)] text-xl font-semibold text-[var(--auto-foreground,#0a0a0a)] md:text-2xl"
+              className="truncate font-[family-name:var(--auto-font-display,inherit)] text-xl font-semibold text-white [text-shadow:0_1px_3px_rgb(0_0_0_/_0.5)] group-data-[scrolled=true]/site-header:text-[var(--auto-foreground,#0a0a0a)] group-data-[scrolled=true]/site-header:[text-shadow:none] md:text-2xl"
             >
               {variables.business_name}
             </span>
@@ -175,7 +175,7 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
                         "inline-flex items-center rounded-[var(--auto-radius-full,9999px)] px-4 py-2 text-sm font-medium transition-colors",
                         isActive
                           ? ""
-                          : "text-[var(--auto-foreground,#0a0a0a)]/75 hover:bg-[var(--auto-muted,#f5f5f5)] hover:text-[var(--auto-foreground,#0a0a0a)]",
+                          : "text-white/90 [text-shadow:0_1px_3px_rgb(0_0_0_/_0.5)] hover:bg-white/10 group-data-[scrolled=true]/site-header:text-[var(--auto-foreground,#0a0a0a)]/75 group-data-[scrolled=true]/site-header:[text-shadow:none] group-data-[scrolled=true]/site-header:hover:bg-[var(--auto-muted,#f5f5f5)] group-data-[scrolled=true]/site-header:hover:text-[var(--auto-foreground,#0a0a0a)]",
                       )}
                       style={
                         isActive
