@@ -21,7 +21,6 @@ import { HomeHero } from "./home/HomeHero";
 import { HomeProcess3Steps } from "./home/HomeProcess3Steps";
 import { HomeRecentArrivals } from "./home/HomeRecentArrivals";
 import { HomeTestimonialsGrid } from "./home/HomeTestimonialsGrid";
-import { HomeTradeinWidget } from "./home/HomeTradeinWidget";
 import { HomeTrustStrip } from "./home/HomeTrustStrip";
 import { HomeWarrantySection } from "./home/HomeWarrantySection";
 import { RoadDivider } from "./RoadDivider";
@@ -80,7 +79,7 @@ interface SitePageProps {
  * Modos de operação:
  *  - **Home (default)**: sem `children`. Compõe a Home V2 (Sprint 4 H1+H2 —
  *    issues #221 e #222): `HomeHero` → `HomeTrustStrip` → `HomeCategoriesCars`
- *    → `HomeRecentArrivals` → `HomeFinancingWidget` → `HomeTradeinWidget` →
+ *    → `HomeRecentArrivals` → `HomeFinancingWidget` →
  *    `HomeForm` → `HomeEmphasis`.
  *  - **Sub-rota**: com `children`. Renderiza o conteúdo da rota entre
  *    Header e Footer. Caller passa `activePage="sobre"|"contato"|...`.
@@ -168,14 +167,7 @@ export function SitePage({
               businessName={variables.business_name}
               siteSlug={slug}
             />
-            <HomeTradeinWidget
-              manifestTradeinUrl={manifest?.tradein_url ?? null}
-              tradeinImageUrl={brand_assets.tradein_image_url ?? null}
-              siteSlug={slug}
-              whatsappPhone={variables.whatsapp}
-              businessName={variables.business_name}
-            />
-            {/* H3 (#223) — 7 sections finais da Home V2. Ordem visual: warranty →
+            {/* H3 (#223) — sections finais da Home V2. Ordem visual: warranty →
                 process → banks → testimonials → faq → google-reviews → contact. */}
             <HomeWarrantySection
               businessName={variables.business_name}
