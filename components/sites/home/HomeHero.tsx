@@ -150,15 +150,16 @@ export function HomeHero({
       >
         <div
           data-testid="home-hero-card"
-          className="w-[min(92vw,800px)] rounded-3xl border border-white/50 bg-white/65 p-6 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-white/90"
+          className="w-[min(92vw,800px)] rounded-3xl border border-white/15 bg-black/35 p-6 shadow-2xl backdrop-blur-3xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-black/75"
         >
           <h1
-            className="font-bold leading-[0.95] tracking-tight text-zinc-900"
+            className="font-bold leading-[0.95] tracking-tight text-white [text-shadow:0_2px_8px_rgb(0_0_0_/_0.35)]"
             style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
           >
             {heroH1}
           </h1>
-          <div className="mt-3 md:mt-4">
+          {/* AI passage em branco/85 — sobrescreve text-muted-foreground default. */}
+          <div className="mt-3 text-white/85 [&_*]:!text-white/85 md:mt-4">
             <AICitableHero
               variables={{ business_name, address, cars }}
               page="home"

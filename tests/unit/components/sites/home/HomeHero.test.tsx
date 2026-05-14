@@ -98,14 +98,15 @@ describe("<HomeHero />", () => {
       expect(container.className).toMatch(/min-h-\[100dvh\]/);
     });
 
-    it("renderiza glass card com backdrop-blur centro-baixo (light frosted)", () => {
+    it("renderiza glass card com backdrop-blur centro-baixo (dark frosted, vidro fumê)", () => {
       render(<HomeHero {...baseProps} />);
       const card = screen.getByTestId("home-hero-card");
       expect(card).toBeInTheDocument();
       expect(card.className).toMatch(/backdrop-blur/);
       expect(card.className).toMatch(/backdrop-saturate/);
-      // Light frosted glass — tema branco do site público.
-      expect(card.className).toMatch(/bg-white\/(5[0-9]|6[0-9]|7[0-9])/);
+      // Vidro fumê escuro transparente — bg-black com opacidade baixa pra
+      // revelar a imagem por trás + dar contraste pro texto branco.
+      expect(card.className).toMatch(/bg-black\/(2[0-9]|3[0-9]|4[0-9])/);
     });
 
     it("H1 + AI passage + search bar todos dentro do glass card", () => {
