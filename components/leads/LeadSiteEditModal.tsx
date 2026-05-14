@@ -67,6 +67,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
+import { HeroUploadField } from "./HeroUploadField";
 import { LogoUploadField } from "./LogoUploadField";
 import type { LeadSiteCardData } from "./lead-site-card-types";
 
@@ -474,14 +475,25 @@ export function LeadSiteEditModal({
             </div>
             <Field
               id={`${baseId}-hero-image`}
-              label="URL da imagem do hero"
+              label="Imagem do hero"
               error={e.brand_assets?.hero_image_url?.message}
             >
-              <Input
-                id={`${baseId}-hero-image`}
-                type="url"
-                placeholder="https://..."
-                aria-invalid={!!e.brand_assets?.hero_image_url}
+              <HeroUploadField
+                leadSiteId={leadSite.id}
+                currentHeroUrl={
+                  leadSite.variables?.brand_assets?.hero_image_url ?? null
+                }
+                onUploaded={(url) =>
+                  setValue("brand_assets.hero_image_url", url, {
+                    shouldDirty: false,
+                    shouldValidate: false,
+                    shouldTouch: false,
+                  })
+                }
+              />
+              <input
+                type="hidden"
+                aria-hidden="true"
                 {...register("brand_assets.hero_image_url")}
               />
             </Field>
