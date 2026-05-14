@@ -8,7 +8,6 @@ import {
 } from "@/lib/sites/stock-search-params";
 
 import { StockClientView } from "./StockClientView";
-import { StockHeroMini } from "./StockHeroMini";
 
 interface StockSectionProps {
   variables: SiteVariablesV2;
@@ -31,16 +30,13 @@ export function StockSection({
     );
 
   return (
-    <>
-      <StockHeroMini variables={variables} />
-      <StockClientView
-        key={serializeStockFilters(filters)}
-        cars={variables.cars}
-        slug={slug}
-        whatsappPhone={variables.whatsapp}
-        businessName={variables.business_name}
-        initialFilters={filters}
-      />
-    </>
+    <StockClientView
+      key={serializeStockFilters(filters)}
+      cars={variables.cars}
+      slug={slug}
+      whatsappPhone={variables.whatsapp}
+      businessName={variables.business_name}
+      initialFilters={filters}
+    />
   );
 }
