@@ -102,14 +102,20 @@ export default async function SobrePage({ params }: PageProps) {
       siteId={site.id}
       slug={site.slug}
       activePage="sobre"
-      manifest={resolveVisualIdentity(site.visual_identity)}
+      manifest={resolveVisualIdentity(
+        site.visual_identity,
+        parsed.data.brand_assets,
+      )}
       rating={site.lead_rating}
       reviewsCount={site.lead_reviews_count}
     >
       <SiteSchema schemas={breadcrumbSchema} />
       <AboutHeroEditorial
         variables={parsed.data}
-        manifestAboutUrl={resolveVisualIdentity(site.visual_identity).about_url}
+        manifestAboutUrl={resolveVisualIdentity(
+          site.visual_identity,
+          parsed.data.brand_assets,
+        ).about_url}
       />
       <AboutMissionVision variables={parsed.data} />
       <AboutWarrantyDeepdive />
