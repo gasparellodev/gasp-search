@@ -224,8 +224,8 @@ describe("<CarCard />", () => {
     });
   });
 
-  describe("hover lift via CSS vars", () => {
-    it("aplica transition-transform com tokens auto-* na container", () => {
+  describe("hover lift via CSS vars (atualizado em #296 — WP7)", () => {
+    it("aplica transition + lift + scale + shadow no hover, guarded por motion-safe", () => {
       render(
         <CarCard
           car={car!}
@@ -235,8 +235,30 @@ describe("<CarCard />", () => {
         />,
       );
       const article = screen.getByTestId(`car-card-${car!.slug}`);
-      expect(article.className).toContain("transition-transform");
-      expect(article.className).toContain("hover:-translate-y-0.5");
+      // #296: passou de `transition-transform` pra `transition` (anima
+      // shadow também). Lift mais pronunciado (-y-1 em vez de -y-0.5) +
+      // scale 1.02 + shadow-xl. Tudo guarded por `motion-safe:` pra
+      // respeitar prefers-reduced-motion.
+      expect(article.className).toContain("transition");
+      expect(article.className).toContain("motion-safe:hover:-translate-y-1");
+      expect(article.className).toContain("motion-safe:hover:scale-[1.02]");
+      expect(article.className).toContain("motion-safe:hover:shadow-xl");
+      // Tokens auto-* preservados na duração/easing.
+      expect(article.className).toContain("duration-[var(--auto-duration-base,250ms)]");
+      expect(article.className).toContain("ease-[var(--auto-ease-out,cubic-bezier(0.16,1,0.3,1))]");
+    });
+
+    it("marca `data-card-hoverable` no article pra estilização global futura (#296)", () => {
+      render(
+        <CarCard
+          car={car!}
+          siteSlug={siteSlug}
+          whatsappPhone={whatsappPhone}
+          businessName={businessName}
+        />,
+      );
+      const article = screen.getByTestId(`car-card-${car!.slug}`);
+      expect(article.hasAttribute("data-card-hoverable")).toBe(true);
     });
   });
 });

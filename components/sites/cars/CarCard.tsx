@@ -82,8 +82,9 @@ export function CarCard({
   return (
     <article
       data-testid={`car-card-${car.slug}`}
+      data-card-hoverable
       aria-labelledby={headingId}
-      className="group relative overflow-hidden rounded-[var(--auto-radius-md,8px)] border border-[var(--auto-border,#e5e5e5)] bg-[var(--auto-surface,#ffffff)] transition-transform duration-[var(--auto-duration-base,250ms)] ease-[var(--auto-ease-out,cubic-bezier(0.16,1,0.3,1))] hover:-translate-y-0.5"
+      className="group relative overflow-hidden rounded-[var(--auto-radius-md,8px)] border border-[var(--auto-border,#e5e5e5)] bg-[var(--auto-surface,#ffffff)] transition duration-[var(--auto-duration-base,250ms)] ease-[var(--auto-ease-out,cubic-bezier(0.16,1,0.3,1))] motion-safe:hover:-translate-y-1 motion-safe:hover:scale-[1.02] motion-safe:hover:shadow-xl"
     >
       <Link
         data-testid={`car-card-${car.slug}-link`}

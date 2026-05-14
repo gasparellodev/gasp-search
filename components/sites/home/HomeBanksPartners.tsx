@@ -14,6 +14,7 @@ export function HomeBanksPartners() {
   return (
     <section
       data-testid="home-banks-partners"
+      data-reveal
       aria-label="Bancos parceiros"
       className="w-full bg-background py-16 md:py-20"
     >

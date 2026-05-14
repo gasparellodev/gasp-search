@@ -136,6 +136,7 @@ export function HomeFinancingWidget({
   return (
     <section
       data-testid="home-financing-widget"
+      data-reveal
       className="w-full border-y border-foreground/10 bg-foreground/[0.02]"
       aria-labelledby="home-financing-widget-title"
     >

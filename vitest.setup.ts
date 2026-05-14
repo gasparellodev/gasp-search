@@ -1,6 +1,28 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
+
+// jsdom não implementa `window.matchMedia` — vários componentes do site
+// (motion helper, FloatingInstallmentBar, AnnouncementBarMarquee, etc.)
+// chamam isso pra checar `prefers-reduced-motion` ou breakpoints. Default
+// global retorna `matches: false`; tests específicos que precisam outro
+// comportamento sobrescrevem com `Object.defineProperty(window, 'matchMedia', ...)`.
+if (typeof window !== "undefined" && typeof window.matchMedia !== "function") {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+}
 
 // Defaults para envs públicas — permite que componentes que importam
 // `@/lib/env-public` funcionem sem que cada test stub manualmente.
