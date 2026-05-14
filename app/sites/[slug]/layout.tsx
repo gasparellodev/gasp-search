@@ -83,7 +83,7 @@ export default async function AutoShowroomLayout({
   return (
     <div
       data-theme="auto-showroom"
-      className="min-h-dvh bg-background text-foreground"
+      className="min-h-dvh overflow-x-clip bg-background text-foreground"
     >
       {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
