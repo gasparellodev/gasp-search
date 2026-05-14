@@ -71,7 +71,7 @@ describe("<SiteFooter />", () => {
     expect(screen.getByRole("group", { name: "Bancos parceiros" })).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "Santander" })).toHaveAttribute(
       "src",
-      "/assets/banks/santander.svg",
+      "/assets/banks/santander.png",
     );
     expect(screen.getByRole("img", { name: "Porto Bank" })).toHaveAttribute(
       "width",
