@@ -133,6 +133,38 @@ describe("VisualIdentityManifestSchema — happy path", () => {
     });
     expect(parsed.tradein_url).toBeNull();
   });
+
+  it("parsea manifest legado sem announcement_text (#291 backward compat)", () => {
+    const parsed = VisualIdentityManifestSchema.parse(validManifest);
+    expect(parsed.announcement_text).toBeUndefined();
+  });
+
+  it("aceita announcement_text dentro do limite 140 chars (#291)", () => {
+    const parsed = VisualIdentityManifestSchema.parse({
+      ...validManifest,
+      announcement_text: "Black Friday — descontos em todo estoque",
+    });
+    expect(parsed.announcement_text).toBe(
+      "Black Friday — descontos em todo estoque",
+    );
+  });
+
+  it("aplica trim ao announcement_text (#291)", () => {
+    const parsed = VisualIdentityManifestSchema.parse({
+      ...validManifest,
+      announcement_text: "   Promoção   ",
+    });
+    expect(parsed.announcement_text).toBe("Promoção");
+  });
+
+  it("rejeita announcement_text com 141+ chars (#291)", () => {
+    expect(() =>
+      VisualIdentityManifestSchema.parse({
+        ...validManifest,
+        announcement_text: "a".repeat(141),
+      }),
+    ).toThrow();
+  });
 });
 
 describe("VisualIdentityManifestSchema — invalid inputs", () => {

@@ -8,10 +8,12 @@ import type { VisualIdentityManifest } from "@/types/visual-identity";
 import { cn } from "@/lib/utils";
 
 import { SiteFooter } from "./SiteFooter";
+import { AnnouncementBar } from "./AnnouncementBar";
 import { SiteHeader } from "./SiteHeader";
 import { HomeBanksPartners } from "./home/HomeBanksPartners";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
 import { HomeContactFormQuick } from "./home/HomeContactFormQuick";
+import { HomeMotion } from "./home/HomeMotion";
 import { HomeFAQSection } from "./home/HomeFAQSection";
 import { HomeFinancingWidget } from "./home/HomeFinancingWidget";
 import { HomeGoogleReviewsEmbed } from "./home/HomeGoogleReviewsEmbed";
@@ -126,6 +128,7 @@ export function SitePage({
       data-site-slug={slug}
       style={cssVars}
     >
+      <AnnouncementBar text={manifest?.announcement_text} />
       <SiteHeader variables={variables} slug={slug} activePage={activePage} />
       <main className={cn(mainClassName)}>
         <div
@@ -196,6 +199,7 @@ export function SitePage({
               businessName={variables.business_name}
               slug={slug}
             />
+            <HomeMotion />
           </>
         )}
       </main>

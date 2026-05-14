@@ -15,6 +15,7 @@ export function HomeBanksPartners() {
     <section
       id="bancos-parceiros"
       data-testid="home-banks-partners"
+      data-reveal
       aria-label="Bancos parceiros"
       className="scroll-mt-24 w-full bg-background py-16 md:py-20"
     >

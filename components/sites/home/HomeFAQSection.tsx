@@ -18,10 +18,12 @@ import { FAQ_TEMPLATE } from "@/lib/sites/faq-template";
  */
 export function HomeFAQSection() {
   return (
-    <SiteFAQ
-      title="Perguntas frequentes"
-      items={FAQ_TEMPLATE}
-      testId="home-faq-section"
-    />
+    <div data-reveal>
+      <SiteFAQ
+        title="Perguntas frequentes"
+        items={FAQ_TEMPLATE}
+        testId="home-faq-section"
+      />
+    </div>
   );
 }

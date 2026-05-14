@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_HEX, safeUrl, sanitizeHex } from "@/lib/sites/sanitize";
+import {
+  ANNOUNCEMENT_TEXT_MAX,
+  DEFAULT_HEX,
+  safeUrl,
+  sanitizeAnnouncementText,
+  sanitizeHex,
+} from "@/lib/sites/sanitize";
 
 describe("sanitizeHex()", () => {
   it("retorna a cor quando input válido em maiúsculas (#FF5733)", () => {
@@ -113,5 +119,75 @@ describe("safeUrl() — issue #159 AC7", () => {
     // safeUrl tem assinatura `string | null | undefined`, mas defesa em
     // profundidade contra ts-bypass.
     expect(safeUrl(123 as unknown as string)).toBeNull();
+  });
+});
+
+describe("sanitizeAnnouncementText() (#291)", () => {
+  it("retorna a string trimada quando já está limpa e dentro do limite", () => {
+    expect(sanitizeAnnouncementText("Black Friday")).toBe("Black Friday");
+  });
+
+  it("aplica trim em whitespace nas pontas", () => {
+    expect(sanitizeAnnouncementText("  Promoção  ")).toBe("Promoção");
+  });
+
+  it("colapsa whitespace interno (incluindo \\n e \\t) em 1 espaço", () => {
+    expect(sanitizeAnnouncementText("Black\n\tFriday   2026")).toBe(
+      "Black Friday 2026",
+    );
+  });
+
+  it("retorna null quando a string é apenas whitespace", () => {
+    expect(sanitizeAnnouncementText("   \n\t   ")).toBeNull();
+  });
+
+  it("retorna null para string vazia", () => {
+    expect(sanitizeAnnouncementText("")).toBeNull();
+  });
+
+  it("retorna null para null", () => {
+    expect(sanitizeAnnouncementText(null)).toBeNull();
+  });
+
+  it("retorna null para undefined", () => {
+    expect(sanitizeAnnouncementText(undefined)).toBeNull();
+  });
+
+  it("retorna null para não-string (number)", () => {
+    expect(sanitizeAnnouncementText(42)).toBeNull();
+  });
+
+  it("strippa tags HTML simples preservando conteúdo textual", () => {
+    expect(
+      sanitizeAnnouncementText("<b>Promoção</b> <i>quente</i>"),
+    ).toBe("Promoção quente");
+  });
+
+  it("strippa tags com atributos e content malicioso", () => {
+    expect(
+      sanitizeAnnouncementText(
+        'Inicio <script src="evil">alert(1)</script> fim',
+      ),
+    ).toBe("Inicio alert(1) fim");
+  });
+
+  it("retorna null quando o conteúdo só tem tags (strip vira vazio)", () => {
+    expect(sanitizeAnnouncementText("<div></div>")).toBeNull();
+  });
+
+  it("trunca quando excede ANNOUNCEMENT_TEXT_MAX (140) chars", () => {
+    const long = "a".repeat(200);
+    const result = sanitizeAnnouncementText(long);
+    expect(result).not.toBeNull();
+    expect(result!.length).toBe(ANNOUNCEMENT_TEXT_MAX);
+  });
+
+  it("não trunca quando o texto cabe em ANNOUNCEMENT_TEXT_MAX (limite exato)", () => {
+    const exact = "x".repeat(ANNOUNCEMENT_TEXT_MAX);
+    expect(sanitizeAnnouncementText(exact)).toBe(exact);
+  });
+
+  it("ANNOUNCEMENT_TEXT_MAX é 140 (espelha schema Zod)", () => {
+    expect(ANNOUNCEMENT_TEXT_MAX).toBe(140);
   });
 });
