@@ -78,3 +78,46 @@ export function safeUrl(input: string | null | undefined): string | null {
     ? input
     : null;
 }
+
+/**
+ * Limite máximo de caracteres do `announcement_text` exibido no
+ * `<AnnouncementBar>` (Phase 7 / WP2 — issue #291). Mesmo limite que o
+ * schema Zod (`types/visual-identity.ts`).
+ */
+export const ANNOUNCEMENT_TEXT_MAX = 140;
+
+/**
+ * Tag HTML mais simples possível (`<...>`). Usada pra strippar tags de
+ * `announcement_text` antes de renderizar como texto. Não cobre todos os
+ * vetores (entities, code points obscuros), mas como render final usa
+ * children React (não dangerouslySetInnerHTML) o risco real é zero — esta
+ * sanitização é defesa em profundidade contra strings absurdas vindas do
+ * banco / admin.
+ */
+const HTML_TAG_RE = /<[^>]*>/g;
+
+/**
+ * Normaliza o texto do `<AnnouncementBar>` (#291).
+ *
+ * Pipeline:
+ *  1. Rejeita não-string (`null`/`undefined`/number) → `null`.
+ *  2. Strip de tags HTML simples (defesa em profundidade).
+ *  3. Trim de whitespace nas pontas.
+ *  4. Colapsa whitespace interno (incluindo \n, \t) em 1 espaço — marquee
+ *     em 1 linha; quebras explícitas no banco viraram espaço.
+ *  5. Trunca a `ANNOUNCEMENT_TEXT_MAX` chars (pós-trim).
+ *  6. String vazia → `null` (o componente decide não renderizar).
+ *
+ * Retorna `string | null` pra simplificar o caller: se houver texto válido,
+ * renderiza; senão, retorna `null` da function `<AnnouncementBar>` antes de
+ * montar markup.
+ */
+export function sanitizeAnnouncementText(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const stripped = input.replace(HTML_TAG_RE, "");
+  const collapsed = stripped.replace(/\s+/g, " ").trim();
+  if (collapsed.length === 0) return null;
+  return collapsed.length > ANNOUNCEMENT_TEXT_MAX
+    ? collapsed.slice(0, ANNOUNCEMENT_TEXT_MAX)
+    : collapsed;
+}
