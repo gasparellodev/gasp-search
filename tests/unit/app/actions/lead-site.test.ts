@@ -3193,3 +3193,295 @@ describe("regenerateVisualIdentity — error paths", () => {
     expect(true).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// uploadLeadSiteLogo (WP5 — issue #313)
+// ---------------------------------------------------------------------------
+
+function makeStorageMock(opts: {
+  uploadError?: unknown;
+  publicUrl?: string;
+} = {}) {
+  const uploadFn = vi.fn(
+    async (_path: string, _body: unknown, _options?: unknown) => ({
+      data: opts.uploadError ? null : { path: _path },
+      error: opts.uploadError ?? null,
+    }),
+  );
+  const getPublicUrlFn = vi.fn((_path: string) => ({
+    data: { publicUrl: opts.publicUrl ?? "https://cdn.example.com/logo.png" },
+  }));
+  const fromFn = vi.fn((_bucket: string) => ({
+    upload: uploadFn,
+    getPublicUrl: getPublicUrlFn,
+  }));
+  return { storage: { from: fromFn }, uploadFn, getPublicUrlFn, fromFn };
+}
+
+function makeLogoFile(opts: {
+  type?: string;
+  size?: number;
+  name?: string;
+} = {}): File {
+  const size = opts.size ?? 1024;
+  const buffer = new Uint8Array(size);
+  return new File([buffer], opts.name ?? "logo.png", {
+    type: opts.type ?? "image/png",
+  });
+}
+
+function makeLogoFormData(file: File): FormData {
+  const fd = new FormData();
+  fd.set("file", file);
+  return fd;
+}
+
+describe("uploadLeadSiteLogo — happy path", () => {
+  it("upload + update brand_assets.logo_url + cache invalidation", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            slug: "abc123-toyota-recife",
+            variables: { brand_assets: { logo_url: "old.png" } },
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const storage = makeStorageMock({
+      publicUrl:
+        "https://cdn.example.com/storage/v1/object/public/visual-identity/abc123-toyota-recife/logo-deadbeef.png",
+    });
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: null } },
+    });
+    (service as unknown as { storage: unknown }).storage = storage.storage;
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(makeLogoFile({ type: "image/png", size: 50_000 })),
+    );
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.logo_url).toContain("logo-");
+
+    // upload chamado em visual-identity bucket com path <slug>/logo-<hash>.png
+    expect(storage.fromFn).toHaveBeenCalledWith("visual-identity");
+    const uploadCall = storage.uploadFn.mock.calls[0];
+    expect(uploadCall?.[0]).toMatch(
+      /^abc123-toyota-recife\/logo-[0-9a-f]{8}\.png$/,
+    );
+
+    // update brand_assets.logo_url no DB
+    const updateCall = service.updateCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(updateCall).toBeTruthy();
+    const payload = updateCall!.payload as Record<string, unknown>;
+    const variables = payload.variables as Record<string, unknown>;
+    const brandAssets = variables.brand_assets as Record<string, unknown>;
+    expect(brandAssets.logo_url).toContain("logo-");
+
+    // cache invalidation
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith(
+      "site:abc123-toyota-recife",
+    );
+  });
+});
+
+describe("uploadLeadSiteLogo — auth + ownership", () => {
+  it("retorna { ok: false, error: 'auth' } quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(makeLogoFile()),
+    );
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+  });
+
+  it("retorna { ok: false, error: 'not_found' } quando RLS oculta o site", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(makeLogoFile()),
+    );
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+  });
+});
+
+describe("uploadLeadSiteLogo — validações server-side", () => {
+  function setupAuthedServer() {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            slug: "abc123-toyota-recife",
+            variables: { brand_assets: { logo_url: "old.png" } },
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+  }
+
+  it("rejeita MIME inválido (image/gif)", async () => {
+    setupAuthedServer();
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(makeLogoFile({ type: "image/gif" })),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_mime");
+  });
+
+  it("rejeita arquivo maior que 2 MB", async () => {
+    setupAuthedServer();
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(
+        makeLogoFile({ size: 2 * 1024 * 1024 + 1, type: "image/png" }),
+      ),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("too_large");
+  });
+
+  it("rejeita FormData sem arquivo", async () => {
+    setupAuthedServer();
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(LEAD_SITE_ID, new FormData());
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("empty_file");
+  });
+
+  it("aceita os 4 MIMEs whitelist (png/svg/jpeg/webp)", async () => {
+    const accepted = [
+      "image/png",
+      "image/svg+xml",
+      "image/jpeg",
+      "image/webp",
+    ];
+    for (const type of accepted) {
+      const server = makeSupabaseClient({
+        lead_sites: {
+          leadResult: {
+            data: {
+              id: LEAD_SITE_ID,
+              slug: "abc-s",
+              variables: { brand_assets: {} },
+            },
+            error: null,
+          },
+        },
+      });
+      server.auth.getUser.mockResolvedValue(authedUser());
+      supabaseMocks.serverClient.mockResolvedValue(server);
+      const storage = makeStorageMock();
+      const service = makeSupabaseClient({
+        lead_sites: { updateResult: { error: null } },
+      });
+      (service as unknown as { storage: unknown }).storage = storage.storage;
+      supabaseMocks.serviceClient.mockReturnValue(service);
+
+      const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+      const r = await uploadLeadSiteLogo(
+        LEAD_SITE_ID,
+        makeLogoFormData(makeLogoFile({ type, size: 1024 })),
+      );
+      expect(r.ok, `MIME ${type} should be accepted`).toBe(true);
+    }
+  });
+});
+
+describe("uploadLeadSiteLogo — storage + db errors", () => {
+  it("retorna storage_error quando upload falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            slug: "abc-s",
+            variables: { brand_assets: {} },
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const storage = makeStorageMock({
+      uploadError: { message: "network down" },
+    });
+    const service = makeSupabaseClient({});
+    (service as unknown as { storage: unknown }).storage = storage.storage;
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(makeLogoFile()),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("storage_error");
+  });
+
+  it("retorna db_error quando update do DB falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            slug: "abc-s",
+            variables: { brand_assets: {} },
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const storage = makeStorageMock();
+    const service = makeSupabaseClient({
+      lead_sites: { updateResult: { error: { message: "constraint" } } },
+    });
+    (service as unknown as { storage: unknown }).storage = storage.storage;
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { uploadLeadSiteLogo } = await import("@/app/actions/lead-site");
+    const r = await uploadLeadSiteLogo(
+      LEAD_SITE_ID,
+      makeLogoFormData(makeLogoFile()),
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("db_error");
+  });
+});
