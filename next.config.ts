@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
     // Migração para `cacheComponents: true` fica como follow-up V2 quando
     // o time priorizar Suspense boundaries em todas as rotas.
     useCache: true,
+    // -----------------------------------------------------------------
+    // Server Actions body size limit.
+    //
+    // Default do Next.js é 1MB, o que estoura no upload de hero
+    // (`uploadLeadSiteHero` em `app/actions/lead-site.ts` aceita até
+    // 4 MB) e gera 413/400 antes da action rodar — manifesta no client
+    // como "This page couldn't load" do Chrome (a POST do Server Action
+    // falha em nível de framework, não chega no nosso código).
+    //
+    // 8 MB cobre o cap de 4 MB do hero + overhead da FormData boundary
+    // e da chave `leadSiteId`. Manter alinhado com `MAX_HERO_SIZE_BYTES`
+    // em `app/actions/lead-site.ts`.
+    serverActions: {
+      bodySizeLimit: "8mb",
+    },
   },
   // -------------------------------------------------------------------------
   // Image optimization remote hosts (issue #212 / Sprint 1 / #S2 SEO infra).
