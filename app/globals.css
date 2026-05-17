@@ -280,6 +280,11 @@
   --auto-muted-foreground: #737373;
   --auto-primary: var(--client-primary, #0a0a0a);
   --auto-on-primary: var(--client-on-primary, #fafafa);
+  /* Wave C8 (D-07): alias `--auto-text-on-primary` consumido pelo
+     AnnouncementBar como fallback intermediário. Antes ele caía
+     direto em --site-text-on-primary; este alias mantém naming
+     consistente com o resto da família --auto-*. */
+  --auto-text-on-primary: var(--client-on-primary, #fafafa);
   --auto-whatsapp: #25d366;
   --auto-whatsapp-hover: #1fb855;
   --auto-trust-green: #0f7b47;

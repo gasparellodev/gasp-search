@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import { serializeQuickSearch } from "@/lib/sites/stock-search-params";
@@ -34,6 +34,13 @@ export function HomeQuickSearchBar({
   text_on_primary,
 }: HomeQuickSearchBarProps) {
   const router = useRouter();
+  // Wave C8 (R-16): useId pra evitar collisions caso a Home renderize
+  // 2+ instâncias do widget (futuro: hero + barra sticky). Sem isso,
+  // labels duplicados apontariam pro mesmo input.
+  const idBase = useId();
+  const brandId = `${idBase}-brand`;
+  const modelId = `${idBase}-model`;
+  const priceId = `${idBase}-price`;
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
   const [priceMax, setPriceMax] = useState("");
@@ -63,13 +70,13 @@ export function HomeQuickSearchBar({
     >
       <div className="flex flex-col gap-1.5">
         <label
-          htmlFor="quick-search-brand"
+          htmlFor={brandId}
           className="text-xs font-medium uppercase tracking-wide text-foreground/70"
         >
           Marca
         </label>
         <input
-          id="quick-search-brand"
+          id={brandId}
           name="brand"
           type="text"
           autoComplete="off"
@@ -82,13 +89,13 @@ export function HomeQuickSearchBar({
 
       <div className="flex flex-col gap-1.5">
         <label
-          htmlFor="quick-search-model"
+          htmlFor={modelId}
           className="text-xs font-medium uppercase tracking-wide text-foreground/70"
         >
           Modelo
         </label>
         <input
-          id="quick-search-model"
+          id={modelId}
           name="model"
           type="text"
           autoComplete="off"
@@ -101,13 +108,13 @@ export function HomeQuickSearchBar({
 
       <div className="flex flex-col gap-1.5">
         <label
-          htmlFor="quick-search-price"
+          htmlFor={priceId}
           className="text-xs font-medium uppercase tracking-wide text-foreground/70"
         >
           Preço máx. (R$)
         </label>
         <input
-          id="quick-search-price"
+          id={priceId}
           name="priceMax"
           type="number"
           inputMode="numeric"
