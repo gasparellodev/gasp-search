@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "gen:types": "supabase gen types typescript --local > types/database.ts",
     "gen:types:remote": "supabase gen types typescript --project-id $SUPABASE_PROJECT_REF > types/database.ts",
-    "worker:campaigns": "tsx lib/queue/worker.ts"
+    "worker:campaigns": "tsx lib/queue/worker.ts",
+    "geo:monitor": "tsx scripts/geo-monitoring/run.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.95.0",
