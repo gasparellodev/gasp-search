@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { preload } from "react-dom";
 import Image from "next/image";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -13,9 +13,14 @@ interface DetailGalleryCinemaProps {
   car: SiteCar;
 }
 
+const PLACEHOLDER_IMAGE = "/placeholder.svg";
+
 export function DetailGalleryCinema({ car }: DetailGalleryCinemaProps) {
   const trackRef = useRef<HTMLDivElement>(null);
+  const triggerRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const [activeIdx, setActiveIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
   const images = useMemo(
     () => (car.photos && car.photos.length > 0 ? car.photos : car.gallery_urls),
     [car.gallery_urls, car.photos],
@@ -24,9 +29,14 @@ export function DetailGalleryCinema({ car }: DetailGalleryCinemaProps) {
   const safeIdx = Math.min(activeIdx, Math.max(0, total - 1));
   const carLabel = `${car.brand} ${car.model} ${car.year}`;
 
-  for (const url of images.slice(1, 3)) {
-    preload(url, { as: "image" });
-  }
+  // Wave B1 (R-01): preload do 2º + 3º imagens dentro de useEffect pra
+  // não disparar a cada render. Mantém ganho de LCP/UX sem flood de
+  // resource hints. Primeira imagem segue com `priority` no <Image>.
+  useEffect(() => {
+    for (const url of images.slice(1, 3)) {
+      preload(url, { as: "image" });
+    }
+  }, [images]);
 
   const goTo = useCallback(
     (nextIdx: number) => {
@@ -62,6 +72,11 @@ export function DetailGalleryCinema({ car }: DetailGalleryCinemaProps) {
     setActiveIdx(nearestIdx);
   }, []);
 
+  const openAt = useCallback((idx: number) => {
+    setActiveIdx(idx);
+    setLightboxOpen(true);
+  }, []);
+
   if (total === 0) {
     return (
       <div
@@ -72,77 +87,90 @@ export function DetailGalleryCinema({ car }: DetailGalleryCinemaProps) {
   }
 
   return (
-    <section
-      data-testid="detail-gallery-cinema"
-      aria-label={`Galeria de ${carLabel}`}
-      className="relative"
-    >
-      <div
-        ref={trackRef}
-        data-testid="detail-gallery-track"
-        onScroll={updateFromScroll}
-        className="flex h-[70dvh] min-h-[420px] snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth rounded-[var(--auto-radius-md,8px)]"
+    // Wave B1 (R-02): 1 único <Dialog.Root> controlado externamente —
+    // antes era 1 Root por foto (N portais + N focus traps + N
+    // aria-live duplicados). Cada thumb agora chama openAt(idx).
+    <DialogPrimitive.Root open={lightboxOpen} onOpenChange={setLightboxOpen}>
+      <section
+        data-testid="detail-gallery-cinema"
+        aria-label={`Galeria de ${carLabel}`}
+        className="relative"
       >
-        {images.map((url, idx) => (
-          <DialogPrimitive.Root key={url} modal>
-            <DialogPrimitive.Trigger asChild>
+        <div
+          ref={trackRef}
+          data-testid="detail-gallery-track"
+          onScroll={updateFromScroll}
+          className="flex h-[70dvh] min-h-[420px] snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth rounded-[var(--auto-radius-md,8px)]"
+        >
+          {images.map((url, idx) => (
+            <button
+              key={url}
+              ref={(el) => {
+                triggerRefs.current[idx] = el;
+              }}
+              type="button"
+              onClick={() => openAt(idx)}
+              aria-label={`Ampliar foto ${idx + 1}`}
+              className="relative h-full min-w-full snap-center overflow-hidden bg-foreground/5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+            >
+              <Image
+                src={url}
+                alt={`${carLabel} - foto ${idx + 1}`}
+                fill
+                sizes="(max-width: 768px) 100vw, 70vw"
+                className="object-cover"
+                priority={idx === 0}
+                loading={idx === 0 ? undefined : "lazy"}
+                unoptimized
+              />
+            </button>
+          ))}
+        </div>
+
+        <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
+          <span className="rounded-full bg-black/60 px-3 py-1 text-sm font-medium text-white backdrop-blur">
+            <span aria-live="polite" aria-atomic="true">
+              {safeIdx + 1}/{total}
+            </span>
+          </span>
+          {total > 1 ? (
+            <div className="hidden gap-2 md:flex">
               <button
                 type="button"
-                onClick={() => setActiveIdx(idx)}
-                aria-label={`Ampliar foto ${idx + 1}`}
-                className="relative h-full min-w-full snap-center overflow-hidden bg-foreground/5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40"
+                onClick={() => goTo(safeIdx - 1)}
+                disabled={safeIdx === 0}
+                aria-label="Foto anterior"
+                className="pointer-events-auto inline-flex size-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-40"
               >
-                <Image
-                  src={url}
-                  alt={`${carLabel} - foto ${idx + 1}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 70vw"
-                  className="object-cover"
-                  priority={idx === 0}
-                  unoptimized
-                />
+                <ChevronLeft className="size-5" aria-hidden />
               </button>
-            </DialogPrimitive.Trigger>
-            <GalleryLightbox
-              carLabel={carLabel}
-              images={images}
-              activeIdx={safeIdx}
-              onGoTo={goTo}
-            />
-          </DialogPrimitive.Root>
-        ))}
-      </div>
+              <button
+                type="button"
+                onClick={() => goTo(safeIdx + 1)}
+                disabled={safeIdx === total - 1}
+                aria-label="Próxima foto"
+                className="pointer-events-auto inline-flex size-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-40"
+              >
+                <ChevronRight className="size-5" aria-hidden />
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </section>
 
-      <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3">
-        <span className="rounded-full bg-black/60 px-3 py-1 text-sm font-medium text-white backdrop-blur">
-          <span aria-live="polite" aria-atomic="true">
-            {safeIdx + 1}/{total}
-          </span>
-        </span>
-        {total > 1 ? (
-          <div className="hidden gap-2 md:flex">
-            <button
-              type="button"
-              onClick={() => goTo(safeIdx - 1)}
-              disabled={safeIdx === 0}
-              aria-label="Foto anterior"
-              className="pointer-events-auto inline-flex size-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-40"
-            >
-              <ChevronLeft className="size-5" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => goTo(safeIdx + 1)}
-              disabled={safeIdx === total - 1}
-              aria-label="Próxima foto"
-              className="pointer-events-auto inline-flex size-10 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur transition hover:bg-black/75 disabled:opacity-40"
-            >
-              <ChevronRight className="size-5" aria-hidden />
-            </button>
-          </div>
-        ) : null}
-      </div>
-    </section>
+      <GalleryLightbox
+        carLabel={carLabel}
+        images={images}
+        activeIdx={safeIdx}
+        onGoTo={setActiveIdx}
+        onCloseAutoFocus={(event) => {
+          // Wave B1: Dialog controlado sem <Trigger> — Radix não sabe
+          // pra onde devolver foco. Restaura no thumb da foto ativa.
+          event.preventDefault();
+          triggerRefs.current[safeIdx]?.focus();
+        }}
+      />
+    </DialogPrimitive.Root>
   );
 }
 
@@ -151,6 +179,7 @@ interface GalleryLightboxProps {
   images: ReadonlyArray<string>;
   activeIdx: number;
   onGoTo: (idx: number) => void;
+  onCloseAutoFocus: (event: Event) => void;
 }
 
 function GalleryLightbox({
@@ -158,9 +187,13 @@ function GalleryLightbox({
   images,
   activeIdx,
   onGoTo,
+  onCloseAutoFocus,
 }: GalleryLightboxProps) {
   const total = images.length;
-  const image = images[activeIdx] ?? images[0]!;
+  // Wave B1: defensive — substitui images[activeIdx] ?? images[0]! por
+  // fallback explícito (noUncheckedIndexedAccess: o `!` mascarava o
+  // caso de array vazio que JÁ é tratado upstream).
+  const image = images[activeIdx] ?? images[0] ?? PLACEHOLDER_IMAGE;
 
   return (
     <DialogPrimitive.Portal>
@@ -168,14 +201,15 @@ function GalleryLightbox({
       <DialogPrimitive.Content
         aria-label={`Galeria ampliada de ${carLabel}`}
         aria-describedby={undefined}
+        onCloseAutoFocus={onCloseAutoFocus}
         onKeyDown={(event) => {
           if (event.key === "ArrowLeft") {
             event.preventDefault();
-            onGoTo(activeIdx - 1);
+            onGoTo(Math.max(0, activeIdx - 1));
           }
           if (event.key === "ArrowRight") {
             event.preventDefault();
-            onGoTo(activeIdx + 1);
+            onGoTo(Math.min(total - 1, activeIdx + 1));
           }
           if (event.key === "Home") {
             event.preventDefault();
@@ -210,7 +244,7 @@ function GalleryLightbox({
           <>
             <button
               type="button"
-              onClick={() => onGoTo(activeIdx - 1)}
+              onClick={() => onGoTo(Math.max(0, activeIdx - 1))}
               disabled={activeIdx === 0}
               aria-label="Foto anterior"
               className="absolute left-4 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-35"
@@ -219,7 +253,7 @@ function GalleryLightbox({
             </button>
             <button
               type="button"
-              onClick={() => onGoTo(activeIdx + 1)}
+              onClick={() => onGoTo(Math.min(total - 1, activeIdx + 1))}
               disabled={activeIdx === total - 1}
               aria-label="Próxima foto"
               className="absolute right-4 top-1/2 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 disabled:opacity-35"

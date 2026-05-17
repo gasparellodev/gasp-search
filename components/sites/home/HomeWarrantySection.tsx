@@ -46,6 +46,7 @@ export function HomeWarrantySection({
 
   return (
     <section
+      data-reveal
       data-testid="home-warranty-section"
       aria-label="Garantia e diferenciais"
       className="w-full bg-background py-16 md:py-24"

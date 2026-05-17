@@ -82,14 +82,17 @@ function HomeContactFormQuickInner({
   const [honeypotValue, setHoneypotValue] = useState("");
   const formIdBase = useId();
 
-  // Mount time capturado em state (não em ref) pra satisfazer
-  // `react-hooks/refs` (React 19 rule). Não use `useState(() => Date.now())`
-  // porque o SSR rendering produziria valor no servidor — queremos o tempo
-  // de hydration no cliente (quando o usuário REALMENTE pode interagir).
-  // O cascading render extra do `setRenderedAt` é intencional aqui — sem
-  // custo perceptível (1 re-render no mount).
+  // Wave B2 (R-03): mount time capturado em state (não em ref) pra
+  // satisfazer react-hooks/purity (React 19) — Date.now() é impura e
+  // não pode rodar durante render. Capturamos no mount-effect pra
+  // obter o tempo de hydration no cliente (quando o usuário REALMENTE
+  // pode interagir), em vez do tempo de render server-side. Há uma
+  // janela curta entre render e effect onde renderedAt=null; a defesa
+  // está no server (`app/actions/site-form.ts`) — se renderedAt
+  // ausente, submit é tratado como bot e tropa retorna early-success
+  // sem persistir.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional mount-time capture, see comment above
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional mount-time capture
     setRenderedAt(Date.now());
   }, []);
 

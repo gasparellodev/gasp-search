@@ -10,7 +10,22 @@ import {
 } from "@/lib/finance";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { formatKmBR } from "@/lib/whatsapp";
+import { cn } from "@/lib/utils";
 import type { SiteCar } from "@/types/lead-site";
+
+/**
+ * Badge opcional renderizado absolute top-left sobre a foto.
+ * Wave B7 (D-20): 1 badge curado por carro (callers decidem). Tons:
+ *  - "primary" → var(--site-primary) — destaque comercial
+ *  - "neutral" → bg-foreground/85 — informativo
+ *  - "warning" → bg-amber-500 — urgência (ex.: "Última unidade")
+ */
+export type CarCardBadgeTone = "primary" | "neutral" | "warning";
+
+export interface CarCardBadge {
+  label: string;
+  tone?: CarCardBadgeTone;
+}
 
 interface CarCardProps {
   /** Car payload (v1 ou v2 — usa `thumbnail_url` canon, fallback `photos[0]` se ausente). */
@@ -21,6 +36,8 @@ interface CarCardProps {
   whatsappPhone: string;
   /** Nome do negócio (para mensagem do WhatsApp). */
   businessName: string;
+  /** Wave B7 (D-20): badge curado (callers decidem qual mostrar). */
+  badge?: CarCardBadge;
 }
 
 /**
@@ -46,14 +63,24 @@ interface CarCardProps {
  * (footer separado) para evitar nested anchor — HTML inválido, screen
  * readers tropeçam.
  */
+const BADGE_TONE_CLASSES: Record<CarCardBadgeTone, string> = {
+  primary: "bg-[var(--site-primary)] text-[var(--site-text-on-primary)]",
+  neutral: "bg-foreground/85 text-background",
+  warning: "bg-amber-500 text-black",
+};
+
 export function CarCard({
   car,
   siteSlug,
   whatsappPhone,
   businessName,
+  badge,
 }: CarCardProps) {
   const headingId = `car-card-${car.slug}-title`;
   const photoSrc = car.thumbnail_url;
+  const badgeToneClass = badge
+    ? BADGE_TONE_CLASSES[badge.tone ?? "primary"]
+    : null;
 
   const installmentResult =
     car.price !== null && car.price > 0
@@ -100,6 +127,17 @@ export function CarCard({
             className="object-cover"
             unoptimized
           />
+          {badge && badgeToneClass && (
+            <span
+              data-testid={`car-card-${car.slug}-badge`}
+              className={cn(
+                "absolute left-3 top-3 inline-flex h-7 items-center rounded-full px-3 text-xs font-semibold uppercase tracking-wider shadow-sm",
+                badgeToneClass,
+              )}
+            >
+              {badge.label}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 p-4">

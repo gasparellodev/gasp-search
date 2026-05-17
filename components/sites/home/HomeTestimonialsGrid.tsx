@@ -77,6 +77,7 @@ export function HomeTestimonialsGrid({
 
   return (
     <section
+      data-reveal
       data-testid="home-testimonials-grid"
       aria-label="Avaliações de clientes"
       className="w-full bg-background py-16 md:py-24"

@@ -79,15 +79,20 @@ export function SiteFooter({ variables }: SiteFooterProps) {
       <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-4 md:gap-0 md:px-8 md:py-16">
         {/* Marca + sociais */}
         <div className="space-y-6 md:pr-8">
-          <Image
-            src={brand_assets.logo_url}
-            alt={variables.business_name}
-            width={140}
-            height={40}
-            style={{ width: "auto", height: "auto" }}
-            className="max-h-10 max-w-[10rem] object-contain"
-            unoptimized
-          />
+          {brand_assets.logo_url ? (
+            <Image
+              src={brand_assets.logo_url}
+              alt={variables.business_name}
+              width={140}
+              height={40}
+              className="block max-h-10 w-auto max-w-[10rem] object-contain"
+              unoptimized
+            />
+          ) : (
+            <span className="block font-[family-name:var(--auto-font-display,inherit)] text-lg font-semibold text-foreground">
+              {variables.business_name}
+            </span>
+          )}
           <p className="text-sm text-foreground/70">
             Qualidade, Segurança, Transparência.
           </p>

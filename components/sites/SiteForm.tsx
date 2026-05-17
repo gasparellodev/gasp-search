@@ -148,7 +148,10 @@ export function SiteForm({
           <div
             className={cn(
               "grid gap-4",
-              "grid-cols-1 md:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_1fr_auto]",
+              // Wave B9 (D-26): 4 inputs em 1 linha desktop ficavam
+              // cramped (~180px cada, email longo truncava). 2×2 em
+              // md+ dá ~280px por field; botão wrappa pra full-width.
+              "grid-cols-1 md:grid-cols-2",
             )}
           >
             <FormField
@@ -200,7 +203,7 @@ export function SiteForm({
               type="submit"
               disabled={isPending}
               style={buttonStyle}
-              className="inline-flex h-12 items-center justify-center rounded-md px-6 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 disabled:cursor-not-allowed disabled:opacity-60 lg:self-end"
+              className="inline-flex h-12 items-center justify-center rounded-md px-6 text-sm font-medium transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/30 disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2"
             >
               {isPending ? (
                 <Loader2 className="size-5 animate-spin" aria-hidden />

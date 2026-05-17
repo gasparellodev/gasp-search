@@ -59,6 +59,7 @@ export function HomeRecentArrivals({
 
   return (
     <section
+      data-reveal
       data-testid="home-recent-arrivals"
       className="w-full bg-background"
       aria-labelledby="home-recent-arrivals-title"
