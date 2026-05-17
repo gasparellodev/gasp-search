@@ -77,10 +77,7 @@ export function AboutHeroEditorial({
         <p className="max-w-2xl text-sm font-medium uppercase tracking-[0.18em] text-white/75">
           {tagline}
         </p>
-        <h1
-          className="max-w-4xl font-bold leading-[1.02] text-white"
-          style={{ fontSize: "clamp(2.75rem, 7vw, 5.75rem)" }}
-        >
+        <h1 className="as-h1 max-w-4xl text-white">
           Sobre a {variables.business_name}
         </h1>
         <p className="max-w-3xl text-base leading-relaxed text-white/85 md:text-xl">

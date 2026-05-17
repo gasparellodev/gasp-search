@@ -180,10 +180,7 @@ function HomeContactFormQuickInner({
     >
       <div className="mx-auto max-w-3xl px-4 md:px-8">
         <header className="mb-8 flex flex-col gap-3 text-center md:mb-10">
-          <h2
-            className="font-bold leading-tight tracking-tight"
-            style={{ fontSize: "clamp(1.875rem, 4vw, 3rem)" }}
-          >
+          <h2 className="as-h2">
             Fale com a nossa equipe
           </h2>
           <p className="text-sm text-background/75 md:text-base">

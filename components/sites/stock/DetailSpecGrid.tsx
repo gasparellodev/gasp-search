@@ -26,7 +26,7 @@ export function DetailSpecGrid({ car }: DetailSpecGridProps) {
     <section className="mt-12 md:mt-16" aria-labelledby="detail-spec-grid-title">
       <h2
         id="detail-spec-grid-title"
-        className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl"
+        className="as-h2 text-foreground"
       >
         Ficha técnica
       </h2>

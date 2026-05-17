@@ -67,7 +67,7 @@ export function HomeRecentArrivals({
         <div className="mb-8 flex items-end justify-between gap-4 md:mb-10">
           <h2
             id="home-recent-arrivals-title"
-            className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl"
+            className="as-h2 text-foreground"
           >
             Recém-chegados
           </h2>

@@ -43,10 +43,7 @@ export function ContactDualPane({
     <section className="w-full bg-background py-16 md:py-24">
       <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 md:grid-cols-[minmax(0,1fr)_minmax(360px,0.85fr)] md:px-8">
         <div className="flex flex-col gap-6">
-          <h1
-            className="font-bold leading-[1.05] text-foreground"
-            style={{ fontSize: "clamp(2.75rem, 6vw, 5rem)" }}
-          >
+          <h1 className="as-h1 text-foreground">
             Contato
           </h1>
           <p className="max-w-2xl text-base leading-relaxed text-foreground/70 md:text-lg">

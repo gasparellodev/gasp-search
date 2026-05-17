@@ -22,10 +22,7 @@ export function DetailInfoBlock({ variables, car }: DetailInfoBlockProps) {
   return (
     <div data-testid="detail-info-block" className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
-        <h1
-          className="font-bold leading-[1.05] text-foreground"
-          style={{ fontSize: "clamp(2.25rem, 5vw, 4.5rem)" }}
-        >
+        <h1 className="as-h1 text-foreground">
           {car.model} <span className="text-foreground/60">{car.year}</span>
         </h1>
         <AICitableHero

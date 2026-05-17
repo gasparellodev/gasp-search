@@ -153,8 +153,7 @@ export function HomeHero({
           className="w-[min(92vw,800px)] rounded-3xl border border-white/15 bg-black/35 p-6 shadow-2xl backdrop-blur-3xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-black/75"
         >
           <h1
-            className="font-bold leading-[0.95] tracking-tight text-white [text-shadow:0_2px_8px_rgb(0_0_0_/_0.35)]"
-            style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
+            className="as-h1 text-white [text-shadow:0_2px_8px_rgb(0_0_0_/_0.35)]"
           >
             {heroH1}
           </h1>

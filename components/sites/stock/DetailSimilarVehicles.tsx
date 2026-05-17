@@ -104,7 +104,7 @@ export function DetailSimilarVehicles({
       <div className="mb-6 flex flex-col gap-1 md:mb-8">
         <h2
           id="detail-similar-heading"
-          className="font-[family-name:var(--auto-font-display,inherit)] text-2xl font-semibold text-[var(--auto-foreground,#0a0a0a)] md:text-3xl"
+          className="as-h2 text-[var(--auto-foreground,#0a0a0a)]"
         >
           Veículos similares
         </h2>

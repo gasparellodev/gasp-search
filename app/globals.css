@@ -435,7 +435,10 @@
   }
   .as-h1 {
     font-family: var(--auto-font-display);
-    font-size: clamp(2.25rem, 6vw, 3rem);
+    /* Bumped upper bound from 3rem to 4.5rem (Wave A1 — design audit D-04:
+       hero h1 deve ser o maior da página; equiparado com .as-display
+       para garantir prominence em telas desktop). */
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
     font-weight: 600;
     line-height: 1.05;
     letter-spacing: -0.03em;

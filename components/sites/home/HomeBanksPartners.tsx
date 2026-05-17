@@ -21,10 +21,7 @@ export function HomeBanksPartners() {
     >
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <header className="mb-8 flex flex-col gap-3 text-center md:mb-12">
-          <h2
-            className="font-bold leading-tight tracking-tight text-foreground"
-            style={{ fontSize: "clamp(1.5rem, 3.2vw, 2.5rem)" }}
-          >
+          <h2 className="as-h2 text-foreground">
             Bancos parceiros para financiar seu próximo carro
           </h2>
           <p className="text-sm text-foreground/60 md:text-base">
