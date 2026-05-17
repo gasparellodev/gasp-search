@@ -129,7 +129,7 @@ export function SitePage({
     >
       <AnnouncementBar text={manifest?.announcement_text} />
       <SiteHeader variables={variables} slug={slug} activePage={activePage} />
-      <main className={cn(mainClassName)}>
+      <main className={cn(mainClassName)} data-orchestrated>
         <div
           data-site-header-sentinel
           aria-hidden="true"

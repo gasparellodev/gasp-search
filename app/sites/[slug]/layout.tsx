@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { CookieBanner } from "@/components/sites/CookieBanner";
+import { MotionOrchestrator } from "@/components/sites/motion/MotionOrchestrator";
 import { SiteSchema } from "@/components/sites/seo/SiteSchema";
 import { SitesAnalytics } from "@/components/sites/SitesAnalytics";
 import { WhatsAppFloatingCTA } from "@/components/sites/WhatsAppFloatingCTA";
@@ -100,6 +101,11 @@ export default async function AutoShowroomLayout({
       />
       {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
+      {/* #P12 — Cross-page motion orchestrator. Mounted after {children}
+          so the `<main data-orchestrated>` rendered by <SitePage> is
+          already in the DOM when the first useEffect fires. Client
+          Component; no-ops when prefers-reduced-motion is set. */}
+      <MotionOrchestrator />
       {variables && <WhatsAppFloatingCTA variables={variables} slug={slug} />}
       {variables && <CookieBanner />}
       {variables && <SitesAnalytics />}
