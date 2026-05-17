@@ -65,6 +65,7 @@ import { ZodError } from "zod";
 import { env } from "@/lib/env";
 import { sendWhatsAppMessage } from "@/lib/evolution/send";
 import { notifyIndexNow } from "@/lib/seo/indexnow";
+import { enqueueIndexNow } from "@/lib/seo/indexnow-queue";
 import { generateCopy } from "@/lib/sites/generate-copy";
 import { extractBrandAssets } from "@/lib/sites/brand-assets";
 import { FALLBACK_IMAGE_URL, mergeSiteVariables } from "@/lib/sites/merge";
@@ -963,6 +964,21 @@ export async function updateLeadSiteVariables(
   updateTag(`site:${existing.slug}`);
   if (existing.lead_id) {
     revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  // Step 10: IndexNow — enqueue car detail URLs when cars were mutated (#367).
+  // Coalesces rapid batch uploads (e.g., 20 cars) into 1-2 IndexNow POSTs.
+  // Best-effort: never blocks the success path.
+  if (Array.isArray(sanitized.cars) && sanitized.cars.length > 0) {
+    const base = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+    const siteUrl = `${base}/sites/${existing.slug}`;
+    // Also notify /estoque (index page) as its content changed.
+    enqueueIndexNow(`${siteUrl}/estoque`);
+    for (const car of sanitized.cars) {
+      if (typeof car.slug === "string" && car.slug) {
+        enqueueIndexNow(`${siteUrl}/estoque/${car.slug}`);
+      }
+    }
   }
 
   return { ok: true, slug: existing.slug };
