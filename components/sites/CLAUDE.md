@@ -143,6 +143,12 @@ em light mode, conflita com tema).
 | `stock/` | Sections de `/estoque` (lista com filtros #224 + sort/paginação #225) e `/estoque/[carSlug]` (detalhe-do-carro com `<dialog>` lightbox nativo). `<StockSection>` server injeta `<StockClientView>` client; o client aplica filtros, `sortCars`, `paginate`, sidebar/drawer, empty state, Radix sort dropdown e paginação. `<StockGrid>` reutiliza `<CarCard>` compartilhado. Helper puro `car-categories.ts` mantém compat `?categoria=` legado. `<CarDetailSection>` reusa `<SiteForm variant="car-detail" prefillModel>`. Ver `stock/CLAUDE.md`. |
 | `cars/` | **Shared building blocks** de veículos reusados entre páginas (vs `stock/` que é page-level) — issue #201. `<CarCard>` é shared client/server-safe desde #225 e implementa a anatomia §card-vehicle do DESIGN.md (foto 4:3, eyebrow brand mono uppercase, h3 model+year display, km·fuel·transmission inline, price BRL, installment "Ou 48x de R$ X", botão WhatsApp inline). Consome tokens `var(--auto-*)` (não classes Tailwind genéricas). WhatsApp link extraído do `<Link>` interno (evita nested anchor). Foto via `car.thumbnail_url` canon (v1+v2, não `photos[0]`). Reusado em H2/E2/D2/D3 das Sprints 4-6. Ver `cars/CLAUDE.md`. |
 
+## Motion choreography (Frente 05 / #P12)
+
+| Path | Propósito |
+|---|---|
+| `motion/MotionOrchestrator.tsx` | **Client Component (#P12).** Cross-page orchestrator montado em `app/sites/[slug]/layout.tsx`. Escuta `usePathname` e, a cada mudança de rota, anima `<main data-orchestrated>` com um "page lift" de 280ms (opacity 0→1 + translateY 8px→0, cubic-bezier ease-out). Totalmente inerte quando `prefersReducedMotion()` é true. Não interfere com `[data-reveal]` (que opera em children de `<main>` via GSAP ScrollTrigger). `<main data-orchestrated>` é o atributo de seleção — adicionado ao `<main>` de `SitePage.tsx`. |
+
 ## Boundary client/server
 
 ```
