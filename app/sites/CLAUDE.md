@@ -114,6 +114,45 @@ Fonte canônica do design: §8 do spec mestre em
 | `[slug]/estoque/[carSlug]/page.tsx` | Rota `/sites/<slug>/estoque/<carSlug>` (#164). Reutiliza `getSite`, faz `cars.find(c => c.slug === carSlug)` (404 se não achar), renderiza `<CarDetailSection>` dentro de `<SitePage activePage="estoque">`. **#226 D1:** o section compõe breadcrumb visual shared, galeria cinema scroll-snap + lightbox Radix, info block e spec grid; o BreadcrumbList JSON-LD continua aqui via `<SiteSchema>`. **#232:** se não houver match exato, tenta slug legado `{brand}-{model}-{year}` e emite `permanentRedirect()` para o `car.slug` salvo no payload novo (`{brand}-{model}-{year}-{id4}`); payloads antigos continuam funcionando por match exato. **#220:** adiciona `mainClassName="pb-24 lg:pb-0"` e `<FloatingInstallmentBar>` com contexto serializado do carro para evitar overlap mobile e fetch client-side duplicado. |
 | `[slug]/opengraph-image.tsx` | **OG image dinâmica (#213 / Sprint 1 / #S3, fix #247/#244/#245).** Next Metadata file convention `opengraph-image.tsx`. Gera PNG 1200×630 via `next/og` `ImageResponse` consumido por scrapers de social (Facebook/Twitter/WhatsApp). `runtime='edge'` (trade-off explícito PO: workload curto, sem deps Node-only, cold-start Edge < Node pra ImageResponse). **Cache (#247)**: `export const revalidate = 3600` (ISR 1h) + invalidação transitiva via `getSite()` (que carrega `"use cache"` + `cacheTag('site:<slug>')` internamente). NÃO usar `cacheTag` standalone no handler (Next 16: `Error: 'cacheTag()' can only be called inside a "use cache" function`); NÃO usar `"use cache"` directive (Metadata files retornam `Response` built-in com prototype não-plain — crasha cache boundary). Os 5 callsites de `updateTag('site:<slug>')` em `app/actions/lead-site.ts` (publish/update/archive/restore/sendWhatsApp) expiram o cache transitivamente. Padrão idêntico a `llms.txt/route.ts` (#246). **Gate `isIndexable(site)` → 404** quando null/draft/archived/sem signed_at (diferente do JSON-LD em #211 que sempre injeta — OG ≠ Schema.org: vaza pra social scrapers, não AI crawlers). **SSRF hardening (#244)**: `resolveHeroUrl` chama `isPrivateOrLinkLocalHost` para URLs absolutas antes do `ImageResponse` tentar buscar `visual_identity.hero_url` ou `brand_assets.hero_image_url`; host bloqueado cai no gradient. **Fonte (#245)**: usa `loadGeist()` de `lib/og/load-geist.ts`, lendo `/fonts/geist-600.woff2` do próprio deployment com timeout 1s; sem GitHub raw/CDN e sem embutir o WOFF2 no Edge bundle. **Fallback graceful**: hero ausente → gradient escuro; Geist local fail → system font. `business_name` empty → "Loja de Carros" (não crasha). Alt text textual sem PII. |
 | `[slug]/llms.txt/route.ts` | **`llms.txt` para AI crawlers (#214 / Sprint 1 / #S4 — fecha ciclo GEO).** Route handler `GET` retorna Markdown plain text consumido por GPTBot, ClaudeBot, PerplexityBot, Gemini para AI Overviews e respostas AI search. **`Content-Type: text/plain; charset=utf-8`** em 200 E 404 (não usar `notFound()` default que emite HTML — AI crawlers parseariam errado). **Gate `isIndexable(site)` → 404** em null/draft/archived/sem signed_at — IGUAL ao OG image (#213), DIFERENTE do JSON-LD (#211): llms.txt expõe contato direto (telefone, WhatsApp, endereço), privacy by obscurity. **Cache: `export const revalidate = 3600` (ISR 1h) + invalidação transitiva via `getSite()`**. NÃO usar `"use cache"` directive em Route Handlers que retornam `Response` — built-in com prototype não-plain crasha o cache boundary do Next 16 (PR #246 QA blocker). Também NÃO chamar `cacheTag` no handler (Next 16 exige dentro de `"use cache"`). `getSite()` internamente carrega `"use cache"` + `cacheTag('site:<slug>')`; os 5 callsites de `updateTag('site:<slug>')` em `app/actions/lead-site.ts` (update/publish/archive/restore/sign) expiram esse cache, e o `revalidate = 3600` regenera a Response. `Cache-Control` header redundante mas explícito pra CDN externo (CloudFlare). Body via `renderLlmsTxt(variables, slug)` em `lib/sites/llms.ts` — pure, testável isoladamente. Zero PII em logs (slug ok; business_name, phone NÃO). |
+| `sitemap.ts` | **Sitemap global de todos os sites (Frente 03 / PR #392).** Next Metadata file dinâmico (`MetadataRoute.Sitemap`) que lista todos os sites com `status IN ('published','sent') AND signed_at IS NOT NULL`. Defense in depth via `.filter(isIndexable)` após o DB read. Cache: `export const revalidate = 3600` + `cacheTag('sitemap:sites')`. URL declarada em `app/robots.ts`. Graceful global: erro de DB → `[]` (sitemap vazio é válido per protocol). |
+| `[slug]/sitemap.ts` | **Sitemap per-site (Frente 03 / PR #392).** Next Metadata file por site: 6 rotas estáticas (`/`, `/sobre`, `/contato`, `/anunciar`, `/estoque`, `/lgpd`) + carros dinâmicos via `variables.cars[]`. Gate via `isIndexable(site)` — retorna `[]` para draft/archived/missing/unsigned (privacy by obscurity). Cache: `revalidate = 3600`. Parse failure de `SiteVariablesV2` → `console.warn` + inclui só as 6 estáticas. |
+| `[slug]/llms-full.txt/route.ts` | **`llms-full.txt` extendido para AI crawlers (Frente 04 / PR #396).** Versão enriquecida do `llms.txt` com estoque completo (sem cap de 6 carros) e FAQ gerado por IA (`generateFAQ` Server Action). Mesmo gate `isIndexable` e padrão de cache que `llms.txt`. |
+
+## Sitemap & SEO
+
+> Referência completa: `docs/SEO-PLAN.md`.
+
+### Arquivos de sitemap
+
+- `app/sites/sitemap.ts` — sitemap global (todos os sites publicados)
+- `app/sites/[slug]/sitemap.ts` — sitemap per-site (sub-rotas + estoque)
+
+Ambos usam `isIndexable(site)` de `lib/sites/metadata.ts` como gate canônico.
+Invalidação via `updateTag('sitemap:sites')` quando um site muda de status
+(publish/archive/sign em `app/actions/lead-site.ts`).
+
+### Schema.org JSON-LD
+
+Builders em `lib/sites/schema/index.ts` (ver `lib/sites/schema/CLAUDE.md`).
+Injeção:
+
+- **Sitewide graph** (`buildSitewideGraph`) — `[slug]/layout.tsx` via
+  `<SiteSchema>`. Contém 4 nodes: `AutoDealer`, `WebSite`, `Organization`,
+  `LocalBusiness`. Sempre injetado mesmo em `noindex` (AI crawlers ignoram
+  `robots:noindex`).
+- **Vehicle + BreadcrumbList** — `[slug]/estoque/[carSlug]/page.tsx` via
+  `<SiteSchema schemas={[vehicleSchema, breadcrumbSchema]}>`.
+
+**Anti-pattern intencional:** `FAQPage` JSON-LD NÃO é emitido — Google
+penaliza em business sites desde 2023. `<HomeFAQSection>` e
+`<DetailFaqVehicle>` renderizam FAQ visual sem markup JSON-LD.
+
+### AI crawlers (`llms.txt` / `llms-full.txt`)
+
+- `[slug]/llms.txt/route.ts` — Markdown plain-text com dados factuais do
+  negócio. Gateado por `isIndexable` (expõe telefone/endereço).
+- `[slug]/llms-full.txt/route.ts` — Versão estendida com estoque completo e
+  FAQ AI. Mesmo gate e padrão de cache.
 
 ## Dependências
 
