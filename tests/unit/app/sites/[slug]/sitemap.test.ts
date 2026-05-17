@@ -47,7 +47,7 @@ describe("site sitemap (per slug)", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("returns 6 static routes + dynamic car routes for published site", async () => {
-    // fixtureSiteVariablesV2 has 1 car: "bmw-m2-2023-001"
+    // fixtureSiteVariablesV2 has 4 cars (see fixture header comment)
     vi.mocked(getSite).mockResolvedValue(
       makePublishedSite("poliguara") as never,
     );
@@ -175,7 +175,7 @@ describe("site sitemap (per slug)", () => {
     );
 
     const result = await siteSitemap({ params: Promise.resolve({ slug: "x" }) });
-    // SiteVariablesV2 requires min 1 car — zero cars means parse failure → 6 static
+    // SiteVariablesV2 requires min SITE_STOCK_MIN_CARS (4) cars — zero cars means parse failure → 6 static
     expect(result).toHaveLength(6);
   });
 

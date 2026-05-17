@@ -73,7 +73,7 @@ export default async function sitemap({
   if (!site || !isIndexable(site)) return [];
 
   const base = `${env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "")}/sites/${slug}`;
-  const lastModified = new Date((site as { updated_at?: string }).updated_at ?? Date.now());
+  const lastModified = new Date(site.updated_at ?? Date.now());
 
   const staticEntries: MetadataRoute.Sitemap = STATIC_PATHS.map((path) => ({
     url: `${base}${path}`,

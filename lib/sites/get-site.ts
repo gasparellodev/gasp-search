@@ -45,6 +45,13 @@ export interface SiteRow {
   /** Validar via `SiteVariables.safeParse` antes do render. */
   variables: unknown;
   /**
+   * Timestamp da última modificação da row `lead_sites` (gerenciado pelo
+   * DB via trigger ou `DEFAULT now()`). Usado pelo sitemap per-site para
+   * emitir `lastModified` real em vez de `Date.now()` — crítico para
+   * freshnessSignals de crawl (ISR/GSC).
+   */
+  updated_at: string;
+  /**
    * Rating Google da concessionária (lido de `leads.rating` via FK).
    * `null` quando o lead vem do Apify Instagram (sem reviews) ou Maps
    * sem avaliações públicas.
@@ -94,7 +101,7 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
   const { data, error } = await supa
     .from("lead_sites")
     .select(
-      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count, raw )",
+      "id, slug, status, variables, signed_at, updated_at, visual_identity, leads ( rating, reviews_count, raw )",
     )
     .eq("slug", slug)
     .maybeSingle();
@@ -140,6 +147,7 @@ export async function getSite(slug: string): Promise<SiteRow | null> {
     status: (data as { status: SiteRow["status"] }).status,
     variables: (data as { variables: unknown }).variables,
     signed_at: (data as { signed_at: string | null }).signed_at,
+    updated_at: (data as { updated_at: string }).updated_at,
     visual_identity: visualIdentity,
     lead_rating: leadRating,
     lead_reviews_count: leadReviewsCount,
