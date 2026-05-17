@@ -56,11 +56,11 @@ describe("/sites/[slug]/lgpd", () => {
     expect(html).toContain("Política de Privacidade");
     expect(html).toContain(SITE_FIXTURE.business_name);
     expect(html).toContain(SITE_FIXTURE.email!);
-    expect(html).toContain("Direitos do titular");
-    expect(html).toContain("acesso");
-    expect(html).toContain("retificação");
-    expect(html).toContain("exclusão");
-    expect(html).toContain("portabilidade");
+    expect(html).toContain("Direitos do Titular de Dados");
+    expect(html).toContain("Acesso aos dados");
+    expect(html).toContain("Correção de dados");
+    expect(html).toContain("Eliminação dos dados");
+    expect(html).toContain("Portabilidade dos dados");
   });
 
   it("draft → notFound", async () => {
