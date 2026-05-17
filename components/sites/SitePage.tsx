@@ -12,7 +12,7 @@ import { AnnouncementBar } from "./AnnouncementBar";
 import { SiteHeader } from "./SiteHeader";
 import { HomeBanksPartners } from "./home/HomeBanksPartners";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
-import { HomeContactFormQuick } from "./home/HomeContactFormQuick";
+import { HomeContactBanner } from "./home/HomeContactBanner";
 import { HomeMotion } from "./home/HomeMotion";
 import { HomeFAQSection } from "./home/HomeFAQSection";
 import { HomeFinancingWidget } from "./home/HomeFinancingWidget";
@@ -191,8 +191,12 @@ export function SitePage({
               primary_color={brand_assets.primary_color}
             />
             <HomeFAQSection />
-            <HomeContactFormQuick
-              siteId={siteId}
+            {/* Wave A5 (D-24): trocado HomeContactFormQuick (form 409L
+                dark) por banner WhatsApp full-bleed. Form completo segue
+                em /contato. Form em /sobre também segue (HomeContactFormQuick
+                continua exportado e reutilizável). */}
+            <HomeContactBanner
+              whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
               slug={slug}
             />
