@@ -1,0 +1,71 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    paths:
+      - "app/sites/**"
+      - "components/sites/**"
+      - "lib/sites/**"
+      - "lighthouserc.json"
+      - ".github/workflows/lighthouse.yml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lighthouse:
+    name: lighthouse
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - id: secret-check
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ] && [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Skipping Lighthouse CI — VERCEL_TOKEN or VERCEL_PROJECT_ID not configured"
+          fi
+
+      # actions/setup-node@v4
+      - if: steps.secret-check.outputs.ready == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: "24"
+          cache: npm
+
+      - if: steps.secret-check.outputs.ready == 'true'
+        run: npm ci
+
+      # zentered/vercel-preview-url@v1.4.0
+      - if: steps.secret-check.outputs.ready == 'true'
+        id: vercel-preview
+        uses: zentered/vercel-preview-url@fba568fc6d882ae788a9724d7e28dee618728771
+        with:
+          vercel_team_id: ${{ secrets.VERCEL_TEAM_ID }}
+          vercel_project_id: ${{ secrets.VERCEL_PROJECT_ID }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - if: steps.secret-check.outputs.ready == 'true' && steps.vercel-preview.outputs.preview_url != ''
+        name: Warm-up preview
+        run: |
+          URL="${{ steps.vercel-preview.outputs.preview_url }}"
+          curl -sS -o /dev/null --max-time 30 "$URL" || true
+
+      - if: steps.secret-check.outputs.ready == 'true' && steps.vercel-preview.outputs.preview_url != ''
+        name: Run Lighthouse CI
+        env:
+          LHCI_BUILD_CONTEXT__CURRENT_HASH: ${{ github.sha }}
+          PREVIEW_URL: ${{ steps.vercel-preview.outputs.preview_url }}
+        run: |
+          jq --arg url "$PREVIEW_URL" '.ci.collect.url = [$url]' lighthouserc.json > lighthouserc.runtime.json
+          npx --yes @lhci/cli@0.13.x autorun --config=./lighthouserc.runtime.json
