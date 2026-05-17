@@ -21,8 +21,10 @@ const baseProps = {
   text_on_primary: SITE_FIXTURE.brand_assets.text_on_primary,
   slug: SLUG,
   // #214: AICitableHero injected inside HomeHero needs address + cars
+  // #G4: phone_display added for microdata <address> block
   address: SITE_FIXTURE.address,
   cars: SITE_FIXTURE.cars,
+  phone_display: SITE_FIXTURE.phone_display,
 };
 
 describe("<HomeHero />", () => {

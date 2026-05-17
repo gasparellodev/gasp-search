@@ -12,6 +12,7 @@ interface HomeHeroLockupProps {
   businessName: string;
   address: SiteVariablesV2["address"];
   cars: SiteVariablesV2["cars"];
+  phoneDisplay: SiteVariablesV2["phone_display"];
   primaryColor: string;
   textOnPrimary: string;
   slug: string;
@@ -35,6 +36,7 @@ export function HomeHeroLockup({
   businessName,
   address,
   cars,
+  phoneDisplay,
   primaryColor,
   textOnPrimary,
   slug,
@@ -90,7 +92,12 @@ export function HomeHeroLockup({
         )}
       >
         <AICitableHero
-          variables={{ business_name: businessName, address, cars }}
+          variables={{
+            business_name: businessName,
+            address,
+            cars,
+            phone_display: phoneDisplay,
+          }}
           page="home"
         />
       </div>

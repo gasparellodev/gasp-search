@@ -21,6 +21,7 @@ describe("<DetailInfoBlock />", () => {
           business_name: SITE_FIXTURE.business_name,
           address: SITE_FIXTURE.address,
           cars: SITE_FIXTURE.cars,
+          phone_display: SITE_FIXTURE.phone_display,
         }}
         car={car}
       />,
@@ -52,6 +53,7 @@ describe("<DetailInfoBlock />", () => {
           business_name: SITE_FIXTURE.business_name,
           address: SITE_FIXTURE.address,
           cars: SITE_FIXTURE.cars,
+          phone_display: SITE_FIXTURE.phone_display,
         }}
         car={SITE_FIXTURE.cars[0]!}
       />,

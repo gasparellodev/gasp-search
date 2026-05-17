@@ -146,6 +146,7 @@ export function SitePage({
               address={variables.address}
               cars={variables.cars}
               whatsapp={variables.whatsapp}
+              phone_display={variables.phone_display}
               businessName={variables.business_name}
             />
             <HomeTrustStrip

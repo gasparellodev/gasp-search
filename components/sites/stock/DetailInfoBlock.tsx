@@ -6,7 +6,7 @@ import { AICitableHero } from "../AICitableHero";
 
 type DetailInfoVariables = Pick<
   SiteVariablesV2,
-  "business_name" | "address" | "cars"
+  "business_name" | "address" | "cars" | "phone_display"
 >;
 
 interface DetailInfoBlockProps {
