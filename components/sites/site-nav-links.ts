@@ -20,13 +20,32 @@ export interface SiteNavLink {
   href: string;
 }
 
-export function buildSiteNavLinks(slug: string): ReadonlyArray<SiteNavLink> {
+export interface BuildSiteNavLinksOptions {
+  /**
+   * Wave A3 (D-13): quando o lead não tem carros no estoque
+   * (`cars.length === 0`), o link "Estoque" some da nav — evita levar
+   * visitante a `/estoque` que só renderiza empty state e quebra o funil.
+   * Default `true` para retrocompat.
+   */
+  hasStock?: boolean;
+}
+
+export function buildSiteNavLinks(
+  slug: string,
+  options: BuildSiteNavLinksOptions = {},
+): ReadonlyArray<SiteNavLink> {
   const base = `/sites/${slug}`;
-  return [
+  const { hasStock = true } = options;
+  const links: SiteNavLink[] = [
     { id: "home", label: "Home", href: base },
-    { id: "estoque", label: "Estoque", href: `${base}/estoque` },
+  ];
+  if (hasStock) {
+    links.push({ id: "estoque", label: "Estoque", href: `${base}/estoque` });
+  }
+  links.push(
     { id: "sobre", label: "Sobre", href: `${base}/sobre` },
     { id: "contato", label: "Contato", href: `${base}/contato` },
     { id: "anunciar", label: "Anunciar", href: `${base}/anunciar` },
-  ];
+  );
+  return links;
 }

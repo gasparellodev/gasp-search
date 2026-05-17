@@ -84,15 +84,12 @@ export function HomeTestimonialsGrid({
       <div className="mx-auto max-w-7xl px-4 md:px-8">
         <header className="mb-10 flex flex-col gap-3 text-center md:mb-14">
           <p
-            className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/60"
+            className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--site-primary)]/85"
             aria-hidden="true"
           >
             O que nossos clientes dizem
           </p>
-          <h2
-            className="font-bold leading-tight tracking-tight text-foreground"
-            style={{ fontSize: "clamp(1.875rem, 4vw, 3rem)" }}
-          >
+          <h2 className="as-h2 text-foreground">
             Avaliações reais de quem comprou conosco
           </h2>
         </header>

@@ -46,10 +46,7 @@ export function SiteFAQ({
           >
             {eyebrow}
           </p>
-          <h2
-            className="font-bold leading-tight tracking-tight text-foreground"
-            style={{ fontSize: "clamp(1.875rem, 4vw, 3rem)" }}
-          >
+          <h2 className="as-h2 text-foreground">
             {title}
           </h2>
         </header>

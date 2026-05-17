@@ -4,6 +4,7 @@ import Image from "next/image";
 
 import { getOptimizedSourcesForDefault } from "@/lib/sites/default-visual-identity";
 import { sanitizeHex } from "@/lib/sites/sanitize";
+import { buildWhatsAppLink } from "@/lib/whatsapp";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
 import { AICitableHero } from "../AICitableHero";
@@ -40,6 +41,14 @@ interface HomeHeroProps {
    * cláusula "com N carros em estoque a partir de R$ X". Vazia → cláusula omitida.
    */
   cars: SiteVariablesV2["cars"];
+  /**
+   * Telefone WhatsApp do lead — Wave A4 (D-11): usado pelo par de
+   * CTAs secundários abaixo do quick search ("Ver estoque" + "Falar
+   * no WhatsApp"). Quando ausente o CTA WhatsApp some.
+   */
+  whatsapp?: SiteVariablesV2["whatsapp"];
+  /** Nome do negócio pra UTM. */
+  businessName?: string;
 }
 
 /**
@@ -67,12 +76,25 @@ export function HomeHero({
   slug,
   address,
   cars,
+  whatsapp,
+  businessName,
 }: HomeHeroProps) {
   const safePrimary = sanitizeHex(primary_color);
 
   const heroH1 = address?.city
     ? `${business_name} — Carros seminovos em ${address.city}`
     : `${business_name} — Carros seminovos`;
+
+  const carsCount = cars?.length ?? 0;
+  const whatsappHref = whatsapp
+    ? buildWhatsAppLink({
+        template: "general",
+        phone: whatsapp,
+        businessName: businessName ?? business_name,
+        siteSlug: slug,
+        component: "home-cta",
+      })
+    : null;
 
   const hasHeroImage = Boolean(hero_image_url && hero_image_url.length > 0);
   // WP8 #316 — quando hero_image_url é um asset default conhecido em
@@ -131,10 +153,11 @@ export function HomeHero({
         />
       )}
 
-      {/* Scrim topo — contraste do header sobre imagem clara. */}
+      {/* Scrim topo — contraste do header + injeção sutil da brand color
+          (Wave A2 — D-05: --site-primary precisa pervade hero, não só CTA). */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 via-black/20 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[color-mix(in_srgb,var(--site-primary)_45%,#000)]/55 via-black/20 to-transparent"
       />
 
       {/* Scrim bottom — contraste do card em qualquer foto. */}
@@ -153,8 +176,7 @@ export function HomeHero({
           className="w-[min(92vw,800px)] rounded-3xl border border-white/15 bg-black/35 p-6 shadow-2xl backdrop-blur-3xl backdrop-saturate-150 md:p-8 supports-[not_(backdrop-filter:blur(0))]:bg-black/75"
         >
           <h1
-            className="font-bold leading-[0.95] tracking-tight text-white [text-shadow:0_2px_8px_rgb(0_0_0_/_0.35)]"
-            style={{ fontSize: "clamp(1.75rem, 4.5vw, 3.25rem)" }}
+            className="as-h1 text-white [text-shadow:0_2px_8px_rgb(0_0_0_/_0.35)]"
           >
             {heroH1}
           </h1>
@@ -172,6 +194,36 @@ export function HomeHero({
               text_on_primary={text_on_primary}
             />
           </div>
+          {/* Wave A4 (D-11): par de CTAs abaixo do quick search —
+              hero passa a oferecer ação imediata em vez de só busca.
+              "Ver estoque" some quando cars.length === 0. */}
+          {(carsCount > 0 || whatsappHref) && (
+            <div
+              data-testid="home-hero-ctas"
+              className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-3 md:mt-5"
+            >
+              {carsCount > 0 && (
+                <a
+                  href={`/sites/${slug}/estoque`}
+                  data-testid="home-hero-cta-stock"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:flex-1"
+                >
+                  Ver estoque ({carsCount} {carsCount === 1 ? "carro" : "carros"})
+                </a>
+              )}
+              {whatsappHref && (
+                <a
+                  href={whatsappHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="home-hero-cta-whatsapp"
+                  className="inline-flex h-11 items-center justify-center rounded-full border border-white/30 bg-white/10 px-5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:flex-1"
+                >
+                  Falar no WhatsApp
+                </a>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </section>

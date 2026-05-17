@@ -144,7 +144,7 @@ export function HomeFinancingWidget({
         <div className="flex flex-col gap-5">
           <h2
             id="home-financing-widget-title"
-            className="text-2xl font-semibold tracking-tight text-foreground md:text-3xl"
+            className="as-h2 text-foreground"
           >
             Simule seu financiamento
           </h2>

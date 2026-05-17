@@ -49,7 +49,7 @@ export function DetailTradeinWidget({
       <div className="mx-auto flex max-w-3xl flex-col items-center gap-4 text-center md:gap-6">
         <h2
           id="detail-tradein-heading"
-          className="font-[family-name:var(--auto-font-display,inherit)] text-2xl font-semibold text-[var(--auto-foreground,#0a0a0a)] md:text-3xl"
+          className="as-h2 text-[var(--auto-foreground,#0a0a0a)]"
         >
           Use seu carro como entrada
         </h2>

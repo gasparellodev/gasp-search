@@ -63,10 +63,7 @@ export function HomeWarrantySection({
         </div>
 
         <div className="flex flex-col gap-6">
-          <h2
-            className="font-bold leading-tight tracking-tight text-foreground"
-            style={{ fontSize: "clamp(1.875rem, 4vw, 3rem)" }}
-          >
+          <h2 className="as-h2 text-foreground">
             Por que comprar com a {businessName}
           </h2>
 

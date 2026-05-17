@@ -15,7 +15,7 @@ import { buildSiteNavLinks, type ActivePage } from "./site-nav-links";
 
 type HeaderVariables = Pick<
   SiteVariablesV2,
-  "business_name" | "brand_assets" | "whatsapp"
+  "business_name" | "brand_assets" | "whatsapp" | "cars"
 >;
 
 interface SiteHeaderProps {
@@ -93,7 +93,8 @@ function useHeaderScrolled() {
  * passa apenas dados já validados do site.
  */
 export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
-  const links = buildSiteNavLinks(slug);
+  const hasStock = (variables.cars?.length ?? 0) > 0;
+  const links = buildSiteNavLinks(slug, { hasStock });
   const homeHref = `/sites/${slug}`;
   const pathname = usePathname();
   const currentPage = activePageFromPathname(pathname, slug) ?? activePage;

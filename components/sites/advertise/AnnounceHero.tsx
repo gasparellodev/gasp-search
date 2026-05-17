@@ -13,13 +13,10 @@ export function AnnounceHero({ businessName, targetCar = null }: AnnounceHeroPro
     >
       <div className="mx-auto w-full max-w-7xl px-4 md:px-8">
         <div className="max-w-4xl">
-          <p className="text-sm font-medium uppercase tracking-[0.18em] text-foreground/55">
+          <p className="text-sm font-medium uppercase tracking-[0.18em] text-[var(--site-primary)]/85">
             Avaliação de troca
           </p>
-          <h1
-            className="mt-4 font-bold leading-[1.04] text-foreground"
-            style={{ fontSize: "clamp(2.75rem, 7vw, 5.5rem)" }}
-          >
+          <h1 className="as-h1 mt-4 text-foreground">
             Anuncie seu carro
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-relaxed text-foreground/70 md:text-lg">

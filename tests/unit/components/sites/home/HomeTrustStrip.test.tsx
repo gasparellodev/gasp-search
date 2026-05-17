@@ -64,10 +64,11 @@ describe("<HomeTrustStrip />", () => {
     });
   });
 
-  describe("rating/reviewsCount fallback (PO refinement)", () => {
-    it("ausência total → fallback '4.8★ 87 reviews'", () => {
+  describe("rating/reviewsCount honesty pass (Wave A3 — D-12)", () => {
+    it("ausência total → trust pillar 'Atendimento personalizado' (sem fake rating)", () => {
       render(<HomeTrustStrip />);
-      expect(screen.getByText(/4\.8★ 87 reviews/)).toBeInTheDocument();
+      expect(screen.getByText(/Atendimento personalizado/)).toBeInTheDocument();
+      expect(screen.queryByText(/★ \d+ reviews/)).not.toBeInTheDocument();
     });
 
     it("rating 4.7 + 123 reviews → '4.7★ 123 reviews'", () => {
@@ -80,15 +81,15 @@ describe("<HomeTrustStrip />", () => {
       expect(screen.getByText(/5\.0★ 50 reviews/)).toBeInTheDocument();
     });
 
-    it("rating presente mas reviewsCount ausente → cai no fallback", () => {
+    it("rating presente mas reviewsCount ausente → trust pillar genérico", () => {
       render(<HomeTrustStrip rating={4.5} />);
-      // Sem reviewsCount: usa fallback (lê tudo ou nada — evita "X.X★ N undefined")
-      expect(screen.getByText(/4\.8★ 87 reviews/)).toBeInTheDocument();
+      // Sem reviewsCount válido: cai no pillar genérico — nada de "X.X★ N undefined".
+      expect(screen.getByText(/Atendimento personalizado/)).toBeInTheDocument();
     });
 
-    it("reviewsCount 0 → cai no fallback (sem reviews é semanticamente fallback)", () => {
+    it("reviewsCount 0 → trust pillar genérico (sem reviews é semanticamente vazio)", () => {
       render(<HomeTrustStrip rating={4.0} reviewsCount={0} />);
-      expect(screen.getByText(/4\.8★ 87 reviews/)).toBeInTheDocument();
+      expect(screen.getByText(/Atendimento personalizado/)).toBeInTheDocument();
     });
   });
 

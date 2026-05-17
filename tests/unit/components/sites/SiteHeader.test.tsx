@@ -20,6 +20,7 @@ const headerVars = {
   business_name: SITE_FIXTURE.business_name,
   brand_assets: SITE_FIXTURE.brand_assets,
   whatsapp: SITE_FIXTURE.whatsapp,
+  cars: SITE_FIXTURE.cars,
 };
 
 type IntersectionObserverCallback = ConstructorParameters<typeof IntersectionObserver>[0];
@@ -100,7 +101,7 @@ describe("<SiteHeader />", () => {
     );
   });
 
-  it("renderiza 5 links de navegação no nav desktop", () => {
+  it("renderiza 5 links de navegação no nav desktop quando há estoque", () => {
     render(
       <SiteHeader variables={headerVars} slug={slug} activePage="home" />,
     );
@@ -112,6 +113,19 @@ describe("<SiteHeader />", () => {
     expect(within(nav).getByText("Estoque")).toBeInTheDocument();
     expect(within(nav).getByText("Contato")).toBeInTheDocument();
     expect(within(nav).getByText("Anunciar")).toBeInTheDocument();
+  });
+
+  it("Wave A3 (D-13): esconde 'Estoque' quando cars.length === 0", () => {
+    render(
+      <SiteHeader
+        variables={{ ...headerVars, cars: [] }}
+        slug={slug}
+        activePage="home"
+      />,
+    );
+    const nav = screen.getByRole("navigation", { name: /navegação principal/i });
+    expect(within(nav).queryByText("Estoque")).not.toBeInTheDocument();
+    expect(within(nav).getAllByRole("link")).toHaveLength(4);
   });
 
   it("aplica aria-current='page' no link ativo (estoque)", () => {

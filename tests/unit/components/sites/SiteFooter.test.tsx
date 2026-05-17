@@ -21,6 +21,7 @@ const footerVars = {
   youtube_url: SITE_FIXTURE.youtube_url,
   address: SITE_FIXTURE.address,
   hours: SITE_FIXTURE.hours,
+  cars: SITE_FIXTURE.cars,
 };
 
 describe("<SiteFooter />", () => {

@@ -12,7 +12,7 @@ import { AnnouncementBar } from "./AnnouncementBar";
 import { SiteHeader } from "./SiteHeader";
 import { HomeBanksPartners } from "./home/HomeBanksPartners";
 import { HomeCategoriesCars } from "./home/HomeCategoriesCars";
-import { HomeContactFormQuick } from "./home/HomeContactFormQuick";
+import { HomeContactBanner } from "./home/HomeContactBanner";
 import { HomeMotion } from "./home/HomeMotion";
 import { HomeFAQSection } from "./home/HomeFAQSection";
 import { HomeFinancingWidget } from "./home/HomeFinancingWidget";
@@ -145,11 +145,21 @@ export function SitePage({
               slug={slug}
               address={variables.address}
               cars={variables.cars}
+              whatsapp={variables.whatsapp}
+              businessName={variables.business_name}
             />
             <HomeTrustStrip
               yearsInMarket={variables.years_in_market}
               rating={rating}
               reviewsCount={reviewsCount}
+            />
+            {/* Wave A4 (D-10): prova social sobe para posição 3 — só
+                renderiza com rating válido + reviewsCount >= 3 (guard
+                interno do componente também garante). */}
+            <HomeGoogleReviewsEmbed
+              rating={rating}
+              reviewsCount={reviewsCount}
+              primary_color={brand_assets.primary_color}
             />
             <RoadDivider />
             <HomeCategoriesCars
@@ -162,32 +172,39 @@ export function SitePage({
               whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
             />
+            <RoadDivider variant="thin" />
             <HomeFinancingWidget
               whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
               siteSlug={slug}
             />
+            <RoadDivider variant="thin" />
             {/* H3 (#223) — sections finais da Home V2. Ordem visual: warranty →
-                process → banks → testimonials → faq → google-reviews → contact. */}
+                process → banks → testimonials → faq → google-reviews → contact.
+                Wave A6 (D-32): RoadDivider variant thin entre cada section
+                pra dar ritmo visual e injetar --site-primary recorrente. */}
             <HomeWarrantySection
               businessName={variables.business_name}
               manifestAboutUrl={manifest?.about_url ?? null}
               aboutImageUrl={brand_assets.about_image_url}
             />
+            <RoadDivider variant="thin" />
             <HomeProcess3Steps />
+            <RoadDivider variant="thin" />
             <HomeBanksPartners />
+            <RoadDivider variant="thin" />
             <HomeTestimonialsGrid
               testimonials={variables.testimonials}
               primary_color={brand_assets.primary_color}
             />
+            <RoadDivider variant="thin" />
             <HomeFAQSection />
-            <HomeGoogleReviewsEmbed
-              rating={rating}
-              reviewsCount={reviewsCount}
-              primary_color={brand_assets.primary_color}
-            />
-            <HomeContactFormQuick
-              siteId={siteId}
+            {/* Wave A5 (D-24): trocado HomeContactFormQuick (form 409L
+                dark) por banner WhatsApp full-bleed. Form completo segue
+                em /contato. Form em /sobre também segue (HomeContactFormQuick
+                continua exportado e reutilizável). */}
+            <HomeContactBanner
+              whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
               slug={slug}
             />
