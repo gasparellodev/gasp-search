@@ -39,6 +39,7 @@ export function HomeContactBanner({
 
   return (
     <section
+      data-reveal
       data-testid="home-contact-banner"
       aria-labelledby="home-contact-banner-title"
       className="w-full bg-foreground/[0.02] py-16 md:py-20"
@@ -60,7 +61,7 @@ export function HomeContactBanner({
           rel="noopener noreferrer"
           data-testid="home-contact-banner-cta"
           aria-label={`Iniciar conversa no WhatsApp com a ${businessName}`}
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--site-primary)] px-7 text-sm font-semibold text-[var(--site-text-on-primary)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-primary)]/60 md:text-base"
+          className="as-btn-lift inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[var(--site-primary)] px-7 text-sm font-semibold text-[var(--site-text-on-primary)] hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-primary)]/60 md:text-base"
         >
           <MessageCircle aria-hidden className="size-5" />
           Falar no WhatsApp

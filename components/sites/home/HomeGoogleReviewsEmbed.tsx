@@ -57,6 +57,7 @@ export function HomeGoogleReviewsEmbed({
 
   return (
     <section
+      data-reveal
       data-testid="home-google-reviews-embed"
       aria-label="Avaliações no Google"
       className="w-full bg-foreground/[0.02] py-16 md:py-24"

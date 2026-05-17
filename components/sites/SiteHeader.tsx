@@ -128,6 +128,12 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
         isScrolled
           ? "border-b border-[var(--auto-border,#e5e5e5)] bg-[rgb(250_250_250_/_0.84)] backdrop-blur-xl"
           : "border-b border-transparent bg-transparent",
+        // Wave B10 (D-27): mini scrim no estado não-scrolled garante
+        // contraste do texto branco do header sobre hero images claros
+        // (céu, fundo branco de showroom). Aplicado via ::before só
+        // quando !isScrolled.
+        !isScrolled &&
+          "before:pointer-events-none before:absolute before:inset-0 before:-z-10 before:bg-gradient-to-b before:from-black/30 before:to-transparent",
       )}
       style={{ transform: "translateZ(0)", willChange: "backdrop-filter" }}
     >

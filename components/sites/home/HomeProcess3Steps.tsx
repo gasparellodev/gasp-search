@@ -15,6 +15,7 @@ import { PROCESS_STEPS_TEMPLATE } from "@/lib/sites/process-steps-template";
 export function HomeProcess3Steps() {
   return (
     <section
+      data-reveal
       data-testid="home-process-3steps"
       aria-label="Como funciona"
       className="w-full bg-foreground/[0.02] py-16 md:py-24"
