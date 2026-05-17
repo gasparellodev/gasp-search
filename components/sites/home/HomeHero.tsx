@@ -131,10 +131,11 @@ export function HomeHero({
         />
       )}
 
-      {/* Scrim topo — contraste do header sobre imagem clara. */}
+      {/* Scrim topo — contraste do header + injeção sutil da brand color
+          (Wave A2 — D-05: --site-primary precisa pervade hero, não só CTA). */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-black/55 via-black/20 to-transparent"
+        className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[color-mix(in_srgb,var(--site-primary)_45%,#000)]/55 via-black/20 to-transparent"
       />
 
       {/* Scrim bottom — contraste do card em qualquer foto. */}

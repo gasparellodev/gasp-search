@@ -93,7 +93,7 @@ export function DetailCtaStack({
         aria-label={`Falar no WhatsApp sobre ${car.brand} ${car.model} ${car.year}`}
         className={cn(
           ctaClass,
-          "bg-foreground text-background hover:opacity-90",
+          "bg-[var(--site-primary)] text-[var(--site-text-on-primary)] hover:opacity-90",
         )}
       >
         Falar no WhatsApp

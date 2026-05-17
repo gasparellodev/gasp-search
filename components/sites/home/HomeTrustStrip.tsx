@@ -78,23 +78,23 @@ export function HomeTrustStrip({
       role="region"
       aria-label="Diferenciais"
       data-testid="home-trust-strip"
-      className="relative left-1/2 -translate-x-1/2 w-screen border-y border-foreground/10 bg-foreground/5"
+      className="relative left-1/2 -translate-x-1/2 w-screen border-y border-foreground/10 bg-[color-mix(in_srgb,var(--site-primary)_6%,white)] dark:bg-[color-mix(in_srgb,var(--site-primary)_10%,#0a0a0a)]"
     >
       <ul className="mx-auto grid h-20 max-w-7xl grid-cols-2 items-center gap-3 px-4 text-foreground md:grid-cols-4 md:gap-6 md:px-8">
         <li className="flex items-center gap-2.5">
-          <ShieldCheck aria-hidden className="size-5 shrink-0 text-foreground/80" />
+          <ShieldCheck aria-hidden className="size-5 shrink-0 text-[var(--site-primary)]/85" />
           <span className="truncate text-sm font-medium md:text-base">
             Garantia incluída
           </span>
         </li>
         <li className="flex items-center gap-2.5">
-          <BadgeCheck aria-hidden className="size-5 shrink-0 text-foreground/80" />
+          <BadgeCheck aria-hidden className="size-5 shrink-0 text-[var(--site-primary)]/85" />
           <span className="truncate text-sm font-medium md:text-base">
             Vistoria 100 pontos
           </span>
         </li>
         <li className="flex items-center gap-2.5">
-          <Building2 aria-hidden className="size-5 shrink-0 text-foreground/80" />
+          <Building2 aria-hidden className="size-5 shrink-0 text-[var(--site-primary)]/85" />
           <span className="truncate text-sm font-medium md:text-base">
             {yearsLabel}
           </span>
