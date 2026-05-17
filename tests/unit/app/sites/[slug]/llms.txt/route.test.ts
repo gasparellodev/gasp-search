@@ -150,8 +150,9 @@ describe("llms.txt route — happy path", () => {
 
     const body = await res.text();
     expect(body).toContain(`# ${SITE_FIXTURE.business_name}`);
-    expect(body).toContain("## Sobre");
-    expect(body).toContain("## Estoque (snapshot)");
+    // v2 sections (issue #G1)
+    expect(body).toContain("## Localização");
+    expect(body).toContain("## Inventário atual");
     expect(body).toContain("## Contato");
   });
 
