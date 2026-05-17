@@ -94,6 +94,64 @@ export type SchemaInput = Pick<
 >;
 
 // ---------------------------------------------------------------------------
+// escapeJsonLd — XSS defense for <script type="application/ld+json">
+// ---------------------------------------------------------------------------
+
+/**
+ * Serializes `value` to JSON and escapes sequences that could break out
+ * of a `<script>` tag in HTML (XSS defense for JSON-LD injection).
+ *
+ * Escapes:
+ *  - `</`  → `<\/`   (prevents `</script>` closing the tag early)
+ *  - `-->` → `--\>`  (prevents HTML comment close)
+ *  - `<!--` → `<\!--` (prevents HTML comment open)
+ *
+ * The output remains valid JSON — `JSON.parse(escapeJsonLd(v))` round-trips
+ * correctly because the escaped sequences are inside JSON string values
+ * where `\/` is identical to `/` per JSON spec (RFC 8259 §7).
+ */
+export function escapeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/<\//g, "<\\/")
+    .replace(/-->/g, "--\\>")
+    .replace(/<!--/g, "<\\!--");
+}
+
+// ---------------------------------------------------------------------------
+// safeAbsoluteUrl — ensures URLs in schema are always absolute
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns an absolute URL string, or `null` when the input is invalid/empty.
+ *
+ * - If `input` already starts with `http://` or `https://`, validates and
+ *   returns it as-is (via `new URL()` to normalize trailing slashes etc.).
+ * - If `input` is relative (e.g. `/foo`), prepends `env.NEXT_PUBLIC_APP_URL`.
+ * - Returns `null` for empty strings, non-strings, or unparseable URLs.
+ *
+ * Google Rich Results requires all URL fields in structured data to be
+ * absolute. This helper is the single enforcer across all schema builders.
+ */
+export function safeAbsoluteUrl(
+  input: string | null | undefined,
+): string | null {
+  if (!input || typeof input !== "string") return null;
+  try {
+    if (input.startsWith("http://") || input.startsWith("https://")) {
+      return new URL(input).toString();
+    }
+    // Read directly from process.env so tests can override without
+    // re-importing the Zod-validated singleton (which is frozen at
+    // module-load time). In production, this value equals env.NEXT_PUBLIC_APP_URL.
+    const base = process.env.NEXT_PUBLIC_APP_URL;
+    if (!base) return null;
+    return new URL(input, base).toString();
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers internos — URLs, fragmentos, formatação
 // ---------------------------------------------------------------------------
 
