@@ -151,7 +151,7 @@ describe("getSite (lib/sites/get-site.ts)", () => {
       throw new Error("expected lead_sites builder to be tracked");
     }
     expect(leadSites.select).toHaveBeenCalledWith(
-      "id, slug, status, variables, signed_at, visual_identity, leads ( rating, reviews_count, raw )",
+      "id, slug, status, variables, signed_at, updated_at, visual_identity, leads ( rating, reviews_count, raw )",
     );
     expect(leadSites.eq).toHaveBeenCalledWith("slug", SLUG);
   });
