@@ -27,6 +27,7 @@ Configuração do GitHub para o repositório: workflows de CI, templates de PR e
 | Path | Propósito |
 |---|---|
 | `workflows/ci.yml` | Lint + typecheck + unit + e2e + build em todo PR e push de `main` |
+| `workflows/lighthouse.yml` | Lighthouse CI soft-gated em PRs que tocam `app/sites/**`, `components/sites/**` ou `lib/sites/**`; requer secrets `VERCEL_TOKEN` + `VERCEL_PROJECT_ID`; exits 0 se ausentes |
 | `dependabot.yml` | Atualizações semanais de GitHub Actions pinadas por SHA |
 | `PULL_REQUEST_TEMPLATE.md` | Checklist obrigatório de PR (Summary, Test plan, Quality gates) |
 | `ISSUE_TEMPLATE/feature.yml` | Form de feature request (resumo, critérios, testes, fase) |
