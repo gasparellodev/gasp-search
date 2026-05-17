@@ -172,24 +172,32 @@ export function SitePage({
               whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
             />
+            <RoadDivider variant="thin" />
             <HomeFinancingWidget
               whatsappPhone={variables.whatsapp}
               businessName={variables.business_name}
               siteSlug={slug}
             />
+            <RoadDivider variant="thin" />
             {/* H3 (#223) — sections finais da Home V2. Ordem visual: warranty →
-                process → banks → testimonials → faq → google-reviews → contact. */}
+                process → banks → testimonials → faq → google-reviews → contact.
+                Wave A6 (D-32): RoadDivider variant thin entre cada section
+                pra dar ritmo visual e injetar --site-primary recorrente. */}
             <HomeWarrantySection
               businessName={variables.business_name}
               manifestAboutUrl={manifest?.about_url ?? null}
               aboutImageUrl={brand_assets.about_image_url}
             />
+            <RoadDivider variant="thin" />
             <HomeProcess3Steps />
+            <RoadDivider variant="thin" />
             <HomeBanksPartners />
+            <RoadDivider variant="thin" />
             <HomeTestimonialsGrid
               testimonials={variables.testimonials}
               primary_color={brand_assets.primary_color}
             />
+            <RoadDivider variant="thin" />
             <HomeFAQSection />
             {/* Wave A5 (D-24): trocado HomeContactFormQuick (form 409L
                 dark) por banner WhatsApp full-bleed. Form completo segue
