@@ -568,6 +568,123 @@
   .as-link-underline:focus-visible::after {
     width: 100%;
   }
+
+  /* ============================================================
+     Hero cinematic dark (Hero Redesign — Phase 7).
+     Composição em camadas para o hero "Cinematic Dark Showroom":
+     1. .hero-bg-cinematic  → base sempre dark (linear-gradient)
+     2. .hero-mesh          → mesh brand-tinted sobre o dark
+     3. .hero-pattern-dots  → atmosphere de pontos sutis
+     4. .hero-vignette      → reforço inset escurecendo bordas
+     5. .hero-photo-grade   → color-grade da foto pro cinematic
+     6. .hero-monogram      → SVG monogram em mix-blend screen
+     7. .hero-eyebrow-luxe  → eyebrow tipográfico premium
+     8. .hero-cta-primary   → CTA primary com glow brand
+     9. .hero-cta-ghost     → CTA outline glass-style
+     + animação fade-up via keyframes (pageload stagger).
+     ============================================================ */
+  .hero-bg-cinematic {
+    background: linear-gradient(135deg, #050505 0%, #121212 50%, #050505 100%);
+  }
+  .hero-mesh {
+    background-image:
+      radial-gradient(
+        ellipse at 25% 20%,
+        color-mix(in srgb, var(--site-primary) 42%, transparent),
+        transparent 60%
+      ),
+      radial-gradient(
+        ellipse at 80% 80%,
+        color-mix(in srgb, var(--site-primary) 28%, transparent),
+        transparent 55%
+      );
+  }
+  .hero-pattern-dots {
+    background-image: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.06) 1px,
+      transparent 1px
+    );
+    background-size: 32px 32px;
+  }
+  @media (max-width: 767px) {
+    .hero-pattern-dots {
+      background-size: 24px 24px;
+    }
+  }
+  .hero-vignette {
+    box-shadow: inset 0 0 240px rgba(0, 0, 0, 0.6);
+  }
+  .hero-photo-grade {
+    filter: brightness(0.88) contrast(1.12) saturate(1.15);
+  }
+  .hero-monogram {
+    color: rgba(255, 255, 255, 1);
+    opacity: 0.06;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    user-select: none;
+  }
+  .hero-eyebrow-luxe {
+    font-family: var(--auto-font-mono);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: color-mix(in srgb, var(--site-primary) 85%, white);
+  }
+  .hero-cta-primary {
+    background-color: var(--site-primary);
+    color: var(--site-text-on-primary);
+    box-shadow: 0 10px 40px -10px
+      color-mix(in srgb, var(--site-primary) 50%, transparent);
+  }
+  .hero-cta-ghost {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background-color: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(6px);
+    transition: background-color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .hero-cta-ghost:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Pageload stagger — CSS-only, motion-safe. */
+  @keyframes hero-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .hero-fade-up {
+    animation: hero-fade-up var(--auto-duration-cinematic, 600ms)
+      var(--auto-ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1)) both;
+  }
+  .hero-stagger-1 {
+    animation-delay: 0ms;
+  }
+  .hero-stagger-2 {
+    animation-delay: 80ms;
+  }
+  .hero-stagger-3 {
+    animation-delay: 160ms;
+  }
+  .hero-stagger-4 {
+    animation-delay: 240ms;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-fade-up {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
 }
 
 /* ===========================================================================

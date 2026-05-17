@@ -66,15 +66,14 @@ describe("<HomeHero />", () => {
     });
   });
 
-  describe("Empty state hero (WP1 #309 — graceful, glass card por cima)", () => {
-    it("sem hero_image: aplica linear-gradient com primary_color (NÃO branco)", () => {
+  describe("Empty state hero (Hero Redesign — cinematic dark self-contained)", () => {
+    it("sem hero_image: renderiza camadas cinematic dark + mesh + pattern (sem foto)", () => {
       render(<HomeHero {...baseProps} hero_image_url={null} />);
-      const fallback = screen.getByTestId("home-hero-empty-state");
-      expect(fallback).toBeInTheDocument();
-      // O gradient agora é só fundo (sem monogram avulso — o card carrega
-      // o branding via H1). Verifica a presença do background-image inline.
-      const styleAttr = fallback.getAttribute("style") ?? "";
-      expect(styleAttr).toMatch(/linear-gradient/i);
+      // 5 camadas de bg: cinematic + mesh + empty-state placeholder + pattern.
+      expect(screen.getByTestId("home-hero-bg-cinematic")).toBeInTheDocument();
+      expect(screen.getByTestId("home-hero-mesh")).toBeInTheDocument();
+      expect(screen.getByTestId("home-hero-empty-state")).toBeInTheDocument();
+      expect(screen.getByTestId("home-hero-pattern")).toBeInTheDocument();
     });
 
     it("sem hero_image: NÃO renderiza <img>", () => {
@@ -84,39 +83,45 @@ describe("<HomeHero />", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("sem hero_image: glass card ainda renderiza (branding preservado)", () => {
+    it("sem hero_image: lockup ainda renderiza (branding preservado via H1 + monogram)", () => {
       render(<HomeHero {...baseProps} hero_image_url={null} />);
-      expect(screen.getByTestId("home-hero-card")).toBeInTheDocument();
+      expect(screen.getByTestId("home-hero-lockup")).toBeInTheDocument();
       expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
+      // SVG monograms (corner mobile + behind desktop) sempre presentes.
+      expect(
+        screen.getByTestId("home-hero-monogram-corner"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByTestId("home-hero-monogram-behind"),
+      ).toBeInTheDocument();
     });
   });
 
-  describe("Layout fullscreen + glass card (WP1 #309)", () => {
+  describe("Layout fullscreen + cinematic dark (Hero Redesign)", () => {
     it("aplica min-h-[100dvh] no container (fullscreen, NÃO vh)", () => {
       render(<HomeHero {...baseProps} />);
       const container = screen.getByTestId("home-hero");
       expect(container.className).toMatch(/min-h-\[100dvh\]/);
     });
 
-    it("renderiza glass card com backdrop-blur centro-baixo (dark frosted, vidro fumê)", () => {
+    it("renderiza monogram watermark (corner + behind) com aria-hidden", () => {
       render(<HomeHero {...baseProps} />);
-      const card = screen.getByTestId("home-hero-card");
-      expect(card).toBeInTheDocument();
-      expect(card.className).toMatch(/backdrop-blur/);
-      expect(card.className).toMatch(/backdrop-saturate/);
-      // Vidro fumê escuro transparente — bg-black com opacidade baixa pra
-      // revelar a imagem por trás + dar contraste pro texto branco.
-      expect(card.className).toMatch(/bg-black\/(2[0-9]|3[0-9]|4[0-9])/);
+      const corner = screen.getByTestId("home-hero-monogram-corner");
+      const behind = screen.getByTestId("home-hero-monogram-behind");
+      expect(corner.getAttribute("aria-hidden")).toBe("true");
+      expect(behind.getAttribute("aria-hidden")).toBe("true");
+      expect(corner.className).toMatch(/hero-monogram/);
+      expect(behind.className).toMatch(/hero-monogram/);
     });
 
-    it("H1 + AI passage + search bar todos dentro do glass card", () => {
+    it("H1 + AI passage + search bar todos dentro do lockup", () => {
       render(<HomeHero {...baseProps} />);
-      const card = screen.getByTestId("home-hero-card");
-      expect(card.contains(screen.getByRole("heading", { level: 1 }))).toBe(
+      const lockup = screen.getByTestId("home-hero-lockup");
+      expect(lockup.contains(screen.getByRole("heading", { level: 1 }))).toBe(
         true,
       );
-      expect(card.contains(screen.getByTestId("ai-citable-hero"))).toBe(true);
-      expect(card.contains(screen.getByTestId("home-quick-search-bar"))).toBe(
+      expect(lockup.contains(screen.getByTestId("ai-citable-hero"))).toBe(true);
+      expect(lockup.contains(screen.getByTestId("home-quick-search-bar"))).toBe(
         true,
       );
     });
