@@ -85,6 +85,19 @@ export default async function AutoShowroomLayout({
       data-theme="auto-showroom"
       className="min-h-dvh overflow-x-clip bg-background text-foreground"
     >
+      {/* Wave C2 (D-09): força light-mode antes do primeiro paint.
+          O <ThemeProvider> root pode aplicar `.dark` no <html> via
+          localStorage do usuário admin; sites públicos são sempre
+          light. Script inline roda síncrono durante streaming HTML,
+          antes do paint, evitando o FOUC dark→light de ~30-80ms.
+          dangerouslySetInnerHTML é seguro: payload estático sem
+          interpolação. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "(function(){try{var d=document.documentElement;if(d&&d.classList){d.classList.remove('dark');d.style.colorScheme='light';}}catch(e){}})();",
+        }}
+      />
       {sitewideGraph && <SiteSchema schemas={sitewideGraph} />}
       {children}
       {variables && <WhatsAppFloatingCTA variables={variables} slug={slug} />}

@@ -109,28 +109,32 @@ export function HomeFinancingWidget({
       ? "—"
       : formatBRL(computation.financed, { fractionDigits: 0 });
 
-  // WhatsApp deep-link — usa `general` se price=0 (sem contexto suficiente).
-  const whatsappHref =
-    price > 0
-      ? buildWhatsAppLink({
-          phone: whatsappPhone,
-          businessName,
-          siteSlug,
-          component: "home-cta",
-          template: "financing",
-          finance: {
-            carPrice: price,
-            downPaymentPct: downPct,
-            months,
-          },
-        })
-      : buildWhatsAppLink({
-          phone: whatsappPhone,
-          businessName,
-          siteSlug,
-          component: "home-cta",
-          template: "general",
-        });
+  // Wave C8 (R-08): useMemo evita re-criação do href + flicker do <a>
+  // durante typing (deps controladas em vez de recalcular toda render).
+  const whatsappHref = useMemo(
+    () =>
+      price > 0
+        ? buildWhatsAppLink({
+            phone: whatsappPhone,
+            businessName,
+            siteSlug,
+            component: "home-cta",
+            template: "financing",
+            finance: {
+              carPrice: price,
+              downPaymentPct: downPct,
+              months,
+            },
+          })
+        : buildWhatsAppLink({
+            phone: whatsappPhone,
+            businessName,
+            siteSlug,
+            component: "home-cta",
+            template: "general",
+          }),
+    [price, downPct, months, whatsappPhone, businessName, siteSlug],
+  );
 
   return (
     <section

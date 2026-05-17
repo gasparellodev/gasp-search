@@ -76,7 +76,10 @@ export function SiteFooter({ variables }: SiteFooterProps) {
       data-testid="site-footer"
       className="mt-16 border-t border-foreground/10 bg-background"
     >
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 md:grid-cols-4 md:gap-0 md:px-8 md:py-16">
+      {/* Wave C8 (D-29): divide-y mobile pra dar separação visual entre
+          as 4 colunas empilhadas. Em md+ desaparece (grid + border-l já
+          cuidam). */}
+      <div className="mx-auto grid max-w-7xl divide-y divide-foreground/10 gap-10 px-4 py-12 md:grid-cols-4 md:gap-0 md:divide-y-0 md:px-8 md:py-16">
         {/* Marca + sociais */}
         <div className="space-y-6 md:pr-8">
           {brand_assets.logo_url ? (
