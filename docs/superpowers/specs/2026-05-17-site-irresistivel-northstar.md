@@ -4,7 +4,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | Draft — aguardando aprovação |
+| Status | v1.1 — post-discovery (2026-05-17) — Frente 02 cancelada, Frente 05 reduzida |
 | Criado | 2026-05-17 |
 | Owner | Vinícius (GaspLab) |
 | Specs filhas | `2026-05-17-site-irresistivel-01-competitive.md` · `-02-variations.md` · `-03-seo-infra.md` · `-04-geo-ai.md` · `-05-premium-pass.md` |

@@ -2,6 +2,8 @@
 
 > Sub-spec de [`site-irresistivel-northstar.md`](./2026-05-17-site-irresistivel-northstar.md). Auditoria visual + react-best-practices + microcopy + conversão em cada uma das 7 rotas públicas dos sites.
 
+> **📊 Status update 2026-05-17 (post-discovery).** Discovery confirmou que ~85% dos componentes propostos JÁ EXISTEM com nomes canônicos diferentes ou foram redesenhados recentemente nos PRs #287/#288/#231/#258/#282/#227/#285/#336/#338/#339/#340/#341/#342. **11 de 13 issues fechadas como `not planned`/redundantes.** Trabalho real restante (3 issues): (#P5 reescopado) criar `AboutTimeline` + `AboutTeam`; (#P10) `/lgpd` nunca teve design pass dedicado; (#P12) motion choreography cross-page (foundation em `motion.ts` existe via WP1 #290, falta orquestração entre rotas).
+
 | Campo | Valor |
 |---|---|
 | Status | Draft |

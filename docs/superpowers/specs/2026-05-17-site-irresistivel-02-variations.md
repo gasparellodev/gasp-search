@@ -2,6 +2,8 @@
 
 > Sub-spec de [`site-irresistivel-northstar.md`](./2026-05-17-site-irresistivel-northstar.md). Implementa 3 temas isolados pra que dois leads jamais pareçam "irmãos óbvios".
 
+> **🚫 FRENTE CANCELADA — 2026-05-17 (post-discovery).** Conflito arquitetural irreconciliável com decisão de PR #317 (Wave C) + `components/sites/CLAUDE.md:62`: *"Site público é uniformemente branco/preto/vermelho"*. Dark mode foi removido completamente; `data-theme="auto-showroom"` é hardcoded em `app/sites/[slug]/layout.tsx:85`. **Issues #349-#360 fechadas como `not planned`; milestone #10 fechada.** Variação visual entre sites continua via: (a) cor primária do lead (`--site-primary` CSS var), (b) manifest IA de fotos (#217), (c) tipografia/copy contextual. Spec preservada como registro histórico do plano original.
+
 | Campo | Valor |
 |---|---|
 | Status | Draft |

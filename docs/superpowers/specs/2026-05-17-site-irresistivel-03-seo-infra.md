@@ -2,6 +2,8 @@
 
 > Sub-spec de [`site-irresistivel-northstar.md`](./2026-05-17-site-irresistivel-northstar.md). Foco em **infraestrutura técnica de SEO** dos sites públicos. Independente das outras frentes — pode rodar em paralelo.
 
+> **📊 Status update 2026-05-17 (post-discovery).** Tasks 4 (LocalBusiness), 5 (SitePage inject), 6 (Vehicle schema + inject), 8 (Breadcrumb schema), 12 (related cars), 13 (categoria filter) **JÁ IMPLEMENTADAS** em sprints anteriores (#211, #213, #224, #228). Task 7 (FAQPage) é **anti-pattern intencional** documentado em `lib/sites/CLAUDE.md` — Google penaliza FAQPage em business sites desde 2023; não fazer. Issues #361, #362, #363, #364, #365, #368 fechadas. **Escopo real restante (4 issues):** #366 canonical, #367 IndexNow batched queue, #369 Lighthouse CI, #370 docs. Tasks 1-3 (sitemap global + per-site + escape helpers) entregues em PR #392.
+
 | Campo | Valor |
 |---|---|
 | Status | Draft |
