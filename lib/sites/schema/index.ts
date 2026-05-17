@@ -94,6 +94,73 @@ export type SchemaInput = Pick<
 >;
 
 // ---------------------------------------------------------------------------
+// escapeJsonLd — XSS defense for <script type="application/ld+json">
+// ---------------------------------------------------------------------------
+
+/**
+ * Serializes `value` to JSON and escapes characters that could break out
+ * of a `<script>` tag in HTML (XSS defense for JSON-LD injection).
+ *
+ * Uses Unicode escapes — always valid JSON per RFC 8259 §7, and
+ * `JSON.parse(escapeJsonLd(v))` round-trips cleanly:
+ *  - `<`  → `<`  (prevents `</script>` and `<!--`)
+ *  - `>`  → `>`  (prevents `-->`)
+ *  - `&`  → `&`  (prevents `&`-based injection)
+ *
+ * Note: previous versions used `<\/`, `--\>`, `<\!--` which are NOT valid
+ * JSON escape sequences (JSON.parse throws SyntaxError on them).
+ */
+export function escapeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
+}
+
+// ---------------------------------------------------------------------------
+// safeAbsoluteUrl — ensures URLs in schema are always absolute
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns an absolute URL string, or `null` when the input is invalid/empty.
+ *
+ * - If `input` already starts with `http://` or `https://`, validates and
+ *   returns it as-is (via `new URL()` to normalize trailing slashes etc.).
+ * - If `input` is relative (e.g. `/foo`), prepends `env.NEXT_PUBLIC_APP_URL`.
+ * - Returns `null` for empty strings, non-strings, or unparseable URLs.
+ *
+ * Google Rich Results requires all URL fields in structured data to be
+ * absolute. This helper is the single enforcer across all schema builders.
+ */
+export function safeAbsoluteUrl(
+  input: string | null | undefined,
+): string | null {
+  if (!input || typeof input !== "string") return null;
+  try {
+    // Read directly from process.env so tests can override without
+    // re-importing the Zod-validated singleton (which is frozen at
+    // module-load time). In production, this value equals env.NEXT_PUBLIC_APP_URL.
+    const base = process.env.NEXT_PUBLIC_APP_URL;
+    const url =
+      input.startsWith("http://") || input.startsWith("https://")
+        ? new URL(input)
+        : base
+          ? new URL(input, base)
+          : null;
+    if (!url) return null;
+    // Whitelist http/https — mirrors lib/sites/sanitize.ts::safeUrl pattern.
+    // Blocks javascript:, data:, file:, vbscript:, etc.
+    // Note: new URL("javascript:alert(1)", base) returns the javascript: URL
+    // as-is (URL constructor doesn't apply base to absolute URIs), so we must
+    // check the resolved protocol, not just the input string prefix.
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Helpers internos — URLs, fragmentos, formatação
 // ---------------------------------------------------------------------------
 
