@@ -1,9 +1,18 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+
+import { normalizeCanonical } from "@/lib/sites/canonical";
 import { updateSession } from "@/lib/supabase/middleware";
 
 // Next 16: `proxy.ts` substitui `middleware.ts` na raiz. A função exportada
 // pode chamar-se `proxy` (preferido) ou ser um default export.
 export async function proxy(request: NextRequest) {
+  const normalized = normalizeCanonical(request.nextUrl.pathname);
+  if (normalized) {
+    const url = request.nextUrl.clone();
+    url.pathname = normalized;
+    // url.search preserved automatically via clone().
+    return NextResponse.redirect(url, 308);
+  }
   return updateSession(request);
 }
 
