@@ -30,6 +30,8 @@ import type { Metadata } from "next";
 
 import { AboutHeroEditorial } from "@/components/sites/about/AboutHeroEditorial";
 import { AboutMissionVision } from "@/components/sites/about/AboutMissionVision";
+import { AboutTeam } from "@/components/sites/about/AboutTeam";
+import { AboutTimeline } from "@/components/sites/about/AboutTimeline";
 import { AboutWarrantyDeepdive } from "@/components/sites/about/AboutWarrantyDeepdive";
 import { HomeContactFormQuick } from "@/components/sites/home/HomeContactFormQuick";
 import { HomeGoogleReviewsEmbed } from "@/components/sites/home/HomeGoogleReviewsEmbed";
@@ -118,6 +120,12 @@ export default async function SobrePage({ params }: PageProps) {
         ).about_url}
       />
       <AboutMissionVision variables={parsed.data} />
+      {/* AboutTimeline and AboutTeam: variables.timeline / variables.team are not
+          yet in SiteVariablesV2 schema (deferred — no schema change in #P5 scope).
+          Both components return null when their arrays are empty, so passing [] is safe.
+          When schema is extended in a future issue, remove the empty-array fallback. */}
+      <AboutTimeline entries={[]} businessName={parsed.data.business_name} />
+      <AboutTeam members={[]} />
       <AboutWarrantyDeepdive />
       <HomeGoogleReviewsEmbed
         rating={site.lead_rating}
