@@ -24,14 +24,15 @@ describe("<HomeHeroMonogram />", () => {
     expect(text?.getAttribute("stroke")).toBe("currentColor");
   });
 
-  it("renderiza variant behind com escala maior", () => {
+  it("renderiza variant behind com escala maior que corner", () => {
     render(<HomeHeroMonogram businessName="Auto Center" variant="behind" />);
     const behind = screen.getByTestId("home-hero-monogram-behind");
     expect(behind).toBeInTheDocument();
     expect(behind.getAttribute("data-variant")).toBe("behind");
-    // behind usa classes maiores
     const svg = behind.querySelector("svg");
-    expect(svg?.getAttribute("class")).toMatch(/h-\[80vh\]/);
+    // behind usa h-[44vh] em md+ (anteriormente 80vh — Fix pass 1
+    // reduziu pra evitar carimbo gigante sobre fotos claras).
+    expect(svg?.getAttribute("class")).toMatch(/h-\[4[04]vh\]/);
   });
 
   it("extrai 2 iniciais de business name com 2+ palavras (Auto Center → AC)", () => {
