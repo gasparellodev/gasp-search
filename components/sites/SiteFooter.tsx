@@ -25,6 +25,7 @@ type FooterVariables = Pick<
   | "youtube_url"
   | "address"
   | "hours"
+  | "cars"
 >;
 
 interface SiteFooterProps {
@@ -204,14 +205,16 @@ export function SiteFooter({ variables }: SiteFooterProps) {
                   Home
                 </Link>
               </li>
-              <li>
-                <Link
-                  href={`/sites/${variables.business_slug}/estoque`}
-                  className="transition hover:text-foreground"
-                >
-                  Estoque
-                </Link>
-              </li>
+              {(variables.cars?.length ?? 0) > 0 ? (
+                <li>
+                  <Link
+                    href={`/sites/${variables.business_slug}/estoque`}
+                    className="transition hover:text-foreground"
+                  >
+                    Estoque
+                  </Link>
+                </li>
+              ) : null}
               <li>
                 <Link
                   href={`/sites/${variables.business_slug}/sobre`}

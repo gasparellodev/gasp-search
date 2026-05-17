@@ -1,6 +1,6 @@
 import "server-only";
 
-import { BadgeCheck, Building2, ShieldCheck, Star } from "lucide-react";
+import { BadgeCheck, Building2, ShieldCheck, Star, Users } from "lucide-react";
 
 interface HomeTrustStripProps {
   /**
@@ -14,14 +14,14 @@ interface HomeTrustStripProps {
    * Rating Google da concessionária (props explícitas, lidas de
    * `lead.rating` no caller `SitePage`). Quando combinado com
    * `reviewsCount` válido (> 0), renderiza `${rating.toFixed(1)}★ ${N} reviews`.
-   * Em qualquer ausência ou `reviewsCount <= 0`, cai no fallback "4.8★ 87 reviews".
+   * Em qualquer ausência ou `reviewsCount <= 0`, cai no trust pillar
+   * genérico "Atendimento personalizado" (Wave A3 — D-12: zero
+   * placeholders factuais para não quebrar confiança do lead).
    */
   rating?: number | null;
   /** Contagem de reviews Google (lida de `lead.reviews_count`). */
   reviewsCount?: number | null;
 }
-
-const FALLBACK_RATING_LABEL = "4.8★ 87 reviews";
 
 function buildYearsLabel(yearsInMarket: number | null | undefined): string {
   if (yearsInMarket === undefined || yearsInMarket === null || yearsInMarket === 0) {
@@ -31,20 +31,17 @@ function buildYearsLabel(yearsInMarket: number | null | undefined): string {
   return `${yearsInMarket} anos no mercado`;
 }
 
-function buildRatingLabel(
+function hasValidRating(
   rating: number | null | undefined,
   reviewsCount: number | null | undefined,
-): string {
-  if (
-    rating === null ||
-    rating === undefined ||
-    reviewsCount === null ||
-    reviewsCount === undefined ||
-    reviewsCount <= 0
-  ) {
-    return FALLBACK_RATING_LABEL;
-  }
-  return `${rating.toFixed(1)}★ ${reviewsCount} reviews`;
+): rating is number {
+  return (
+    rating !== null &&
+    rating !== undefined &&
+    reviewsCount !== null &&
+    reviewsCount !== undefined &&
+    reviewsCount > 0
+  );
 }
 
 /**
@@ -71,7 +68,10 @@ export function HomeTrustStrip({
   reviewsCount,
 }: HomeTrustStripProps = {}) {
   const yearsLabel = buildYearsLabel(yearsInMarket);
-  const ratingLabel = buildRatingLabel(rating, reviewsCount);
+  const showRating = hasValidRating(rating, reviewsCount);
+  const ratingLabel = showRating
+    ? `${rating.toFixed(1)}★ ${reviewsCount} reviews`
+    : null;
 
   return (
     <section
@@ -99,15 +99,24 @@ export function HomeTrustStrip({
             {yearsLabel}
           </span>
         </li>
-        <li className="flex items-center gap-2.5">
-          <Star
-            aria-hidden
-            className="size-5 shrink-0 fill-yellow-400 text-yellow-400"
-          />
-          <span className="truncate text-sm font-medium md:text-base">
-            {ratingLabel}
-          </span>
-        </li>
+        {showRating ? (
+          <li className="flex items-center gap-2.5">
+            <Star
+              aria-hidden
+              className="size-5 shrink-0 fill-yellow-400 text-yellow-400"
+            />
+            <span className="truncate text-sm font-medium md:text-base">
+              {ratingLabel}
+            </span>
+          </li>
+        ) : (
+          <li className="flex items-center gap-2.5">
+            <Users aria-hidden className="size-5 shrink-0 text-[var(--site-primary)]/85" />
+            <span className="truncate text-sm font-medium md:text-base">
+              Atendimento personalizado
+            </span>
+          </li>
+        )}
       </ul>
     </section>
   );

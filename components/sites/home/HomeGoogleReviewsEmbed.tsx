@@ -19,38 +19,14 @@ interface HomeGoogleReviewsEmbedProps {
 }
 
 /**
- * 3 placeholder reviews PT-BR genéricos (V1). Em V2, `// TODO V2:
- * fetch reviews reais via Google Places API`. Textos curtos, neutros e
- * positivos — não atribuíveis a clientes ou concorrentes reais.
- */
-const PLACEHOLDER_REVIEWS: ReadonlyArray<{
-  author: string;
-  body: string;
-  rating: number;
-}> = [
-  {
-    author: "Cliente verificado",
-    body: "Ótima experiência de compra. Equipe atenciosa e processo de financiamento rápido.",
-    rating: 5,
-  },
-  {
-    author: "Cliente verificado",
-    body: "Carro entregue no prazo, com tudo combinado. Já indiquei pra família.",
-    rating: 5,
-  },
-  {
-    author: "Cliente verificado",
-    body: "Estoque variado e preços justos. Recomendo a loja para quem quer seminovos.",
-    rating: 5,
-  },
-];
-
-/**
- * Google reviews embed V1 (Phase 7 / Sprint 4 / #H3 — issue #223).
+ * Google reviews embed (Phase 7 / Sprint 4 / #H3 — issue #223;
+ * Wave A3 — D-12 honesty pass).
  *
- * V1 hardcoded: big rating + count (lê props upstream propagados de
- * `lead_sites → leads`) + 3 placeholder reviews + caption + link "Ver
- * todas no Google" (apontando pro `/contato` por enquanto).
+ * Renderiza big rating + count + CTA primary para o GBP do lead.
+ * **Só renderiza quando rating > 0 E reviewsCount >= 3** — abaixo
+ * disso retorna `null` (sem fake "4.8★ 87 reviews" + sem 3 textos
+ * placeholders genéricos que quebravam confiança quando lead
+ * comparava com seu próprio GBP).
  *
  * **V2 follow-up:** fetch reviews reais via Google Places API + cache
  * 24h em ISR. Por isso o componente é Server-only — facilita migração.
@@ -62,15 +38,21 @@ export function HomeGoogleReviewsEmbed({
   reviewsCount,
   primary_color,
 }: HomeGoogleReviewsEmbedProps) {
-  // Fallback pareado: ambos rating+count válidos ou cai no fallback.
-  const useRealData =
+  // Wave A3 (D-12): só renderiza com dados reais — sem placeholders
+  // factuais ("4.8★ 87 reviews" + 3 textos genéricos) que quebravam a
+  // confiança quando o lead comparava com o GBP real.
+  const hasRealData =
     typeof rating === "number" &&
     rating > 0 &&
     typeof reviewsCount === "number" &&
-    reviewsCount > 0;
+    reviewsCount >= 3;
 
-  const displayRating = useRealData && rating ? rating : 4.8;
-  const displayCount = useRealData && reviewsCount ? reviewsCount : 87;
+  if (!hasRealData) {
+    return null;
+  }
+
+  const displayRating = rating;
+  const displayCount = reviewsCount;
   const safePrimary = sanitizeHex(primary_color);
 
   return (
@@ -113,50 +95,17 @@ export function HomeGoogleReviewsEmbed({
           </p>
         </header>
 
-        <ul
-          className="mx-auto grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3 md:gap-6"
-          role="list"
-        >
-          {PLACEHOLDER_REVIEWS.map((review, i) => (
-            <li
-              key={`review-${i}`}
-              className="flex flex-col gap-3 rounded-2xl border border-foreground/10 bg-background p-5 md:p-6"
-            >
-              <div
-                className="flex items-center gap-0.5"
-                role="img"
-                aria-label={`${review.rating} de 5 estrelas`}
-              >
-                {Array.from({ length: review.rating }).map((_, k) => (
-                  <Star
-                    key={k}
-                    className="size-4"
-                    style={{ color: safePrimary, fill: safePrimary }}
-                    aria-hidden="true"
-                  />
-                ))}
-              </div>
-              <p className="text-sm text-foreground/80 md:text-base">
-                {review.body}
-              </p>
-              <p className="mt-auto text-xs text-foreground/55">
-                — {review.author}
-              </p>
-            </li>
-          ))}
-        </ul>
-
-        <footer className="mt-10 flex flex-col items-center gap-3 text-center md:mt-14">
-          <p className="text-xs text-foreground/60 md:text-sm">
-            Avaliações do Google Business Profile
+        <footer className="flex flex-col items-center gap-3 text-center">
+          <p className="text-sm text-foreground/70 md:text-base">
+            Avaliações verificadas no Google Business Profile
           </p>
           <Link
             href="https://www.google.com/maps"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-sm font-medium text-foreground underline underline-offset-4 hover:opacity-80"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--site-primary)] px-6 py-3 text-sm font-semibold text-[var(--site-text-on-primary)] transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--site-primary)]/60 md:text-base"
           >
-            Ver todas no Google
+            Ler todas as avaliações no Google
           </Link>
         </footer>
         {/* TODO V2: fetch reviews reais via Google Places API */}

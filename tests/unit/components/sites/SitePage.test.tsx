@@ -22,23 +22,35 @@ describe("<SitePage />", () => {
     );
   });
 
-  it("compõe a Home V2 (Sprint 4 H1+H2+H3 — issues #221, #222, #223): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, Warranty, Process3Steps, BanksPartners, TestimonialsGrid, FAQ, GoogleReviews", () => {
-    render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
+  it("compõe a Home V2 (Sprint 4 H1+H2+H3 — issues #221, #222, #223 + Wave A3 honesty): Hero, TrustStrip, CategoriesCars, RecentArrivals, FinancingWidget, Warranty, Process3Steps, BanksPartners, TestimonialsGrid, FAQ", () => {
+    render(
+      <SitePage
+        variables={SITE_FIXTURE}
+        siteId={SITE_ID}
+        slug={SLUG}
+        rating={4.7}
+        reviewsCount={42}
+      />,
+    );
     expect(screen.getByTestId("home-hero")).toBeInTheDocument();
     expect(screen.getByTestId("home-trust-strip")).toBeInTheDocument();
     expect(screen.getByTestId("home-categories-cars")).toBeInTheDocument();
     expect(screen.getByTestId("home-recent-arrivals")).toBeInTheDocument();
     expect(screen.getByTestId("home-financing-widget")).toBeInTheDocument();
-    // #223 — 7 sections H3 (substituem home-form + home-emphasis V1):
     expect(screen.getByTestId("home-warranty-section")).toBeInTheDocument();
     expect(screen.getByTestId("home-process-3steps")).toBeInTheDocument();
     expect(screen.getByTestId("home-banks-partners")).toBeInTheDocument();
     expect(screen.getByTestId("home-testimonials-grid")).toBeInTheDocument();
     expect(screen.getByTestId("home-faq-section")).toBeInTheDocument();
+    // GoogleReviewsEmbed só renderiza com rating válido + reviewsCount >= 3.
     expect(screen.getByTestId("home-google-reviews-embed")).toBeInTheDocument();
-    // home-contact-form-quick é conditional render via env flag — testado em
-    // tests/unit/components/sites/home/HomeContactFormQuick.test.tsx; aqui
-    // o flag fica OFF por default (sem env override) então NÃO renderiza.
+  });
+
+  it("Wave A3 (D-12): HomeGoogleReviewsEmbed some quando sem rating/reviewsCount válido", () => {
+    render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
+    expect(
+      screen.queryByTestId("home-google-reviews-embed"),
+    ).not.toBeInTheDocument();
   });
 
   it("renderiza <SiteHeader> e <SiteFooter>", () => {
@@ -178,8 +190,9 @@ describe("<SitePage />", () => {
     expect(screen.getByText(/4\.9★ 142 reviews/)).toBeInTheDocument();
   });
 
-  it("sem rating/reviewsCount: HomeTrustStrip cai no fallback '4.8★ 87 reviews'", () => {
+  it("Wave A3 (D-12): sem rating/reviewsCount, HomeTrustStrip exibe trust pillar genérico (sem fake rating)", () => {
     render(<SitePage variables={SITE_FIXTURE} siteId={SITE_ID} slug={SLUG} />);
-    expect(screen.getByText(/4\.8★ 87 reviews/)).toBeInTheDocument();
+    expect(screen.getByText(/Atendimento personalizado/)).toBeInTheDocument();
+    expect(screen.queryByText(/★ \d+ reviews/)).not.toBeInTheDocument();
   });
 });
