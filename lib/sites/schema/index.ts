@@ -98,23 +98,23 @@ export type SchemaInput = Pick<
 // ---------------------------------------------------------------------------
 
 /**
- * Serializes `value` to JSON and escapes sequences that could break out
+ * Serializes `value` to JSON and escapes characters that could break out
  * of a `<script>` tag in HTML (XSS defense for JSON-LD injection).
  *
- * Escapes:
- *  - `</`  → `<\/`   (prevents `</script>` closing the tag early)
- *  - `-->` → `--\>`  (prevents HTML comment close)
- *  - `<!--` → `<\!--` (prevents HTML comment open)
+ * Uses Unicode escapes — always valid JSON per RFC 8259 §7, and
+ * `JSON.parse(escapeJsonLd(v))` round-trips cleanly:
+ *  - `<`  → `<`  (prevents `</script>` and `<!--`)
+ *  - `>`  → `>`  (prevents `-->`)
+ *  - `&`  → `&`  (prevents `&`-based injection)
  *
- * The output remains valid JSON — `JSON.parse(escapeJsonLd(v))` round-trips
- * correctly because the escaped sequences are inside JSON string values
- * where `\/` is identical to `/` per JSON spec (RFC 8259 §7).
+ * Note: previous versions used `<\/`, `--\>`, `<\!--` which are NOT valid
+ * JSON escape sequences (JSON.parse throws SyntaxError on them).
  */
 export function escapeJsonLd(value: unknown): string {
   return JSON.stringify(value)
-    .replace(/<\//g, "<\\/")
-    .replace(/-->/g, "--\\>")
-    .replace(/<!--/g, "<\\!--");
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
 }
 
 // ---------------------------------------------------------------------------
@@ -137,15 +137,24 @@ export function safeAbsoluteUrl(
 ): string | null {
   if (!input || typeof input !== "string") return null;
   try {
-    if (input.startsWith("http://") || input.startsWith("https://")) {
-      return new URL(input).toString();
-    }
     // Read directly from process.env so tests can override without
     // re-importing the Zod-validated singleton (which is frozen at
     // module-load time). In production, this value equals env.NEXT_PUBLIC_APP_URL.
     const base = process.env.NEXT_PUBLIC_APP_URL;
-    if (!base) return null;
-    return new URL(input, base).toString();
+    const url =
+      input.startsWith("http://") || input.startsWith("https://")
+        ? new URL(input)
+        : base
+          ? new URL(input, base)
+          : null;
+    if (!url) return null;
+    // Whitelist http/https — mirrors lib/sites/sanitize.ts::safeUrl pattern.
+    // Blocks javascript:, data:, file:, vbscript:, etc.
+    // Note: new URL("javascript:alert(1)", base) returns the javascript: URL
+    // as-is (URL constructor doesn't apply base to absolute URIs), so we must
+    // check the resolved protocol, not just the input string prefix.
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.toString();
   } catch {
     return null;
   }
