@@ -31,6 +31,8 @@ interface HomeHeroProps {
   cars: SiteVariablesV2["cars"];
   /** Telefone WhatsApp — CTA secundário "Falar no WhatsApp". */
   whatsapp?: SiteVariablesV2["whatsapp"];
+  /** Telefone de exibição (ex: "(81) 3512-9411") — microdata <address> no AICitableHero. */
+  phone_display: SiteVariablesV2["phone_display"];
   /** Nome do negócio para UTM (opcional; default = business_name). */
   businessName?: string;
 }
@@ -70,6 +72,7 @@ export function HomeHero({
   address,
   cars,
   whatsapp,
+  phone_display,
   businessName,
 }: HomeHeroProps) {
   const safePrimary = sanitizeHex(primary_color);
@@ -130,6 +133,7 @@ export function HomeHero({
           businessName={business_name}
           address={address}
           cars={cars}
+          phoneDisplay={phone_display}
           primaryColor={safePrimary}
           textOnPrimary={safeTextOnPrimary}
           slug={slug}

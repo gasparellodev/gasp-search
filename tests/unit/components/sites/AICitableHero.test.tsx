@@ -23,20 +23,26 @@ import { SITE_FIXTURE } from "./site-fixtures";
 
 const baseVars: Pick<
   SiteVariablesV2,
-  "business_name" | "address" | "cars"
+  "business_name" | "address" | "cars" | "phone_display"
 > = {
   business_name: SITE_FIXTURE.business_name,
   address: SITE_FIXTURE.address,
   cars: SITE_FIXTURE.cars,
+  phone_display: SITE_FIXTURE.phone_display,
 };
 
 describe("AICitableHero — page=home", () => {
-  it("renderiza <p> factual com business_name + city/state + cars.length", () => {
-    render(<AICitableHero variables={baseVars} page="home" />);
-    const p = screen.getByTestId("ai-citable-hero");
-    expect(p.tagName).toBe("P");
+  it("renderiza wrapper factual com business_name + city/state + cars.length", () => {
+    const { container } = render(<AICitableHero variables={baseVars} page="home" />);
+    const wrapper = screen.getByTestId("ai-citable-hero");
+    // #G4: data-testid agora está no <div> wrapper (contém <p> factual + <address> microdata)
+    expect(wrapper.tagName).toBe("DIV");
 
-    const text = p.textContent ?? "";
+    // O <p> factual está dentro do wrapper
+    const p = container.querySelector("p");
+    expect(p).not.toBeNull();
+
+    const text = wrapper.textContent ?? "";
     expect(text).toContain(SITE_FIXTURE.business_name);
     expect(text).toContain("Recife/PE");
     expect(text).toContain(String(SITE_FIXTURE.cars.length));
@@ -157,9 +163,94 @@ describe("AICitableHero — sanity defensivo", () => {
   });
 
   it("classe muted-foreground + text-sm (tipografia discreta visível)", () => {
+    const { container } = render(<AICitableHero variables={baseVars} page="home" />);
+    // #G4: classes estão no <p> interno, não no <div> wrapper
+    const p = container.querySelector("p");
+    expect(p).not.toBeNull();
+    expect(p!.className).toMatch(/text-muted-foreground|text-foreground/);
+    expect(p!.className).toContain("text-sm");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #G4 — Microdata: <address> + itemprop attributes
+// ---------------------------------------------------------------------------
+
+describe("AICitableHero — microdata <address> (page=home)", () => {
+  it("emits semantic <address> element with aria-label when address present", () => {
+    const { container } = render(
+      <AICitableHero variables={baseVars} page="home" />,
+    );
+    const addr = container.querySelector(
+      'address[aria-label="Informações de contato da concessionária"]',
+    );
+    expect(addr).not.toBeNull();
+  });
+
+  it("includes itemscope + itemtype Microdata attributes on contact wrapper", () => {
+    const { container } = render(
+      <AICitableHero variables={baseVars} page="home" />,
+    );
+    const wrapper = container.querySelector(
+      '[itemscope][itemtype="https://schema.org/LocalBusiness"]',
+    );
+    expect(wrapper).not.toBeNull();
+  });
+
+  it("includes itemprop='name' span with business_name", () => {
+    const { container } = render(
+      <AICitableHero variables={baseVars} page="home" />,
+    );
+    const nameSpan = container.querySelector("[itemprop='name']");
+    expect(nameSpan).not.toBeNull();
+    expect(nameSpan?.textContent).toContain(SITE_FIXTURE.business_name);
+  });
+
+  it("includes itemprop='telephone' on phone span when phone present", () => {
+    const { container } = render(
+      <AICitableHero variables={baseVars} page="home" />,
+    );
+    const phoneSpan = container.querySelector("[itemprop='telephone']");
+    expect(phoneSpan).not.toBeNull();
+    expect(phoneSpan?.textContent).toContain(SITE_FIXTURE.phone_display);
+  });
+
+  it("includes itemprop nested PostalAddress when address present", () => {
+    const { container } = render(
+      <AICitableHero variables={baseVars} page="home" />,
+    );
+    const addrSpan = container.querySelector(
+      "[itemprop='address'][itemscope][itemtype='https://schema.org/PostalAddress']",
+    );
+    expect(addrSpan).not.toBeNull();
+    expect(
+      addrSpan?.querySelector("[itemprop='streetAddress']"),
+    ).not.toBeNull();
+    expect(
+      addrSpan?.querySelector("[itemprop='addressLocality']"),
+    ).not.toBeNull();
+    expect(
+      addrSpan?.querySelector("[itemprop='addressRegion']"),
+    ).not.toBeNull();
+    expect(
+      addrSpan?.querySelector("[itemprop='postalCode']"),
+    ).not.toBeNull();
+  });
+
+  it("does NOT emit <address> when no contact data present (graceful)", () => {
+    const { container } = render(
+      <AICitableHero
+        variables={{ ...baseVars, address: null }}
+        page="home"
+      />,
+    );
+    const addr = container.querySelector("address");
+    expect(addr).toBeNull();
+  });
+
+  it("preserves data-testid='ai-citable-hero' for backward compat", () => {
     render(<AICitableHero variables={baseVars} page="home" />);
     const p = screen.getByTestId("ai-citable-hero");
-    expect(p.className).toMatch(/text-muted-foreground|text-foreground/);
-    expect(p.className).toContain("text-sm");
+    expect(p).not.toBeNull();
   });
 });

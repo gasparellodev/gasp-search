@@ -3,6 +3,10 @@ import "server-only";
 import { formatBRL } from "@/lib/finance";
 import type { SiteVariablesV2 } from "@/types/lead-site";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
 /**
  * `<AICitableHero>` — Server Component que renderiza um `<p>` factual
  * passage-citable consumido por AI crawlers (GPTBot, ClaudeBot,
@@ -49,10 +53,13 @@ import type { SiteVariablesV2 } from "@/types/lead-site";
 /**
  * Subset de `SiteVariablesV2` consumido pelo helper. Tipado como `Pick`
  * para desacoplar de mudanças não-relevantes no shape completo.
+ *
+ * `phone_display` adicionado em #G4 para alimentar o bloco de microdata
+ * `itemprop="telephone"` na variante `home`.
  */
 export type AICitableHeroVariables = Pick<
   SiteVariablesV2,
-  "business_name" | "address" | "cars"
+  "business_name" | "address" | "cars" | "phone_display"
 >;
 
 interface CurrentCar {
@@ -74,14 +81,71 @@ export function AICitableHero({
   currentCar,
 }: AICitableHeroProps) {
   const text = buildPassage({ variables, page, currentCar });
+  const showMicrodata = page === "home" && variables.address !== null;
 
   return (
-    <p
-      data-testid="ai-citable-hero"
-      className="mt-3 max-w-[70ch] text-sm leading-relaxed text-muted-foreground"
+    <div data-testid="ai-citable-hero">
+      <p className="mt-3 max-w-[70ch] text-sm leading-relaxed text-muted-foreground">
+        {text}
+      </p>
+      {showMicrodata && (
+        <ContactMicrodata variables={variables} />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ContactMicrodata — bloco semântico <address> + itemprop (#G4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Emite um bloco `<address>` com Microdata `LocalBusiness` + `PostalAddress`
+ * para grounding inline de AI crawlers (ChatGPT / Claude / Perplexity).
+ *
+ * Complementa o JSON-LD `LocalBusiness` emitido em `<SiteSchema>` no layout
+ * — o Microdata fornece âncoras inline no HTML renderizado para extração
+ * passage-level pelos crawlers de AI.
+ *
+ * Condição de renderização: apenas `page === "home"` com `address !== null`.
+ * Chamador (`AICitableHero`) já verifica a condição antes de montar.
+ *
+ * Visibilidade: `sr-only` porque a informação de contato já está em
+ * `<SiteFooter>` de forma visível. Este bloco existe para AI crawlers e
+ * screen readers, não para a UI visual.
+ */
+function ContactMicrodata({
+  variables,
+}: {
+  variables: AICitableHeroVariables;
+}) {
+  // Caller garante address !== null, mas narrowing explícito por segurança.
+  const address = variables.address;
+  if (address === null) return null;
+
+  return (
+    <address
+      aria-label="Informações de contato da concessionária"
+      itemScope
+      itemType="https://schema.org/LocalBusiness"
+      className="sr-only"
     >
-      {text}
-    </p>
+      <span itemProp="name">{variables.business_name}</span>
+      <span itemProp="telephone">{variables.phone_display}</span>
+      <span
+        itemProp="address"
+        itemScope
+        itemType="https://schema.org/PostalAddress"
+      >
+        <span itemProp="streetAddress">
+          {address.street}
+          {address.number ? `, ${address.number}` : ""}
+        </span>
+        <span itemProp="addressLocality">{address.city}</span>
+        <span itemProp="addressRegion">{address.state}</span>
+        <span itemProp="postalCode">{address.zip}</span>
+      </span>
+    </address>
   );
 }
 

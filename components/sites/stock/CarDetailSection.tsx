@@ -92,6 +92,7 @@ export function CarDetailSection({
                 business_name: variables.business_name,
                 address: variables.address,
                 cars: variables.cars,
+                phone_display: variables.phone_display,
               }}
               car={car}
             />
