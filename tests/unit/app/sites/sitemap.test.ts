@@ -11,7 +11,9 @@ vi.mock("@/lib/env", () => ({
 import sitemap from "@/app/sites/sitemap";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
-const makeSupabaseMock = (rows: Array<{ slug: string; updated_at: string }>) => ({
+const makeSupabaseMock = (
+  rows: Array<{ slug: string; updated_at: string; signed_at: string; status: "published" | "sent" }>,
+) => ({
   from: () => ({
     select: () => ({
       in: () => ({
@@ -29,8 +31,8 @@ describe("sitemap (global sites)", () => {
   it("lists all published+sent sites with signed_at not null", async () => {
     vi.mocked(createServiceSupabase).mockReturnValue(
       makeSupabaseMock([
-        { slug: "poliguara", updated_at: "2026-05-10T10:00:00Z" },
-        { slug: "stilos", updated_at: "2026-05-12T08:00:00Z" },
+        { slug: "poliguara", updated_at: "2026-05-10T10:00:00Z", signed_at: "2026-05-09T00:00:00Z", status: "published" },
+        { slug: "stilos", updated_at: "2026-05-12T08:00:00Z", signed_at: "2026-05-11T00:00:00Z", status: "sent" },
       ]) as never,
     );
     const result = await sitemap();

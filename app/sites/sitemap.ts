@@ -19,6 +19,7 @@ import "server-only";
 import type { MetadataRoute } from "next";
 
 import { env } from "@/lib/env";
+import { isIndexable } from "@/lib/sites/metadata";
 import { createServiceSupabase } from "@/lib/supabase/service";
 
 export const revalidate = 3600;
@@ -27,16 +28,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createServiceSupabase();
   const { data, error } = await supabase
     .from("lead_sites")
-    .select("slug, updated_at")
+    .select("slug, updated_at, signed_at, status")
     .in("status", ["published", "sent"])
     .not("signed_at", "is", null)
     .order("updated_at", { ascending: false });
 
   if (error || !data) {
+    if (error) console.warn("[sites:sitemap]", { error: error.message });
     return [];
   }
 
-  return data.map((row) => ({
+  return data.filter(isIndexable).map((row) => ({
     url: `${env.NEXT_PUBLIC_APP_URL}/sites/${row.slug}`,
     lastModified: new Date(row.updated_at),
     changeFrequency: "weekly" as const,
