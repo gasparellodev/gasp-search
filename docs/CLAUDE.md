@@ -28,3 +28,4 @@ Documentação auxiliar versionada que complementa `README.md`, `HANDOFF.md` e
 | `screenshots/app-overview.svg` | Visão estática das principais telas para onboarding do README |
 | `superpowers/specs/2026-05-08-gerador-sites-concessionarias-design.md` | Spec mestre Phase 7 — Site Generator (Concessionárias). Contém SYSTEM_PROMPT canônico para `lib/sites/generate-copy.ts` (extraído via `readFileSync` em `tests/unit/lib/sites/generate-copy.test.ts` para snapshot byte-exact — AC6 da issue #158) |
 | `superpowers/specs/PROCESS-multi-role-validation.md` | Workflow multi-role (PO → Dev → QA) referenciado nos bodies das issues do milestone Phase 7 |
+| `SEO-PLAN.md` | Estratégia SEO de produto + arquitetura técnica completa (v1 Sprint 1 + v2 Frente 03 + GEO Frente 04). Decisões permanentes (FAQPage anti-pattern, Schema em noindex, llms.txt gate). Referência para novos devs antes de tocar `app/sites/**` ou `lib/sites/**`. |
