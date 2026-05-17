@@ -80,7 +80,7 @@ export function HomeHeroBackground({
             src={optimizedSources.fallbackPngUrl}
             alt={`Hero — ${businessName}`}
             fetchPriority="high"
-            className="hero-photo-grade absolute inset-0 size-full object-cover object-center"
+            className="hero-photo-grade hero-photo-mask-right absolute inset-0 size-full object-cover object-center"
           />
         </picture>
       ) : hasHero && heroImageUrl ? (
@@ -93,7 +93,7 @@ export function HomeHeroBackground({
             alt={`Hero — ${businessName}`}
             fill
             sizes="100vw"
-            className="hero-photo-grade object-cover object-center"
+            className="hero-photo-grade hero-photo-mask-right object-cover object-center"
             placeholder="empty"
             priority
             fetchPriority="high"
@@ -114,7 +114,16 @@ export function HomeHeroBackground({
         className="hero-vignette pointer-events-none absolute inset-0"
       />
 
-      {/* 5. Pattern dots — atmosphere */}
+      {/* 5. Scrim lockup — Fix pass 1: garante leitura do H1 em
+          fotos default extra-claras. Gradient esquerda→meio em
+          desktop, top→bottom em mobile. */}
+      <div
+        data-testid="home-hero-scrim-lockup"
+        aria-hidden="true"
+        className="hero-scrim-lockup pointer-events-none absolute inset-0"
+      />
+
+      {/* 6. Pattern dots — atmosphere */}
       <div
         data-testid="home-hero-pattern"
         aria-hidden="true"

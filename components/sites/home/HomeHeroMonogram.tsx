@@ -43,15 +43,18 @@ export function HomeHeroMonogram({
 }: HomeHeroMonogramProps) {
   const initials = getMonogramInitials(businessName);
 
+  // Fix pass 1: variant "behind" agora vai pro canto inferior-direito
+  // (não centro) com escala menor. Centralizado em escala gigante criava
+  // colisão com o lockup quando foto era clara.
   const positionClass =
     variant === "behind"
-      ? "absolute inset-0 flex items-center justify-center"
-      : "absolute -right-12 -top-16 md:-right-24 md:-top-24";
+      ? "absolute -right-8 -bottom-16 md:-right-16 md:-bottom-24"
+      : "absolute -right-12 -top-16 md:-right-20 md:-top-20";
 
   const sizeClass =
     variant === "behind"
-      ? "h-[80vh] w-[80vh] max-h-[900px] max-w-[900px]"
-      : "h-[60vw] w-[60vw] max-h-[420px] max-w-[420px] md:h-[24rem] md:w-[24rem]";
+      ? "h-[40vh] w-[40vh] max-h-[440px] max-w-[440px] md:h-[44vh] md:w-[44vh]"
+      : "h-[40vw] w-[40vw] max-h-[280px] max-w-[280px] md:h-[18rem] md:w-[18rem]";
 
   return (
     <div
@@ -71,12 +74,12 @@ export function HomeHeroMonogram({
           textAnchor="middle"
           dominantBaseline="central"
           fontFamily="var(--auto-font-display, serif)"
-          fontSize="180"
-          fontWeight="600"
+          fontSize="140"
+          fontWeight="500"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2.5"
-          letterSpacing="-8"
+          strokeWidth="1.5"
+          letterSpacing="-4"
         >
           {initials}
         </text>
