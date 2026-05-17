@@ -145,11 +145,21 @@ export function SitePage({
               slug={slug}
               address={variables.address}
               cars={variables.cars}
+              whatsapp={variables.whatsapp}
+              businessName={variables.business_name}
             />
             <HomeTrustStrip
               yearsInMarket={variables.years_in_market}
               rating={rating}
               reviewsCount={reviewsCount}
+            />
+            {/* Wave A4 (D-10): prova social sobe para posição 3 — só
+                renderiza com rating válido + reviewsCount >= 3 (guard
+                interno do componente também garante). */}
+            <HomeGoogleReviewsEmbed
+              rating={rating}
+              reviewsCount={reviewsCount}
+              primary_color={brand_assets.primary_color}
             />
             <RoadDivider />
             <HomeCategoriesCars
@@ -181,11 +191,6 @@ export function SitePage({
               primary_color={brand_assets.primary_color}
             />
             <HomeFAQSection />
-            <HomeGoogleReviewsEmbed
-              rating={rating}
-              reviewsCount={reviewsCount}
-              primary_color={brand_assets.primary_color}
-            />
             <HomeContactFormQuick
               siteId={siteId}
               businessName={variables.business_name}
