@@ -1,10 +1,12 @@
 "use client";
 
+import { Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
 
 import { sanitizeHex } from "@/lib/sites/sanitize";
 import { serializeQuickSearch } from "@/lib/sites/stock-search-params";
+import { cn } from "@/lib/utils";
 
 interface HomeQuickSearchBarProps {
   /** Slug do site — usado pra construir o destino `/sites/<slug>/estoque`. */
@@ -16,17 +18,20 @@ interface HomeQuickSearchBarProps {
 }
 
 /**
- * Barra de busca rápida do Hero da Home (Phase 7 / Sprint 4 / #H1 — issue #221).
+ * Barra de busca rápida do Hero da Home — versão cinematic dark
+ * (Phase 7 / hero redesign).
  *
- * Client Component (3 inputs controlados + submit). Compõe `/estoque?m=...&model=...&p=...`
- * via `serializeQuickSearch` de `lib/sites/stock-search-params.ts` —
- * fonte única acordada com a página `/estoque` (#224 / E1). Sem JS-only
- * surprises: usa um `<form>` real com `onSubmit` controlado, e roteia
- * via `useRouter().push()` (mesma origem) pra preservar SPA navigation.
+ * Client Component (3 inputs controlados + submit). Compõe
+ * `/estoque?m=...&model=...&p=...` via `serializeQuickSearch` —
+ * fonte única acordada com a página `/estoque` (#224 / E1).
  *
- * **A11y**: cada input tem `<label htmlFor>` associado e contraste WCAG
- * AA — testado via jest-axe. Botão usa `primary_color` do lead com
- * defesa em profundidade via `sanitizeHex`.
+ * Visual: glass dark unificado, 3 campos com divider sutil, botão
+ * primary pill com ícone. Mobile colapsa em stack vertical
+ * preservando hierarquia.
+ *
+ * A11y: cada input tem `<label htmlFor>` (sr-only desktop, visível
+ * mobile pra dar pista no stack), placeholder explícito. Botão usa
+ * `primary_color` do lead com defesa em profundidade via `sanitizeHex`.
  */
 export function HomeQuickSearchBar({
   slug,
@@ -34,9 +39,6 @@ export function HomeQuickSearchBar({
   text_on_primary,
 }: HomeQuickSearchBarProps) {
   const router = useRouter();
-  // Wave C8 (R-16): useId pra evitar collisions caso a Home renderize
-  // 2+ instâncias do widget (futuro: hero + barra sticky). Sem isso,
-  // labels duplicados apontariam pro mesmo input.
   const idBase = useId();
   const brandId = `${idBase}-brand`;
   const modelId = `${idBase}-model`;
@@ -62,17 +64,31 @@ export function HomeQuickSearchBar({
     router.push(destination);
   };
 
+  const fieldClass = cn(
+    "h-12 w-full bg-transparent px-4 text-sm text-white",
+    "placeholder:text-white/40",
+    "focus-visible:outline-none focus-visible:bg-white/[0.06]",
+    "md:h-14",
+  );
+
+  const labelClass = cn(
+    "px-1 pb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/55",
+    "md:sr-only",
+  );
+
   return (
     <form
       data-testid="home-quick-search-bar"
       onSubmit={handleSubmit}
-      className="grid w-full grid-cols-1 gap-3 rounded-2xl bg-background/90 p-4 shadow-sm ring-1 ring-foreground/10 md:grid-cols-[1fr_1fr_1fr_auto] md:items-end md:rounded-full md:bg-background md:p-3 md:pl-5 md:shadow-md"
+      className={cn(
+        "w-full rounded-2xl border border-white/15 bg-white/[0.04] backdrop-blur-md",
+        "shadow-[0_10px_40px_-15px_rgba(0,0,0,0.6)]",
+        "p-3 md:flex md:items-stretch md:gap-0 md:p-2",
+      )}
     >
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={brandId}
-          className="text-xs font-medium uppercase tracking-wide text-foreground/70"
-        >
+      {/* Brand */}
+      <div className="flex flex-col md:flex-1">
+        <label htmlFor={brandId} className={labelClass}>
           Marca
         </label>
         <input
@@ -83,15 +99,18 @@ export function HomeQuickSearchBar({
           value={brand}
           onChange={(e) => setBrand(e.target.value)}
           placeholder="Toyota, Honda, Fiat…"
-          className="h-10 w-full rounded-md border border-foreground/15 bg-background px-3 text-sm text-foreground placeholder:text-foreground/40 focus-visible:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 md:h-9 md:border-transparent md:bg-transparent md:px-2"
+          className={fieldClass}
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={modelId}
-          className="text-xs font-medium uppercase tracking-wide text-foreground/70"
-        >
+      <div
+        aria-hidden="true"
+        className="my-1 h-px bg-white/10 md:my-0 md:h-auto md:w-px"
+      />
+
+      {/* Model */}
+      <div className="flex flex-col md:flex-1">
+        <label htmlFor={modelId} className={labelClass}>
           Modelo
         </label>
         <input
@@ -102,15 +121,18 @@ export function HomeQuickSearchBar({
           value={model}
           onChange={(e) => setModel(e.target.value)}
           placeholder="Corolla, Civic, HB20…"
-          className="h-10 w-full rounded-md border border-foreground/15 bg-background px-3 text-sm text-foreground placeholder:text-foreground/40 focus-visible:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 md:h-9 md:border-transparent md:bg-transparent md:px-2"
+          className={fieldClass}
         />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label
-          htmlFor={priceId}
-          className="text-xs font-medium uppercase tracking-wide text-foreground/70"
-        >
+      <div
+        aria-hidden="true"
+        className="my-1 h-px bg-white/10 md:my-0 md:h-auto md:w-px"
+      />
+
+      {/* Price max */}
+      <div className="flex flex-col md:flex-1">
+        <label htmlFor={priceId} className={labelClass}>
           Preço máx. (R$)
         </label>
         <input
@@ -122,32 +144,26 @@ export function HomeQuickSearchBar({
           step={1000}
           value={priceMax}
           onChange={(e) => setPriceMax(e.target.value)}
-          placeholder="120000"
-          className="h-10 w-full rounded-md border border-foreground/15 bg-background px-3 text-sm text-foreground placeholder:text-foreground/40 focus-visible:border-foreground/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/20 md:h-9 md:border-transparent md:bg-transparent md:px-2"
+          placeholder="120.000"
+          className={fieldClass}
         />
       </div>
 
-      {/* Coluna do botão — espelha a estrutura "label + control" dos 3
-          inputs (label invisible spacer em md+ pra alinhar verticalmente
-          com items-end). Em mobile (stacked), só o botão renderiza. */}
-      <div className="flex flex-col gap-1.5">
-        <span
-          aria-hidden="true"
-          className="hidden text-xs font-medium uppercase tracking-wide md:block"
-        >
-          &#8203;
-        </span>
-        <button
-          type="submit"
-          style={{
-            backgroundColor: safePrimary,
-            color: safeTextOnPrimary,
-          }}
-          className="inline-flex h-11 w-full items-center justify-center rounded-full px-8 text-sm font-semibold tracking-wide transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 md:h-9 md:px-6"
-        >
-          Buscar
-        </button>
-      </div>
+      <button
+        type="submit"
+        style={{
+          backgroundColor: safePrimary,
+          color: safeTextOnPrimary,
+        }}
+        className={cn(
+          "mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl px-7 text-sm font-semibold transition",
+          "hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+          "md:ml-1 md:mt-0 md:h-14 md:w-auto md:shrink-0 md:px-7",
+        )}
+      >
+        <Search aria-hidden className="size-4" />
+        Buscar
+      </button>
     </form>
   );
 }
