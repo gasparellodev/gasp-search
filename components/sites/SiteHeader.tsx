@@ -147,7 +147,6 @@ export function SiteHeader({ variables, slug, activePage }: SiteHeaderProps) {
               width={200}
               height={56}
               onError={() => setLogoFailed(true)}
-              style={{ width: "auto", height: "auto" }}
               className="block max-h-10 w-auto max-w-[12rem] object-contain md:max-h-11 md:max-w-[14rem]"
             />
           ) : (

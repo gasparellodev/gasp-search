@@ -51,6 +51,17 @@ const validPayload = {
 };
 
 /**
+ * Wave B2 (R-03): defesa em profundidade no server endureceu — quando
+ * `renderedAt` ausente, `submitSiteForm` trata como bot e retorna early
+ * success sem persistir. Tests happy-path agora precisam passar um
+ * `renderedAt` válido (>= MIN_TIME_MS antes de Date.now()).
+ */
+const VALID_EXTRAS = {
+  honeypot: "",
+  renderedAt: Date.now() - 10_000,
+};
+
+/**
  * Mock Supabase `.from(table)` para retornar diferentes builders por
  * tabela tocada. Suporta:
  *   - `lead_sites`: select+eq+maybeSingle → retorna lead site
@@ -172,10 +183,14 @@ describe("submitSiteForm() — persistência + LGPD audit (#223)", () => {
       leadSiteRow: { id: "site-uuid-123", user_id: "user-uuid-456" },
       rateLimitCount: 0,
     });
-    const r = await submitSiteForm("site-uuid-123", {
-      ...validPayload,
-      message: "Tenho interesse no Toyota Corolla 2020 prata.",
-    });
+    const r = await submitSiteForm(
+      "site-uuid-123",
+      {
+        ...validPayload,
+        message: "Tenho interesse no Toyota Corolla 2020 prata.",
+      },
+      VALID_EXTRAS,
+    );
     expect(r).toEqual({ success: true });
     expect(supabaseInsertMock).toHaveBeenCalledTimes(1);
     const insertArg = supabaseInsertMock.mock.calls[0]?.[0] as Record<
@@ -225,7 +240,7 @@ describe("submitSiteForm() — persistência + LGPD audit (#223)", () => {
       rateLimitCount: 0,
       insertError: { message: "duplicate key" },
     });
-    const r = await submitSiteForm("site-1", validPayload);
+    const r = await submitSiteForm("site-1", validPayload, VALID_EXTRAS);
     expect(r.success).toBe(false);
     if (!r.success) {
       expect(r.error).toMatch(/erro/i);
@@ -234,7 +249,7 @@ describe("submitSiteForm() — persistência + LGPD audit (#223)", () => {
 
   it("retorna erro quando lead_site não existe (RLS / not found)", async () => {
     setupFromMock({ leadSiteRow: null });
-    const r = await submitSiteForm("site-1", validPayload);
+    const r = await submitSiteForm("site-1", validPayload, VALID_EXTRAS);
     expect(r.success).toBe(false);
   });
 });
@@ -264,6 +279,7 @@ describe("submitSiteForm() — honeypot anti-bot (#223)", () => {
     });
     const r = await submitSiteForm("site-1", validPayload, {
       honeypot: "",
+      renderedAt: Date.now() - 5000,
     });
     expect(r).toEqual({ success: true });
     expect(supabaseInsertMock).toHaveBeenCalledTimes(1);
@@ -302,14 +318,20 @@ describe("submitSiteForm() — min-time gate (#223)", () => {
     expect(supabaseInsertMock).toHaveBeenCalledTimes(1);
   });
 
-  it("renderedAt undefined (caller legacy) → não aplica gate", async () => {
+  it("Wave B2 (R-03): renderedAt undefined → tratado como bot, sem persistir", async () => {
     setupFromMock({
       leadSiteRow: { id: "site-1", user_id: "user-1" },
       rateLimitCount: 0,
     });
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     const r = await submitSiteForm("site-1", validPayload);
+    // Server retorna success silencioso (anti-enumeration) mas NÃO persiste.
     expect(r).toEqual({ success: true });
-    expect(supabaseInsertMock).toHaveBeenCalledTimes(1);
+    expect(supabaseInsertMock).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalled();
+    const warnMsg = warnSpy.mock.calls[0]?.[0];
+    expect(String(warnMsg)).toMatch(/min_time_gate_missing/i);
+    warnSpy.mockRestore();
   });
 });
 
@@ -319,7 +341,7 @@ describe("submitSiteForm() — rate limit por IP (#223)", () => {
       leadSiteRow: { id: "site-1", user_id: "user-1" },
       rateLimitCount: 3,
     });
-    const r = await submitSiteForm("site-1", validPayload);
+    const r = await submitSiteForm("site-1", validPayload, VALID_EXTRAS);
     expect(r.success).toBe(false);
     if (!r.success) {
       expect(r.error).toMatch(/muitas tentativas|tente novamente/i);
@@ -332,7 +354,7 @@ describe("submitSiteForm() — rate limit por IP (#223)", () => {
       leadSiteRow: { id: "site-1", user_id: "user-1" },
       rateLimitCount: 2,
     });
-    const r = await submitSiteForm("site-1", validPayload);
+    const r = await submitSiteForm("site-1", validPayload, VALID_EXTRAS);
     expect(r).toEqual({ success: true });
     expect(supabaseInsertMock).toHaveBeenCalledTimes(1);
   });
@@ -345,7 +367,7 @@ describe("submitSiteForm() — rate limit por IP (#223)", () => {
       leadSiteRow: { id: "site-1", user_id: "user-1" },
       rateLimitCount: 0,
     });
-    const r = await submitSiteForm("site-1", validPayload);
+    const r = await submitSiteForm("site-1", validPayload, VALID_EXTRAS);
     expect(r).toEqual({ success: true });
     const insertArg = supabaseInsertMock.mock.calls[0]?.[0] as Record<
       string,

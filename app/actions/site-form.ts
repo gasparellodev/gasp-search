@@ -110,15 +110,23 @@ export async function submitSiteForm(
     return { success: true };
   }
 
-  if (typeof extras.renderedAt === "number") {
-    const elapsed = Date.now() - extras.renderedAt;
-    if (elapsed < MIN_TIME_MS) {
-      console.warn("submitSiteForm:min_time_gate", {
-        lead_site_id: siteId,
-        elapsed_ms: elapsed,
-      });
-      return { success: true };
-    }
+  // Wave B2 (R-03): defesa em profundidade — quando renderedAt
+  // ausente OU não-numérico, tratamos como bot. Antes o gate só
+  // disparava quando renderedAt era number, deixando bots scripted que
+  // submetessem antes do mount-effect do client passarem batido.
+  if (typeof extras.renderedAt !== "number") {
+    console.warn("submitSiteForm:min_time_gate_missing", {
+      lead_site_id: siteId,
+    });
+    return { success: true };
+  }
+  const elapsed = Date.now() - extras.renderedAt;
+  if (elapsed < MIN_TIME_MS) {
+    console.warn("submitSiteForm:min_time_gate", {
+      lead_site_id: siteId,
+      elapsed_ms: elapsed,
+    });
+    return { success: true };
   }
 
   // -------------------------------------------------------------------------
