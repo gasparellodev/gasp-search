@@ -700,3 +700,118 @@ describe("LeadSiteEditModal — AC8 a11y", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Sprint C2 — Image preview grid + adição rápida de URL
+// ---------------------------------------------------------------------------
+
+describe("LeadSiteEditModal — Sprint C2 image preview + quick-add", () => {
+  it("renderiza ImagePreviewGrid para cada carro com as fotos default", () => {
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    // Fixture makeVariables() cria 4 carros com 3 fotos cada
+    // (`g1-1.jpg`, `g1-2.jpg`, `g1-3.jpg`).
+    for (let carIdx = 0; carIdx < 4; carIdx++) {
+      const grid = screen.getByTestId(
+        `lead-site-edit-car-${carIdx}-photos-grid`,
+      );
+      expect(grid).toBeInTheDocument();
+      expect(grid.children).toHaveLength(3);
+    }
+  });
+
+  it("clicar no botão X da grid remove a foto da textarea", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    const textarea = screen.getByTestId(
+      "lead-site-edit-car-0-photos",
+    ) as HTMLTextAreaElement;
+    expect(textarea.value).toContain("g1-1.jpg");
+
+    // Remove a primeira foto via grid (botão X dentro do thumb 0)
+    // do carro 0 — usa testid pra evitar colisão com os botões
+    // "Remover foto 1" dos outros 3 carros do fixture.
+    const grid = screen.getByTestId(
+      "lead-site-edit-car-0-photos-grid",
+    );
+    const removeBtn = grid.querySelector<HTMLButtonElement>(
+      '[data-testid="image-preview-grid-remove-0"]',
+    );
+    expect(removeBtn).not.toBeNull();
+    await user.click(removeBtn!);
+
+    expect(textarea.value).not.toContain("g1-1.jpg");
+    expect(textarea.value).toContain("g1-2.jpg");
+    expect(textarea.value).toContain("g1-3.jpg");
+  });
+
+  it("quick-add: digitar URL válida + Enter adiciona à textarea e limpa input", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId(
+      "lead-site-edit-car-0-photos-quick-add-input",
+    ) as HTMLInputElement;
+    const button = screen.getByTestId(
+      "lead-site-edit-car-0-photos-quick-add-btn",
+    );
+    const textarea = screen.getByTestId(
+      "lead-site-edit-car-0-photos",
+    ) as HTMLTextAreaElement;
+
+    await user.type(input, "https://nova.com/foto-extra.jpg");
+    await user.click(button);
+
+    expect(textarea.value).toContain("https://nova.com/foto-extra.jpg");
+    expect(input.value).toBe("");
+  });
+
+  it("quick-add: URL inválida mostra erro inline e NÃO adiciona", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteEditModal
+        leadSite={makeLeadSite()}
+        open
+        onOpenChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId(
+      "lead-site-edit-car-0-photos-quick-add-input",
+    ) as HTMLInputElement;
+    const button = screen.getByTestId(
+      "lead-site-edit-car-0-photos-quick-add-btn",
+    );
+    const textarea = screen.getByTestId(
+      "lead-site-edit-car-0-photos",
+    ) as HTMLTextAreaElement;
+    const initial = textarea.value;
+
+    await user.type(input, "nao-eh-url");
+    await user.click(button);
+
+    expect(textarea.value).toBe(initial);
+    expect(
+      screen.getByTestId("lead-site-edit-car-0-photos-quick-add-error"),
+    ).toBeInTheDocument();
+  });
+});

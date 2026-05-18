@@ -68,6 +68,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { HeroUploadField } from "./HeroUploadField";
+import { ImagePreviewGrid } from "./image-preview-grid";
 import { LogoUploadField } from "./LogoUploadField";
 import type { LeadSiteCardData } from "./lead-site-card-types";
 
@@ -182,6 +183,25 @@ function stringifyPhotos(photos: readonly string[] | undefined): string {
 }
 
 /**
+ * Helper: valida URL HTTP(S). Aceita só `http://` e `https://` —
+ * `data:` / `blob:` / `file:` ficam fora por segurança e por
+ * compatibilidade com o pipeline de site público (que renderiza
+ * essas URLs em `<img>` server-side).
+ *
+ * Sprint C2 — usado pelo botão "+ Foto" do quick-add.
+ */
+function isValidHttpUrl(input: string): boolean {
+  const trimmed = input.trim();
+  if (trimmed.length === 0) return false;
+  try {
+    const u = new URL(trimmed);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Wrapper de campo com label + erro inline. `aria-describedby` linka erro
  * ao input pra leitores de tela.
  */
@@ -245,6 +265,61 @@ export function LeadSiteEditModal({
   }
   const [photosByCarIdx, setPhotosByCarIdx] =
     useState<Record<number, string>>(initialPhotos);
+
+  /**
+   * Sprint C2 — state do quick-add por carro: `quickAddByCarIdx[idx]`
+   * é o valor atual do input "+ Foto" e
+   * `quickAddErrorByCarIdx[idx]` é a mensagem de erro inline
+   * mostrada se o operador clica "+ Foto" com URL inválida.
+   */
+  const [quickAddByCarIdx, setQuickAddByCarIdx] = useState<
+    Record<number, string>
+  >({});
+  const [quickAddErrorByCarIdx, setQuickAddErrorByCarIdx] = useState<
+    Record<number, string>
+  >({});
+
+  /**
+   * Sprint C2 — append uma URL na textarea de fotos do carro `idx`.
+   * Valida HTTP(S). Em sucesso, limpa input + erro; em falha, seta
+   * erro inline.
+   */
+  function handleQuickAddPhoto(idx: number) {
+    const raw = (quickAddByCarIdx[idx] ?? "").trim();
+    if (!isValidHttpUrl(raw)) {
+      setQuickAddErrorByCarIdx((prev) => ({
+        ...prev,
+        [idx]: "URL inválida — use http:// ou https://",
+      }));
+      return;
+    }
+    setPhotosByCarIdx((prev) => {
+      const current = prev[idx] ?? "";
+      const next = current.length === 0 ? raw : `${current}\n${raw}`;
+      return { ...prev, [idx]: next };
+    });
+    setQuickAddByCarIdx((prev) => ({ ...prev, [idx]: "" }));
+    setQuickAddErrorByCarIdx((prev) => {
+      const copy = { ...prev };
+      delete copy[idx];
+      return copy;
+    });
+  }
+
+  /**
+   * Sprint C2 — remove a foto no `photoIdx` do carro `carIdx`.
+   * Reconstrói a textarea pra refletir o estado novo.
+   */
+  function handleRemovePhoto(carIdx: number, photoIdx: number) {
+    setPhotosByCarIdx((prev) => {
+      const current = prev[carIdx] ?? "";
+      const photos = parsePhotosTextarea(current);
+      const next = photos
+        .filter((_, i) => i !== photoIdx)
+        .join("\n");
+      return { ...prev, [carIdx]: next };
+    });
+  }
 
   const {
     register,
@@ -970,7 +1045,7 @@ export function LeadSiteEditModal({
                       />
                     </Field>
                   </div>
-                  <div className="mt-2">
+                  <div className="mt-2 flex flex-col gap-2">
                     <Field
                       id={`${baseId}-car-${index}-photos`}
                       label="Fotos (URLs, uma por linha)"
@@ -989,6 +1064,71 @@ export function LeadSiteEditModal({
                         }}
                       />
                     </Field>
+                    {/*
+                     * Sprint C2 — quick-add: input + botão "+ Foto"
+                     * acima da grid. Permite operador adicionar URL
+                     * sem ter que digitar diretamente na textarea
+                     * (que cresce / quebra a UX em telas pequenas).
+                     */}
+                    <div className="flex flex-col gap-1">
+                      <div className="flex gap-2">
+                        <Input
+                          type="url"
+                          inputMode="url"
+                          placeholder="https://exemplo.com/foto.jpg"
+                          aria-label={`URL de foto rápida para o carro ${index + 1}`}
+                          data-testid={`lead-site-edit-car-${index}-photos-quick-add-input`}
+                          value={quickAddByCarIdx[index] ?? ""}
+                          onChange={(ev) => {
+                            const value = ev.target.value;
+                            setQuickAddByCarIdx((prev) => ({
+                              ...prev,
+                              [index]: value,
+                            }));
+                            if (quickAddErrorByCarIdx[index]) {
+                              setQuickAddErrorByCarIdx((prev) => {
+                                const copy = { ...prev };
+                                delete copy[index];
+                                return copy;
+                              });
+                            }
+                          }}
+                          onKeyDown={(ev) => {
+                            if (ev.key === "Enter") {
+                              ev.preventDefault();
+                              handleQuickAddPhoto(index);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => handleQuickAddPhoto(index)}
+                          data-testid={`lead-site-edit-car-${index}-photos-quick-add-btn`}
+                        >
+                          <Plus className="mr-1 h-4 w-4" aria-hidden />
+                          Foto
+                        </Button>
+                      </div>
+                      {quickAddErrorByCarIdx[index] ? (
+                        <p
+                          role="alert"
+                          className="text-xs text-destructive"
+                          data-testid={`lead-site-edit-car-${index}-photos-quick-add-error`}
+                        >
+                          {quickAddErrorByCarIdx[index]}
+                        </p>
+                      ) : null}
+                    </div>
+                    <ImagePreviewGrid
+                      data-testid={`lead-site-edit-car-${index}-photos-grid`}
+                      urls={parsePhotosTextarea(
+                        photosByCarIdx[index] ?? "",
+                      )}
+                      onRemove={(photoIdx) =>
+                        handleRemovePhoto(index, photoIdx)
+                      }
+                    />
                   </div>
                   {/*
                    * `plates_visible: false` — sempre enviado false (compliance).
