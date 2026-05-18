@@ -88,6 +88,14 @@ em light mode, conflita com tema).
    intencionalmente um dark card destacado pra criar âncora visual e
    sinalizar conversão final. Aprovado por PO no refinement de #223.
    Não replicar em outros forms (`<SiteForm variant>` mantém bg light).
+   **Prop `variant: 'dark' | 'light'`** (default `'dark'`): a Wave A5
+   trocou o uso na Home por `<HomeContactBanner>`, mas o form ainda
+   é renderizado em `/sobre` (`app/sites/[slug]/sobre/page.tsx`). Lá
+   ele recebe `variant="light"` porque o salto cromático ficava
+   dissonante com o restante da página. Tokens de cor (section,
+   inputs, labels, lgpd, erros) são determinados pelo objeto
+   `FORM_THEMES[variant]` — não concatenar classes dinamicamente
+   (Tailwind v4 scanner precisa de strings literais).
 
 ## Regras de negócio
 

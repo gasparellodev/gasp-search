@@ -136,6 +136,7 @@ export default async function SobrePage({ params }: PageProps) {
         siteId={site.id}
         businessName={parsed.data.business_name}
         slug={site.slug}
+        variant="light"
       />
     </SitePage>
   );
