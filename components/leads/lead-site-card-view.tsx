@@ -9,7 +9,7 @@
  * qualquer boundary. Recebe dados prontos via props.
  */
 
-import { CheckCircle2, FileX, Mail, MapPin } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileX, Mail, MapPin } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,6 +22,36 @@ import {
 
 import { LeadSiteCardActions } from "./lead-site-card-actions";
 import type { LeadSiteCardData, LeadSiteStatus } from "./lead-site-card-types";
+import type { PreGenLeadSummary } from "./lead-site-pre-gen-modal";
+
+/**
+ * Extrai a frase amigável (`message`) do JSON serializado em
+ * `lead_sites.generation_error`. Caller passa a string raw; em caso de
+ * parse failure (ou shape inesperado) cai pra fallback genérico.
+ *
+ * O JSON tem shape `{ code, message, timestamp }` (até 4KB) escrito por
+ * `serializeGenerationError` em `app/actions/lead-site.ts`. Aceita também
+ * payloads texto puro (defesa contra rows legadas).
+ */
+function readGenerationErrorMessage(raw: string | null): string {
+  if (!raw) return "Erro desconhecido.";
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      "message" in parsed &&
+      typeof (parsed as { message: unknown }).message === "string"
+    ) {
+      const msg = (parsed as { message: string }).message.trim();
+      return msg.length > 0 ? msg : "Erro desconhecido.";
+    }
+  } catch {
+    // Texto cru, não JSON — usa direto.
+  }
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : "Erro desconhecido.";
+}
 
 /**
  * Format `Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' })`
@@ -51,16 +81,66 @@ interface LeadSiteCardViewProps {
   leadId: string;
   leadSite: LeadSiteCardData | null;
   appUrl: string;
+  /** Sprint A1: forward pra `<LeadSiteCardActions>`. Quando ausente,
+   *  o modal de validação não aparece (fallback compatível). */
+  leadSummary?: PreGenLeadSummary | null;
 }
 
 export function LeadSiteCardView({
   leadId,
   leadSite,
   appUrl,
+  leadSummary,
 }: LeadSiteCardViewProps) {
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
+  const hasGenerationError =
+    status === "draft" && leadSite?.generation_error != null;
 
-  // Estado `none` ou `draft` — CTA único de geração.
+  // Estado `draft` + `generation_error` — geração quebrou e precisa de
+  // recovery (sprint A4 onsite flow). Mostra erro PT-BR + botão "Descartar
+  // rascunho" via `<LeadSiteCardActions>` (que detecta o mesmo flag).
+  if (hasGenerationError) {
+    const errorMessage = readGenerationErrorMessage(
+      leadSite?.generation_error ?? null,
+    );
+    return (
+      <Card
+        role="region"
+        aria-label="Site do lead"
+        data-testid="lead-site-card"
+        data-state="draft-error"
+        className="border-destructive/40"
+      >
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle
+              className="size-4 text-destructive"
+              aria-hidden="true"
+            />
+            Geração do site falhou
+          </CardTitle>
+          <CardDescription
+            className="break-words"
+            data-testid="lead-site-error-message"
+          >
+            <span className="text-foreground">Motivo:</span> {errorMessage}
+            {" "}
+            Descarte este rascunho e tente novamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LeadSiteCardActions
+            leadSite={leadSite}
+            leadId={leadId}
+            appUrl={appUrl}
+            leadSummary={leadSummary ?? null}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Estado `none` ou `draft` limpo (sem erro) — CTA único de geração.
   if (status === "none" || status === "draft") {
     return (
       <Card
@@ -87,6 +167,7 @@ export function LeadSiteCardView({
             leadSite={leadSite}
             leadId={leadId}
             appUrl={appUrl}
+            leadSummary={leadSummary ?? null}
           />
         </CardContent>
       </Card>
@@ -122,6 +203,7 @@ export function LeadSiteCardView({
             leadSite={leadSite}
             leadId={leadId}
             appUrl={appUrl}
+            leadSummary={leadSummary ?? null}
           />
         </CardContent>
       </Card>
@@ -186,6 +268,7 @@ export function LeadSiteCardView({
           leadSite={leadSite}
           leadId={leadId}
           appUrl={appUrl}
+          leadSummary={leadSummary ?? null}
         />
       </CardContent>
     </Card>

@@ -30,4 +30,12 @@ export interface LeadSiteCardData {
    * via `SiteVariablesV2.partial()` antes de enviar e a Server Action faz
    * a validação final. */
   variables: SiteVariablesV2 | null;
+  /**
+   * Onsite recovery flow (sprint A4). String JSON serializada
+   * `{ code, message, timestamp }` (até 4KB) escrita por
+   * `generateLeadSite` quando o pipeline falha em copy ou validation —
+   * permite o card distinguir "nunca gerou" de "gerou e quebrou" e
+   * expor o botão "Descartar rascunho". `null` em sites saudáveis.
+   */
+  generation_error: string | null;
 }

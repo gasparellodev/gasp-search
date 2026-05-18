@@ -26,6 +26,7 @@ const hoisted = vi.hoisted(() => ({
   restoreLeadSite: vi.fn(),
   sendLeadSiteWhatsApp: vi.fn(),
   regenerateVisualIdentity: vi.fn(),
+  discardLeadSiteDraft: vi.fn(),
   refresh: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock("@/app/actions/lead-site", () => ({
   restoreLeadSite: hoisted.restoreLeadSite,
   sendLeadSiteWhatsApp: hoisted.sendLeadSiteWhatsApp,
   regenerateVisualIdentity: hoisted.regenerateVisualIdentity,
+  discardLeadSiteDraft: hoisted.discardLeadSiteDraft,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -70,6 +72,7 @@ function makeLeadSite(
     sent_at: null,
     view_count: 0,
     variables: null,
+    generation_error: null,
     ...overrides,
   };
 }
@@ -1078,4 +1081,245 @@ describe("LeadSiteCardActions — #217 regenerate visual identity", () => {
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   }, 15_000);
+});
+
+// ---------------------------------------------------------------------------
+// Sprint A1/A2 — pre-gen validation modal + progress indicator
+// ---------------------------------------------------------------------------
+
+const LEAD_SUMMARY = {
+  name: "Auto Demo Onsite",
+  phone: "+55 11 99999-9999",
+  email: "demo@auto.com",
+  website: "https://auto.com",
+  instagram_handle: "auto",
+  city: "Recife",
+  state: "PE",
+};
+
+describe("LeadSiteCardActions — sprint A1 pre-gen modal", () => {
+  it("sem leadSummary, clicar 'Gerar' dispara action diretamente (compat drawer)", async () => {
+    hoisted.generateLeadSite.mockResolvedValue({
+      ok: true,
+      slug: "abc-123",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-generate-button"));
+    await waitFor(() => {
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+    });
+    expect(
+      screen.queryByTestId("lead-site-pre-gen-modal"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("com leadSummary, clicar 'Gerar' abre o modal (action NÃO é chamada)", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+        leadSummary={LEAD_SUMMARY}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-generate-button"));
+    await screen.findByTestId("lead-site-pre-gen-modal");
+    expect(hoisted.generateLeadSite).not.toHaveBeenCalled();
+  });
+
+  it("confirmar modal dispara generateLeadSite com leadId", async () => {
+    hoisted.generateLeadSite.mockResolvedValue({
+      ok: true,
+      slug: "abc-123",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+        leadSummary={LEAD_SUMMARY}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-generate-button"));
+    await screen.findByTestId("lead-site-pre-gen-modal");
+    await user.click(screen.getByTestId("lead-site-pre-gen-confirm"));
+    await waitFor(() => {
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+    });
+  });
+
+  it("phone faltando bloqueia o submit no modal", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+        leadSummary={{ ...LEAD_SUMMARY, phone: null }}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-generate-button"));
+    await screen.findByTestId("lead-site-pre-gen-modal");
+    expect(screen.getByTestId("lead-site-pre-gen-confirm")).toBeDisabled();
+    expect(
+      screen.getByTestId("pre-gen-blocker-message"),
+    ).toBeInTheDocument();
+  });
+
+  it("retry do estado draft+error pula o modal (volta direto pra action)", async () => {
+    hoisted.generateLeadSite.mockResolvedValue({
+      ok: true,
+      slug: "abc-123",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({
+          status: "draft",
+          generation_error: '{"code":"ai_error","message":"timeout"}',
+        })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+        leadSummary={LEAD_SUMMARY}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-retry-button"));
+    await waitFor(() => {
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+    });
+    // Modal NÃO foi aberto.
+    expect(
+      screen.queryByTestId("lead-site-pre-gen-modal"),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("LeadSiteCardActions — sprint A2 progress indicator", () => {
+  it("clicar 'Gerar' (sem leadSummary) abre o progress overlay durante in flight", async () => {
+    // Promise que não resolve (suspende a action pra deixar isGenerating=true)
+    hoisted.generateLeadSite.mockImplementation(
+      () => new Promise(() => {}),
+    );
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-generate-button"));
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("site-generation-progress"),
+      ).toBeInTheDocument();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint A4 — discard draft + retry cluster
+// ---------------------------------------------------------------------------
+
+describe("LeadSiteCardActions — sprint A4 draft+error recovery", () => {
+  it("status='draft' com generation_error mostra cluster 'Tentar de novo' + 'Descartar rascunho'", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({
+          status: "draft",
+          generation_error: '{"code":"ai_error","message":"timeout"}',
+        })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(screen.getByTestId("lead-site-draft-error-cluster")).toBeVisible();
+    expect(screen.getByTestId("lead-site-retry-button")).toHaveTextContent(
+      /tentar de novo/i,
+    );
+    expect(screen.getByTestId("lead-site-discard-button")).toHaveTextContent(
+      /descartar rascunho/i,
+    );
+    // O botão default "Gerar site agora" não aparece neste estado.
+    expect(
+      screen.queryByTestId("lead-site-generate-button"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("status='draft' SEM generation_error mantém apenas 'Gerar site agora'", () => {
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "draft", generation_error: null })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(screen.getByTestId("lead-site-generate-button")).toHaveTextContent(
+      /gerar site agora/i,
+    );
+    expect(
+      screen.queryByTestId("lead-site-discard-button"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("clicar 'Descartar rascunho' chama discardLeadSiteDraft + refresh em sucesso", async () => {
+    hoisted.discardLeadSiteDraft.mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({
+          status: "draft",
+          generation_error: '{"code":"validation","message":"bad"}',
+        })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-discard-button"));
+    await waitFor(() => {
+      expect(hoisted.discardLeadSiteDraft).toHaveBeenCalledWith(
+        "44444444-4444-4444-8444-444444444444",
+      );
+    });
+    expect(hoisted.toastSuccess).toHaveBeenCalled();
+    expect(hoisted.refresh).toHaveBeenCalled();
+  });
+
+  it("clicar 'Descartar rascunho' em erro exibe toast PT-BR mapeado", async () => {
+    hoisted.discardLeadSiteDraft.mockResolvedValue({
+      ok: false,
+      error: "invalid_status",
+      message: "Apenas rascunhos com falha podem ser descartados.",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({
+          status: "draft",
+          generation_error: '{"code":"validation","message":"bad"}',
+        })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-discard-button"));
+    await waitFor(() => {
+      expect(hoisted.toastError).toHaveBeenCalled();
+    });
+    const [, opts] = hoisted.toastError.mock.calls[0] as [
+      string,
+      { description: string },
+    ];
+    expect(opts.description).toMatch(/já tenha sido publicado/i);
+    expect(hoisted.refresh).not.toHaveBeenCalled();
+  });
 });

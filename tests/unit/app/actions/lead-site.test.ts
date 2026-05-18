@@ -278,6 +278,7 @@ type TableHandlers = {
   countResult?: { count: number; error: unknown };
   leadResult?: { data: unknown; error: unknown };
   updateResult?: { error: unknown };
+  deleteResult?: { error: unknown };
 };
 
 function makeSupabaseClient(
@@ -293,6 +294,7 @@ function makeSupabaseClient(
     eqs: Array<[string, unknown]>;
   }>;
   selectCalls: Array<{ table: string; eqs: Array<[string, unknown]> }>;
+  deleteCalls: Array<{ table: string; eqs: Array<[string, unknown]> }>;
 } {
   const upsertCalls: Array<{ table: string; payload: unknown; opts: unknown }> =
     [];
@@ -303,6 +305,8 @@ function makeSupabaseClient(
     eqs: Array<[string, unknown]>;
   }> = [];
   const selectCalls: Array<{ table: string; eqs: Array<[string, unknown]> }> =
+    [];
+  const deleteCalls: Array<{ table: string; eqs: Array<[string, unknown]> }> =
     [];
 
   const from = vi.fn((table: string) => {
@@ -367,6 +371,23 @@ function makeSupabaseClient(
       return updateBuilder;
     });
 
+    // `delete()` retorna builder com `.eq(...)` thenable — mirror de update.
+    builder.delete = vi.fn(() => {
+      const eqsLocal: Array<[string, unknown]> = [];
+      const deleteBuilder: Record<string, unknown> = {};
+      deleteBuilder.eq = vi.fn((col: string, val: unknown) => {
+        eqsLocal.push([col, val]);
+        return deleteBuilder;
+      });
+      deleteBuilder.then = vi.fn((onResolve: (x: unknown) => unknown) => {
+        deleteCalls.push({ table, eqs: [...eqsLocal] });
+        return Promise.resolve(
+          onResolve(handlers.deleteResult ?? { error: null }),
+        );
+      });
+      return deleteBuilder;
+    });
+
     return builder;
   });
 
@@ -377,6 +398,7 @@ function makeSupabaseClient(
     insertCalls,
     updateCalls,
     selectCalls,
+    deleteCalls,
   };
 }
 
@@ -2251,6 +2273,175 @@ describe("restoreLeadSite — db_error", () => {
 
     const { restoreLeadSite } = await import("@/app/actions/lead-site");
     const r = await restoreLeadSite(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("db_error");
+  });
+});
+
+// ===========================================================================
+// discardLeadSiteDraft — recovery de draft preso (sprint A3 onsite flow)
+// ===========================================================================
+
+describe("discardLeadSiteDraft — auth + not_found", () => {
+  it("retorna { ok: false, error: 'auth' } quando user é null", async () => {
+    const server = makeSupabaseClient({});
+    server.auth.getUser.mockResolvedValue(noUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { discardLeadSiteDraft } = await import("@/app/actions/lead-site");
+    const r = await discardLeadSiteDraft(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("auth");
+  });
+
+  it("retorna not_found quando RLS retorna null (cross-user)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    supabaseMocks.serviceClient.mockReturnValue(makeSupabaseClient({}));
+
+    const { discardLeadSiteDraft } = await import("@/app/actions/lead-site");
+    const r = await discardLeadSiteDraft(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("not_found");
+  });
+});
+
+describe("discardLeadSiteDraft — status guard", () => {
+  it("retorna invalid_status quando status='published' (defesa em profundidade)", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "live-slug",
+            status: "published",
+            generation_error: null,
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({});
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { discardLeadSiteDraft } = await import("@/app/actions/lead-site");
+    const r = await discardLeadSiteDraft(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+    // Não deve disparar delete em site publicado.
+    expect(
+      service.deleteCalls.find((c) => c.table === "lead_sites"),
+    ).toBeUndefined();
+  });
+
+  it("retorna invalid_status quando status='draft' MAS generation_error é null", async () => {
+    // Caso defensivo: draft transitório (entre Anthropic call e Zod parse)
+    // não tem erro — não devemos descartar às cegas.
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "draft-no-error",
+            status: "draft",
+            generation_error: null,
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({});
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { discardLeadSiteDraft } = await import("@/app/actions/lead-site");
+    const r = await discardLeadSiteDraft(LEAD_SITE_ID);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("invalid_status");
+    expect(
+      service.deleteCalls.find((c) => c.table === "lead_sites"),
+    ).toBeUndefined();
+  });
+});
+
+describe("discardLeadSiteDraft — happy path", () => {
+  it("status='draft' + generation_error → hard delete + cache invalidation", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "broken-draft",
+            status: "draft",
+            generation_error:
+              '{"code":"ai_error","message":"timeout","timestamp":"2026-05-17T00:00:00Z"}',
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: { deleteResult: { error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { discardLeadSiteDraft } = await import("@/app/actions/lead-site");
+    const r = await discardLeadSiteDraft(LEAD_SITE_ID);
+
+    expect(r.ok).toBe(true);
+
+    const deleteCall = service.deleteCalls.find(
+      (c) => c.table === "lead_sites",
+    );
+    expect(deleteCall).toBeTruthy();
+    expect(deleteCall!.eqs).toEqual([["id", LEAD_SITE_ID]]);
+
+    expect(cacheMocks.updateTag).toHaveBeenCalledWith("site:broken-draft");
+    expect(cacheMocks.revalidatePath).toHaveBeenCalledWith(
+      `/leads/${VALID_LEAD_ID}`,
+    );
+  });
+});
+
+describe("discardLeadSiteDraft — db_error", () => {
+  it("retorna db_error quando delete falha", async () => {
+    const server = makeSupabaseClient({
+      lead_sites: {
+        leadResult: {
+          data: {
+            id: LEAD_SITE_ID,
+            lead_id: VALID_LEAD_ID,
+            slug: "broken",
+            status: "draft",
+            generation_error: '{"code":"validation","message":"bad"}',
+          },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+    const service = makeSupabaseClient({
+      lead_sites: {
+        deleteResult: { error: { name: "PostgresError", message: "boom" } },
+      },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    const { discardLeadSiteDraft } = await import("@/app/actions/lead-site");
+    const r = await discardLeadSiteDraft(LEAD_SITE_ID);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error).toBe("db_error");
   });

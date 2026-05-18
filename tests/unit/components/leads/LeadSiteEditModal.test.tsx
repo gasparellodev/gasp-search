@@ -152,6 +152,7 @@ function makeLeadSite(
     sent_at: null,
     view_count: 0,
     variables: makeVariables(),
+    generation_error: null,
     ...overrides,
   };
 }

@@ -42,17 +42,20 @@ import {
   RotateCcw,
   Send,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   archiveLeadSite,
+  discardLeadSiteDraft,
   generateLeadSite,
   regenerateVisualIdentity,
   restoreLeadSite,
   sendLeadSiteWhatsApp,
 } from "@/app/actions/lead-site";
 import type {
+  DiscardLeadSiteDraftResult,
   GenerateLeadSiteResult,
   LeadSiteStatusActionResult,
   RegenerateVisualIdentityResult,
@@ -64,6 +67,11 @@ import { formatBRL } from "@/lib/finance";
 import { cn } from "@/lib/utils";
 
 import { LeadSiteEditModal } from "./LeadSiteEditModal";
+import {
+  LeadSitePreGenModal,
+  type PreGenLeadSummary,
+} from "./lead-site-pre-gen-modal";
+import { SiteGenerationProgress } from "./site-generation-progress";
 import type { LeadSiteCardData, LeadSiteStatus } from "./lead-site-card-types";
 
 interface LeadSiteCardActionsProps {
@@ -76,6 +84,15 @@ interface LeadSiteCardActionsProps {
    *  preservar a fronteira (env-public ainda é seguro, mas centralizar
    *  aqui evita duplicação). */
   appUrl: string;
+  /**
+   * Sprint A1 — subset dos campos do lead que abastecem o modal de
+   * validação pré-geração. **Opcional**: quando ausente (ex: surface
+   * `<LeadSiteCardClient />` no drawer que ainda não foi atualizado),
+   * o fluxo cai pro comportamento anterior (geração direta sem modal).
+   * Quando presente, clicar "Gerar site agora" abre o modal e só dispara
+   * a action após confirmação.
+   */
+  leadSummary?: PreGenLeadSummary | null;
 }
 
 /**
@@ -167,6 +184,29 @@ function sendActionErrorMessage(
  *    imagens ficaram no Storage — orienta retry (idempotência com `force:true`
  *    vai sobrescrever de novo).
  */
+/**
+ * Mapeia o `error` da Server Action `discardLeadSiteDraft` (sprint A3) pra
+ * mensagem PT-BR. `invalid_status` é defesa em profundidade — UI só
+ * mostra o botão "Descartar rascunho" quando há `generation_error`, mas
+ * race conditions (outro tab publicou) podem disparar.
+ */
+function discardErrorMessage(
+  error: DiscardLeadSiteDraftResult & { ok: false },
+): string {
+  switch (error.error) {
+    case "auth":
+      return "Sessão expirada. Faça login novamente.";
+    case "not_found":
+      return "Rascunho não encontrado.";
+    case "invalid_status":
+      return "Este site não pode mais ser descartado (talvez já tenha sido publicado em outra aba).";
+    case "db_error":
+      return "Falha ao descartar. Tente novamente.";
+    default:
+      return error.message ?? "Erro desconhecido ao descartar o rascunho.";
+  }
+}
+
 function regenerateErrorMessage(
   error: RegenerateVisualIdentityResult & { ok: false },
 ): string {
@@ -194,6 +234,7 @@ export function LeadSiteCardActions({
   leadSite,
   leadId,
   appUrl,
+  leadSummary,
 }: LeadSiteCardActionsProps) {
   const router = useRouter();
   const [isGenerating, startGenerateTransition] = useTransition();
@@ -202,16 +243,28 @@ export function LeadSiteCardActions({
   const [isSending, startSendTransition] = useTransition();
   const [isRegeneratingIdentity, startRegenerateIdentityTransition] =
     useTransition();
+  const [isDiscarding, startDiscardTransition] = useTransition();
   const [editOpen, setEditOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [regenerateIdentityDialogOpen, setRegenerateIdentityDialogOpen] =
     useState(false);
+  const [preGenOpen, setPreGenOpen] = useState(false);
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
+  // Sprint A4: detecta draft com erro persistido — habilita botão
+  // "Descartar rascunho" + label de retry "Tentar de novo".
+  const hasGenerationError =
+    status === "draft" && (leadSite?.generation_error ?? null) !== null;
 
   // ---------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------
-  function handleGenerate() {
+
+  /**
+   * Sprint A1: dispara a Server Action `generateLeadSite`. Mantém a
+   * mesma semântica de toast/refresh que existia desde #167. O modal
+   * de validação chama esta função após o operador confirmar.
+   */
+  function executeGenerate() {
     startGenerateTransition(async () => {
       try {
         const result = await generateLeadSite(leadId);
@@ -219,11 +272,14 @@ export function LeadSiteCardActions({
           toast.success("Site gerado!", {
             description: "A pré-visualização já está disponível.",
           });
+          setPreGenOpen(false);
           router.refresh();
         } else {
           toast.error("Não foi possível gerar o site", {
             description: generateErrorMessage(result),
           });
+          // Mantém o modal aberto em erro pra operador ajustar e
+          // retentar sem perder o contexto. O toast já comunicou.
         }
       } catch {
         toast.error("Não foi possível gerar o site", {
@@ -231,6 +287,20 @@ export function LeadSiteCardActions({
         });
       }
     });
+  }
+
+  /**
+   * Click handler do botão "Gerar site agora". Quando `leadSummary`
+   * está presente (page flow), abre o modal de validação primeiro.
+   * Caso contrário (drawer flow, retry no estado draft+error), dispara
+   * direto pra preservar o comportamento anterior.
+   */
+  function handleGenerate() {
+    if (leadSummary && !hasGenerationError) {
+      setPreGenOpen(true);
+      return;
+    }
+    executeGenerate();
   }
 
   function handleArchive() {
@@ -340,6 +410,29 @@ export function LeadSiteCardActions({
     });
   }
 
+  function handleDiscard() {
+    if (!leadSite) return;
+    startDiscardTransition(async () => {
+      try {
+        const result = await discardLeadSiteDraft(leadSite.id);
+        if (result.ok) {
+          toast.success("Rascunho descartado", {
+            description: "Tudo limpo. Você pode gerar o site de novo.",
+          });
+          router.refresh();
+        } else {
+          toast.error("Não foi possível descartar o rascunho", {
+            description: discardErrorMessage(result),
+          });
+        }
+      } catch {
+        toast.error("Não foi possível descartar o rascunho", {
+          description: "Erro inesperado. Tente novamente.",
+        });
+      }
+    });
+  }
+
   async function handleCopyUrl(url: string) {
     try {
       await navigator.clipboard.writeText(url);
@@ -355,29 +448,106 @@ export function LeadSiteCardActions({
   // Render por estado
   // ---------------------------------------------------------------
 
-  // Estado `none` — sem site OU draft (status='draft' indica geração que
-  // falhou e está em retry/reset).
+  // Estado `none` — sem site, OU `draft` em progresso (sem erro).
+  // Sprint A4: quando há `generation_error`, expomos um cluster com
+  // "Tentar de novo" + "Descartar rascunho" pra dar saída ao operador.
   if (status === "none" || status === "draft") {
+    if (hasGenerationError && leadSite) {
+      const busy = isGenerating || isDiscarding;
+      return (
+        <div data-testid="lead-site-draft-error-wrapper">
+          <div
+            className="flex flex-wrap items-center gap-2"
+            data-testid="lead-site-draft-error-cluster"
+          >
+            <Button
+              type="button"
+              onClick={handleGenerate}
+              disabled={busy}
+              aria-busy={isGenerating}
+              data-testid="lead-site-retry-button"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Tentando de novo…
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="size-4" aria-hidden="true" />
+                  Tentar de novo
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleDiscard}
+              disabled={busy}
+              aria-busy={isDiscarding}
+              data-testid="lead-site-discard-button"
+            >
+              {isDiscarding ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                  Descartando…
+                </>
+              ) : (
+                <>
+                  <Trash2 className="size-4" aria-hidden="true" />
+                  Descartar rascunho
+                </>
+              )}
+            </Button>
+          </div>
+          {/* key={isGenerating ? "active" : "idle"} força remount entre
+           *  execuções pra resetar o contador de estágios cosméticos. */}
+          <SiteGenerationProgress
+            key={isGenerating ? "active" : "idle"}
+            active={isGenerating}
+          />
+        </div>
+      );
+    }
+
     return (
-      <Button
-        type="button"
-        onClick={handleGenerate}
-        disabled={isGenerating}
-        aria-busy={isGenerating}
-        data-testid="lead-site-generate-button"
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-            Gerando…
-          </>
-        ) : (
-          <>
-            <Sparkles className="size-4" aria-hidden="true" />
-            Gerar site agora
-          </>
-        )}
-      </Button>
+      <div data-testid="lead-site-generate-wrapper">
+        <Button
+          type="button"
+          onClick={handleGenerate}
+          disabled={isGenerating}
+          aria-busy={isGenerating}
+          data-testid="lead-site-generate-button"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+              Gerando…
+            </>
+          ) : (
+            <>
+              <Sparkles className="size-4" aria-hidden="true" />
+              Gerar site agora
+            </>
+          )}
+        </Button>
+        <SiteGenerationProgress active={isGenerating} />
+        {leadSummary ? (
+          <LeadSitePreGenModal
+            open={preGenOpen}
+            onOpenChange={(next) => {
+              // Não fecha enquanto a action está em flight — operador
+              // deve esperar o resultado pra evitar perda de contexto.
+              if (!next && isGenerating) return;
+              setPreGenOpen(next);
+            }}
+            lead={leadSummary}
+            onConfirm={executeGenerate}
+            isGenerating={isGenerating}
+          />
+        ) : null}
+      </div>
     );
   }
 

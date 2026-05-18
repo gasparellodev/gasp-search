@@ -81,7 +81,20 @@ export default async function LeadDetailPage({
         mode="standalone"
         tags={tags}
         defaultTab={defaultTab}
-        siteCard={<LeadSiteCard leadId={lead.id} />}
+        siteCard={
+          <LeadSiteCard
+            leadId={lead.id}
+            leadSummary={{
+              name: lead.name,
+              phone: lead.phone,
+              email: lead.email,
+              website: lead.website,
+              instagram_handle: lead.instagram_handle,
+              city: lead.city,
+              state: lead.state,
+            }}
+          />
+        }
         messageHistory={
           <MessageHistory
             leadId={lead.id}

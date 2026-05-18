@@ -1690,6 +1690,132 @@ export async function restoreLeadSite(
 }
 
 // ---------------------------------------------------------------------------
+// discardLeadSiteDraft — recovery de drafts presos (sprint A3 onsite flow)
+// ---------------------------------------------------------------------------
+
+/**
+ * Retorno discriminado de `discardLeadSiteDraft` — ação de recovery para
+ * sites cuja geração falhou (`status='draft'` + `generation_error != null`).
+ *
+ * Erros:
+ *  - `auth`           — usuário não autenticado.
+ *  - `not_found`      — leadSiteId não existe ou não pertence ao usuário (RLS).
+ *  - `invalid_status` — site não está em `draft` com erro persistido. Sites
+ *                       publicados/enviados/arquivados usam outras transições
+ *                       (`archiveLeadSite`, `restoreLeadSite`). Draft sem
+ *                       `generation_error` é estado transiente — não deve
+ *                       ser descartado às cegas.
+ *  - `db_error`       — falha de infra no delete.
+ */
+export type DiscardLeadSiteDraftResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: "auth" | "not_found" | "invalid_status" | "db_error";
+      message: string;
+    };
+
+/**
+ * Server Action `discardLeadSiteDraft(leadSiteId)` — apaga uma row de
+ * `lead_sites` que ficou presa em `status='draft'` após falha de geração.
+ *
+ * Cenário de uso: operador clicou "Gerar site" durante visita onsite,
+ * Anthropic deu timeout ou validação Zod falhou → site persistido como
+ * `draft` com `generation_error` JSON. UI mostra "Geração falhou" e botão
+ * "Descartar rascunho" que chama esta action.
+ *
+ * Diferente de `archiveLeadSite` (que faz soft-delete e pode ser
+ * restaurado), esta action **hard-deleta** a row pra liberar o slug
+ * global e permitir um `generateLeadSite` limpo do zero — sem herdar
+ * brand assets/copy cached da tentativa anterior.
+ *
+ * Pipeline:
+ *  1. Auth → `error: 'auth'`.
+ *  2. Fetch lead_site via auth client (RLS) — `null` → `error: 'not_found'`.
+ *  3. Status guard: `status === 'draft'` **e** `generation_error !== null`.
+ *     Caso contrário → `error: 'invalid_status'` (defesa em profundidade).
+ *  4. Hard-delete via service_role.
+ *  5. Cache invalidation: `updateTag('site:<slug>')` (site não existe mais,
+ *     OG/llms.txt etc retornam 404) + `revalidatePath('/leads/<leadId>')`.
+ */
+export async function discardLeadSiteDraft(
+  leadSiteId: string,
+): Promise<DiscardLeadSiteDraftResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para descartar o rascunho.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status, generation_error")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Rascunho não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Status guard. Hard-delete só faz sentido em draft FALHO —
+  // proteger contra UI desalinhada que tente descartar um site publicado.
+  if (existing.status !== "draft" || existing.generation_error === null) {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message:
+        "Apenas rascunhos com falha de geração podem ser descartados.",
+    };
+  }
+
+  // Step 4: Hard-delete via service_role.
+  const service = createServiceSupabase();
+  const { error: deleteError } = await service
+    .from("lead_sites")
+    .delete()
+    .eq("id", leadSiteId);
+
+  if (deleteError) {
+    console.error("discardLeadSiteDraft.persist", {
+      action: "discardLeadSiteDraft",
+      step: "persist",
+      leadSiteId,
+      userId,
+      errorName: deleteError.name ?? "unknown",
+      errorMessage: deleteError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao descartar o rascunho. Tente novamente.",
+    };
+  }
+
+  // Step 5: Cache invalidation. Slug some do DB → OG image / sitemap /
+  // llms.txt resolvem 404 no próximo hit (getSite() retorna null).
+  updateTag(`site:${existing.slug}`);
+  if (existing.lead_id) {
+    revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // sendLeadSiteWhatsApp (#171) — envia o site gerado via WhatsApp (Evolution)
 // ---------------------------------------------------------------------------
 
@@ -1965,6 +2091,9 @@ export interface LeadSiteCardDataResult {
     sent_at: string | null;
     view_count: number;
     variables: unknown | null;
+    /** Sprint A4 — diferencia draft "limpo" (em progresso) de draft
+     *  "quebrado" (gera o botão "Descartar rascunho"). */
+    generation_error: string | null;
   } | null;
   appUrl: string;
 }
@@ -1977,7 +2106,7 @@ export async function getLeadSiteCardData(
   const { data, error } = await server
     .from("lead_sites")
     .select(
-      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables, generation_error",
     )
     .eq("lead_id", leadId)
     .maybeSingle();
