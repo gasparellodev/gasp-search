@@ -39,6 +39,7 @@ import {
   ImageIcon,
   Loader2,
   Pencil,
+  QrCode,
   RotateCcw,
   Send,
   Sparkles,
@@ -72,6 +73,7 @@ import {
   type PreGenLeadSummary,
 } from "./lead-site-pre-gen-modal";
 import { SiteGenerationProgress } from "./site-generation-progress";
+import { SitePublishedModal } from "./site-published-modal";
 import type { LeadSiteCardData, LeadSiteStatus } from "./lead-site-card-types";
 
 interface LeadSiteCardActionsProps {
@@ -249,6 +251,15 @@ export function LeadSiteCardActions({
   const [regenerateIdentityDialogOpen, setRegenerateIdentityDialogOpen] =
     useState(false);
   const [preGenOpen, setPreGenOpen] = useState(false);
+  /**
+   * Sprint B3 — `<SitePublishedModal>` é renderizado quando `publishedSlug`
+   * tem valor. Slug vem de duas fontes:
+   *   - `result.slug` direto da action de geração (caso `none → published`).
+   *   - `leadSite.slug` quando operador clica "QR Code" na cluster
+   *     já-publicada (re-abrir o modal pra mostrar QR de novo).
+   * Estado `null` esconde o modal.
+   */
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
   const status: LeadSiteStatus | "none" = leadSite?.status ?? "none";
   // Sprint A4: detecta draft com erro persistido — habilita botão
   // "Descartar rascunho" + label de retry "Tentar de novo".
@@ -270,9 +281,15 @@ export function LeadSiteCardActions({
         const result = await generateLeadSite(leadId);
         if (result.ok) {
           toast.success("Site gerado!", {
-            description: "A pré-visualização já está disponível.",
+            description: "Compartilhe via QR code ou WhatsApp.",
           });
           setPreGenOpen(false);
+          // Sprint B3: auto-abre o modal de QR + clipboard pra demo
+          // imediata na frente do cliente. `result.slug` é fonte de
+          // verdade imediata — o `router.refresh()` aciona re-fetch
+          // do Server Component em paralelo, mas o modal já tem o
+          // URL correto sem esperar.
+          setPublishedSlug(result.slug);
           router.refresh();
         } else {
           toast.error("Não foi possível gerar o site", {
@@ -581,6 +598,14 @@ export function LeadSiteCardActions({
   // Estados `published` / `sent`
   const slug = leadSite?.slug ?? "";
   const url = `${appUrl}/sites/${slug}`;
+  // Sprint B3: o modal de QR/clipboard reaparece automaticamente pós-
+  // geração (publishedSlug setado via executeGenerate) E pode ser
+  // re-aberto pelo botão "QR code" da cluster. URL é deduzida do
+  // publishedSlug (snapshot da última geração) com fallback pra slug
+  // atual — relevante quando `router.refresh()` trouxe o status novo
+  // mas ainda não substituiu `publishedSlug`.
+  const modalSlug = publishedSlug ?? slug;
+  const modalUrl = `${appUrl}/sites/${modalSlug}`;
 
   return (
     <TooltipProvider>
@@ -593,6 +618,17 @@ export function LeadSiteCardActions({
             <ExternalLink className="size-4" aria-hidden="true" />
             Pré-visualizar
           </Link>
+        </Button>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setPublishedSlug(slug)}
+          data-testid="lead-site-qr-button"
+        >
+          <QrCode className="size-4" aria-hidden="true" />
+          QR code
         </Button>
 
         <Button
@@ -722,6 +758,18 @@ export function LeadSiteCardActions({
           </Button>
         </RegenerateIdentityConfirmDialog>
       </div>
+
+      <SitePublishedModal
+        open={publishedSlug !== null}
+        onOpenChange={(next) => {
+          if (!next) setPublishedSlug(null);
+        }}
+        url={modalUrl}
+        slug={modalSlug}
+        onCopy={() => void handleCopyUrl(modalUrl)}
+        onSendWhatsApp={leadSite ? handleSend : undefined}
+        isSendingWhatsApp={isSending}
+      />
     </TooltipProvider>
   );
 }

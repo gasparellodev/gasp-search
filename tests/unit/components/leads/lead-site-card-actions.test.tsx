@@ -123,7 +123,7 @@ describe("LeadSiteCardActions — AC2 generate flow", () => {
     expect(hoisted.toastSuccess).toHaveBeenCalledWith(
       "Site gerado!",
       expect.objectContaining({
-        description: expect.stringMatching(/pré-visualização/i),
+        description: expect.stringMatching(/qr code|whatsapp/i),
       }),
     );
     expect(hoisted.refresh).toHaveBeenCalled();
@@ -436,7 +436,7 @@ describe("LeadSiteCardActions — #169 regenerate flow", () => {
     expect(hoisted.toastSuccess).toHaveBeenCalledWith(
       "Site gerado!",
       expect.objectContaining({
-        description: expect.stringMatching(/pré-visualização/i),
+        description: expect.stringMatching(/qr code|whatsapp/i),
       }),
     );
     expect(hoisted.refresh).toHaveBeenCalled();
@@ -1223,6 +1223,50 @@ describe("LeadSiteCardActions — sprint A2 progress indicator", () => {
         screen.getByTestId("site-generation-progress"),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("LeadSiteCardActions — sprint B3 QR/published modal", () => {
+  it("status='published' renderiza botão 'QR code' que abre o modal", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published", slug: "abc-toyota" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-qr-button"));
+    expect(
+      await screen.findByTestId("lead-site-published-modal"),
+    ).toBeVisible();
+    expect(screen.getByTestId("lead-site-published-url")).toHaveTextContent(
+      "https://app.gasplab.com/sites/abc-toyota",
+    );
+  });
+
+  it("fechar o modal limpa publishedSlug — botão QR re-abre depois", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={makeLeadSite({ status: "published", slug: "x" })}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-qr-button"));
+    await screen.findByTestId("lead-site-published-modal");
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("lead-site-published-modal"),
+      ).not.toBeInTheDocument();
+    });
+    // Re-abre.
+    await user.click(screen.getByTestId("lead-site-qr-button"));
+    expect(
+      await screen.findByTestId("lead-site-published-modal"),
+    ).toBeVisible();
   });
 });
 
