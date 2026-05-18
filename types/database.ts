@@ -658,6 +658,232 @@ export type Database = {
         };
         Relationships: [];
       };
+      // ============================================================
+      // Iara — Fase 1 Backbone (migration 0025_iara_sandbox.sql)
+      // ============================================================
+      // 5 tabelas adicionadas manualmente até o próximo `gen:types`
+      // remoto. `iara_messages.tool_calls` é JSONB; `iara_messages.role`
+      // é text + check constraint (mantemos union literal canônica).
+      // `iara_handoffs.priority` segue mesmo padrão (text + check).
+      whatsapp_conversations: {
+        Row: {
+          // Migration 0026 — review fields (text + check). Tightening manual.
+          approval_notes: string | null;
+          approval_status: "pending" | "approved" | "rejected";
+          created_at: string;
+          iara_version: string;
+          id: string;
+          is_sandbox: boolean;
+          last_message_at: string | null;
+          lead_id: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          approval_notes?: string | null;
+          approval_status?: "pending" | "approved" | "rejected";
+          created_at?: string;
+          iara_version: string;
+          id?: string;
+          is_sandbox?: boolean;
+          last_message_at?: string | null;
+          lead_id: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          approval_notes?: string | null;
+          approval_status?: "pending" | "approved" | "rejected";
+          created_at?: string;
+          iara_version?: string;
+          id?: string;
+          is_sandbox?: boolean;
+          last_message_at?: string | null;
+          lead_id?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      iara_messages: {
+        Row: {
+          content: string;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          // text + check (user|assistant). Tightening manual.
+          role: "user" | "assistant";
+          tool_calls: Json | null;
+        };
+        Insert: {
+          content: string;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          role: "user" | "assistant";
+          tool_calls?: Json | null;
+        };
+        Update: {
+          content?: string;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          role?: "user" | "assistant";
+          tool_calls?: Json | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "iara_messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "whatsapp_conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      iara_handoffs: {
+        Row: {
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          motivo: string;
+          // text + check (P0..P3). Tightening manual.
+          priority: "P0" | "P1" | "P2" | "P3";
+          resolved_at: string | null;
+        };
+        Insert: {
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          motivo: string;
+          priority: "P0" | "P1" | "P2" | "P3";
+          resolved_at?: string | null;
+        };
+        Update: {
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          motivo?: string;
+          priority?: "P0" | "P1" | "P2" | "P3";
+          resolved_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "iara_handoffs_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "whatsapp_conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      iara_scheduled_followups: {
+        Row: {
+          cancelled_at: string | null;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          lead_id: string;
+          mensagem: string;
+          scheduled_for: string;
+          sent_at: string | null;
+          user_id: string;
+        };
+        Insert: {
+          cancelled_at?: string | null;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          lead_id: string;
+          mensagem: string;
+          scheduled_for: string;
+          sent_at?: string | null;
+          user_id: string;
+        };
+        Update: {
+          cancelled_at?: string | null;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          lead_id?: string;
+          mensagem?: string;
+          scheduled_for?: string;
+          sent_at?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "iara_scheduled_followups_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "whatsapp_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "iara_scheduled_followups_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      iara_demand_signals: {
+        Row: {
+          conversation_id: string;
+          created_at: string;
+          feature_solicitada: string;
+          id: string;
+          lead_id: string;
+          user_id: string;
+        };
+        Insert: {
+          conversation_id: string;
+          created_at?: string;
+          feature_solicitada: string;
+          id?: string;
+          lead_id: string;
+          user_id: string;
+        };
+        Update: {
+          conversation_id?: string;
+          created_at?: string;
+          feature_solicitada?: string;
+          id?: string;
+          lead_id?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "iara_demand_signals_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "whatsapp_conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "iara_demand_signals_lead_id_fkey";
+            columns: ["lead_id"];
+            isOneToOne: false;
+            referencedRelation: "leads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;

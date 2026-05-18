@@ -47,6 +47,9 @@ export default defineConfig({
         "components/pipeline/**/*.{ts,tsx}",
         "components/ai/**/*.{ts,tsx}",
         "components/sites/**/*.{ts,tsx}",
+        // Iara — Fase 1 (sandbox + review dashboard). Componentes
+        // client/server cobertos por unit + RTL.
+        "components/iara/**/*.{ts,tsx}",
         // Schemas de domínio em `types/` que carregam lógica de validação
         // runtime (não-só type aliases) entram no coverage. Type-only files
         // como `database.ts` ficam de fora.

@@ -132,7 +132,7 @@ describe("types/database", () => {
     }>();
   });
 
-  it("Database['public']['Tables'] cobre as 13 tabelas esperadas (incluindo consent_logs do P3 #234)", () => {
+  it("Database['public']['Tables'] cobre as 18 tabelas esperadas (incluindo consent_logs do P3 #234 + Iara Fase 1 #0025)", () => {
     type TableNames = keyof Database["public"]["Tables"];
     expectTypeOf<TableNames>().toEqualTypeOf<
       | "profiles"
@@ -148,6 +148,11 @@ describe("types/database", () => {
       | "campaign_targets"
       | "lead_sites"
       | "generation_throttle"
+      | "whatsapp_conversations"
+      | "iara_messages"
+      | "iara_handoffs"
+      | "iara_scheduled_followups"
+      | "iara_demand_signals"
     >();
   });
 
