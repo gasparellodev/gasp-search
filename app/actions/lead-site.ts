@@ -251,6 +251,41 @@ type LogStep =
   | "persist"
   | "complete";
 
+/**
+ * Sprint D2 — telemetria de outcome. Emite UM evento por chamada de
+ * `generateLeadSite` no FIM (sucesso ou falha) com `duration_ms` total,
+ * `slug` (quando aplicável) e `error` (quando aplicável). Permite
+ * computar SLO em Vercel Logs:
+ *   - Taxa de sucesso = filter `ok:true` / total
+ *   - p50/p95 duração = aggregation `duration_ms` filtrado por `ok:true`
+ *   - Distribuição de erros = group by `error` filtrado por `ok:false`
+ *
+ * **PII-safe** — não vaza `lead.name`, `email`, copy gerada nem o
+ * customSlug (operadores podem usar PII nesse campo).
+ */
+function logOutcome(payload: {
+  leadId: string;
+  userId: string | null;
+  startedAtMs: number;
+  outcome:
+    | { ok: true; slug: string; customSlug: boolean }
+    | { ok: false; error: string; customSlug: boolean };
+}): void {
+  const durationMs = Date.now() - payload.startedAtMs;
+  console.info("generateLeadSite.outcome", {
+    action: "generateLeadSite",
+    step: "outcome",
+    leadId: payload.leadId,
+    userId: payload.userId,
+    durationMs,
+    ok: payload.outcome.ok,
+    customSlug: payload.outcome.customSlug,
+    ...(payload.outcome.ok
+      ? { slug: payload.outcome.slug }
+      : { error: payload.outcome.error }),
+  });
+}
+
 function logStep(
   step: LogStep,
   payload: {
@@ -476,6 +511,25 @@ export async function generateLeadSite(
 ): Promise<GenerateLeadSiteResult> {
   const start = Date.now();
   const customSlug = options.customSlug;
+  let userIdForLog: string | null = null;
+
+  /**
+   * Sprint D2 — wrapper que emite `generateLeadSite.outcome` antes do
+   * return. Captura `userIdForLog` (atualizado depois do auth check) e
+   * `start`/`customSlug` via closure. Centraliza o log pra evitar drift
+   * entre os ~9 return paths.
+   */
+  const result = <T extends GenerateLeadSiteResult>(value: T): T => {
+    logOutcome({
+      leadId,
+      userId: userIdForLog,
+      startedAtMs: start,
+      outcome: value.ok
+        ? { ok: true, slug: value.slug, customSlug: !!customSlug }
+        : { ok: false, error: value.error, customSlug: !!customSlug },
+    });
+    return value;
+  };
 
   // Step 1: Auth
   const server = await createServerSupabase();
@@ -484,13 +538,14 @@ export async function generateLeadSite(
   } = await server.auth.getUser();
 
   if (!user) {
-    return {
+    return result({
       ok: false,
       error: "auth",
       message: "Você precisa estar autenticado para gerar um site.",
-    };
+    });
   }
   const userId = user.id;
+  userIdForLog = userId;
 
   const service = createServiceSupabase();
 
@@ -501,11 +556,11 @@ export async function generateLeadSite(
   } catch (err) {
     const rateErr = err as RateLimitError;
     logStep("rate_limit", { leadId, userId, ok: false });
-    return {
+    return result({
       ok: false,
       error: "rate_limit",
       message: `Máximo ${RATE_LIMIT_MAX_PER_WINDOW} gerações por minuto. Tente em ${rateErr.retryAfterSec}s.`,
-    };
+    });
   }
   logStep("rate_limit", { leadId, userId, ok: true });
 
@@ -519,11 +574,11 @@ export async function generateLeadSite(
   } catch (err) {
     if (err instanceof LeadNotFoundError) {
       logError("lead_lookup", { leadId, userId, error: err });
-      return {
+      return result({
         ok: false,
         error: "not_found",
         message: "Lead não encontrado ou sem permissão de acesso.",
-      };
+      });
     }
     throw err;
   }
@@ -559,22 +614,22 @@ export async function generateLeadSite(
           userId,
           error: new Error(`custom_slug_invalid:${validation.code}`),
         });
-        return {
+        return result({
           ok: false,
           error: "slug_invalid",
           message: validation.message ?? "Slug inválido.",
-        };
+        });
       }
       const available = await isCustomSlugAvailable(
         validation.normalized,
         server,
       );
       if (!available) {
-        return {
+        return result({
           ok: false,
           error: "slug_taken",
           message: "Esse slug já está em uso. Escolha outro.",
-        };
+        });
       }
       slug = validation.normalized;
     } else {
@@ -588,22 +643,22 @@ export async function generateLeadSite(
         userId,
         error: new Error(`custom_slug_invalid:${validation.code}`),
       });
-      return {
+      return result({
         ok: false,
         error: "slug_invalid",
         message: validation.message ?? "Slug inválido.",
-      };
+      });
     }
     const available = await isCustomSlugAvailable(
       validation.normalized,
       server,
     );
     if (!available) {
-      return {
+      return result({
         ok: false,
         error: "slug_taken",
         message: "Esse slug já está em uso. Escolha outro.",
-      };
+      });
     }
     slug = validation.normalized;
   } else {
@@ -612,12 +667,12 @@ export async function generateLeadSite(
     } catch (err) {
       if (err instanceof SlugCollisionError) {
         logError("slug", { leadId, userId, error: err });
-        return {
+        return result({
           ok: false,
           error: "db_error",
           message:
             "Não foi possível alocar um slug único. Tente novamente em alguns segundos.",
-        };
+        });
       }
       throw err;
     }
@@ -652,12 +707,12 @@ export async function generateLeadSite(
         code: err.code,
         message: err.message,
       });
-      return {
+      return result({
         ok: false,
         error: "ai_error",
         message:
           "Falha ao gerar a copy do site. Tente novamente em instantes.",
-      };
+      });
     }
     throw err;
   }
@@ -694,11 +749,11 @@ export async function generateLeadSite(
       code: "schema_validation",
       message: issuesSerialized,
     });
-    return {
+    return result({
       ok: false,
       error: "validation",
       message: "Variáveis inválidas — regere o site.",
-    };
+    });
   }
   logStep("validate", { leadId, userId, ok: true });
 
@@ -721,11 +776,11 @@ export async function generateLeadSite(
 
   if (upsertError) {
     logError("persist", { leadId, userId, error: upsertError });
-    return {
+    return result({
       ok: false,
       error: "db_error",
       message: "Falha ao salvar o site no banco. Tente novamente.",
-    };
+    });
   }
 
   logStep("persist", {
@@ -754,7 +809,7 @@ export async function generateLeadSite(
     ok: true,
   });
 
-  return { ok: true, slug };
+  return result({ ok: true, slug });
 }
 
 // ---------------------------------------------------------------------------
