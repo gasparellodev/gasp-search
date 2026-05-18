@@ -683,6 +683,159 @@ describe("generateLeadSite — AC2 idempotência (regen)", () => {
   });
 });
 
+describe("generateLeadSite — sprint B1 customSlug", () => {
+  it("usa customSlug normalizado quando válido e disponível", async () => {
+    const server = makeSupabaseClient({
+      leads: { leadResult: { data: makeLead(), error: null } },
+      lead_sites: {
+        leadResult: { data: null, error: null }, // sem site prévio
+        countResult: { count: 0, error: null }, // slug disponível
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const service = makeSupabaseClient({
+      generation_throttle: { countResult: { count: 0, error: null } },
+      lead_sites: { upsertResult: { data: null, error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    siteMocks.extractBrandAssets.mockResolvedValue(makeAssets());
+    siteMocks.generateCopy.mockResolvedValue(makeCopy());
+
+    const { generateLeadSite } = await import("@/app/actions/lead-site");
+    const r = await generateLeadSite(VALID_LEAD_ID, {
+      customSlug: "Auto-Recife-2026",
+    });
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.slug).toBe("auto-recife-2026");
+    expect(siteMocks.generateUniqueSlug).not.toHaveBeenCalled();
+
+    const upsert = service.upsertCalls.find((c) => c.table === "lead_sites")!;
+    expect((upsert.payload as { slug: string }).slug).toBe("auto-recife-2026");
+  });
+
+  it("retorna 'slug_invalid' quando customSlug não passa na regex (sem chamar IA)", async () => {
+    const server = makeSupabaseClient({
+      leads: { leadResult: { data: makeLead(), error: null } },
+      lead_sites: { leadResult: { data: null, error: null } },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const service = makeSupabaseClient({
+      generation_throttle: { countResult: { count: 0, error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    siteMocks.extractBrandAssets.mockResolvedValue(makeAssets());
+    siteMocks.generateCopy.mockResolvedValue(makeCopy());
+
+    const { generateLeadSite } = await import("@/app/actions/lead-site");
+    const r = await generateLeadSite(VALID_LEAD_ID, {
+      customSlug: "bad slug!!",
+    });
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("slug_invalid");
+    expect(siteMocks.generateCopy).not.toHaveBeenCalled();
+  });
+
+  it("retorna 'slug_taken' quando customSlug colide com row existente (sem chamar IA)", async () => {
+    const server = makeSupabaseClient({
+      leads: { leadResult: { data: makeLead(), error: null } },
+      lead_sites: {
+        leadResult: { data: null, error: null }, // sem site prévio do MESMO lead
+        countResult: { count: 1, error: null }, // mas slug ocupado por OUTRO lead
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const service = makeSupabaseClient({
+      generation_throttle: { countResult: { count: 0, error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    siteMocks.extractBrandAssets.mockResolvedValue(makeAssets());
+    siteMocks.generateCopy.mockResolvedValue(makeCopy());
+
+    const { generateLeadSite } = await import("@/app/actions/lead-site");
+    const r = await generateLeadSite(VALID_LEAD_ID, {
+      customSlug: "auto-recife",
+    });
+
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toBe("slug_taken");
+    expect(siteMocks.generateCopy).not.toHaveBeenCalled();
+  });
+
+  it("regen com customSlug != atual valida + troca slug", async () => {
+    const server = makeSupabaseClient({
+      leads: { leadResult: { data: makeLead(), error: null } },
+      lead_sites: {
+        leadResult: {
+          data: { slug: "j7k2-toyota", status: "published" },
+          error: null,
+        },
+        countResult: { count: 0, error: null },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const service = makeSupabaseClient({
+      generation_throttle: { countResult: { count: 0, error: null } },
+      lead_sites: { upsertResult: { data: null, error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    siteMocks.extractBrandAssets.mockResolvedValue(makeAssets());
+    siteMocks.generateCopy.mockResolvedValue(makeCopy());
+
+    const { generateLeadSite } = await import("@/app/actions/lead-site");
+    const r = await generateLeadSite(VALID_LEAD_ID, {
+      customSlug: "toyota-recife-novo",
+    });
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.slug).toBe("toyota-recife-novo");
+  });
+
+  it("regen com customSlug igual ao slug atual é no-op (não consulta isCustomSlugAvailable)", async () => {
+    const server = makeSupabaseClient({
+      leads: { leadResult: { data: makeLead(), error: null } },
+      lead_sites: {
+        leadResult: {
+          data: { slug: "toyota-recife", status: "published" },
+          error: null,
+        },
+      },
+    });
+    server.auth.getUser.mockResolvedValue(authedUser());
+    supabaseMocks.serverClient.mockResolvedValue(server);
+
+    const service = makeSupabaseClient({
+      generation_throttle: { countResult: { count: 0, error: null } },
+      lead_sites: { upsertResult: { data: null, error: null } },
+    });
+    supabaseMocks.serviceClient.mockReturnValue(service);
+
+    siteMocks.extractBrandAssets.mockResolvedValue(makeAssets());
+    siteMocks.generateCopy.mockResolvedValue(makeCopy());
+
+    const { generateLeadSite } = await import("@/app/actions/lead-site");
+    const r = await generateLeadSite(VALID_LEAD_ID, {
+      customSlug: "toyota-recife",
+    });
+
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.slug).toBe("toyota-recife");
+  });
+});
+
 describe("generateLeadSite — AC3 not_found", () => {
   it("retorna not_found quando lead não existe (RLS retorna null)", async () => {
     const server = makeSupabaseClient({

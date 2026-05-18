@@ -39,7 +39,8 @@ function makeLead(
 
 describe("LeadSitePreGenModal", () => {
   let onOpenChange: (open: boolean) => void;
-  let onConfirm: () => void;
+  let onConfirm: (input: { customSlug: string }) => void;
+  const APP_BASE_URL = "https://app.gasplab.com";
 
   beforeEach(() => {
     onOpenChange = vi.fn();
@@ -54,6 +55,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead()}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(screen.getByTestId("lead-site-pre-gen-modal")).toBeVisible();
@@ -77,6 +79,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead({ phone: null })}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(
@@ -96,6 +99,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead({ name: "   " })}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(
@@ -112,6 +116,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead({ email: null, instagram_handle: null })}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     const warning = screen.getByTestId("pre-gen-warning-message");
@@ -130,6 +135,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead({ email: null })}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(screen.getByTestId("pre-gen-warning-message")).toHaveTextContent(
@@ -137,7 +143,7 @@ describe("LeadSitePreGenModal", () => {
     );
   });
 
-  it("clicar 'Gerar site' chama onConfirm", async () => {
+  it("clicar 'Gerar site' chama onConfirm com customSlug (sugestão derivada do nome)", async () => {
     const user = userEvent.setup();
     render(
       <LeadSitePreGenModal
@@ -146,10 +152,92 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead()}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     await user.click(screen.getByTestId("lead-site-pre-gen-confirm"));
     expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(onConfirm).toHaveBeenCalledWith({
+      customSlug: "auto-demo-onsite",
+    });
+  });
+
+  it("preview da URL mostra o slug sugerido inicial", () => {
+    render(
+      <LeadSitePreGenModal
+        open
+        onOpenChange={onOpenChange}
+        lead={makeLead()}
+        onConfirm={onConfirm}
+        isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
+      />,
+    );
+    expect(screen.getByTestId("pre-gen-slug-preview")).toHaveTextContent(
+      `${APP_BASE_URL}/sites/auto-demo-onsite`,
+    );
+  });
+
+  it("editar slug pra valor inválido bloqueia CTA + mostra mensagem inline", async () => {
+    const user = userEvent.setup();
+    render(
+      <LeadSitePreGenModal
+        open
+        onOpenChange={onOpenChange}
+        lead={makeLead()}
+        onConfirm={onConfirm}
+        isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
+      />,
+    );
+    const input = screen.getByTestId("pre-gen-slug-input");
+    await user.clear(input);
+    await user.type(input, "abc--def");
+    expect(screen.getByTestId("pre-gen-slug-error")).toHaveTextContent(
+      /hífen consecutivo/i,
+    );
+    expect(screen.getByTestId("lead-site-pre-gen-confirm")).toBeDisabled();
+  });
+
+  it("serverSlugError 'slug em uso' aparece inline e bloqueia CTA até operador editar", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <LeadSitePreGenModal
+        open
+        onOpenChange={onOpenChange}
+        lead={makeLead()}
+        onConfirm={onConfirm}
+        isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
+        serverSlugError={null}
+      />,
+    );
+    // Simula submit do operador (captura o submittedSlug interno).
+    await user.click(screen.getByTestId("lead-site-pre-gen-confirm"));
+    // Parent reflete erro do server.
+    rerender(
+      <LeadSitePreGenModal
+        open
+        onOpenChange={onOpenChange}
+        lead={makeLead()}
+        onConfirm={onConfirm}
+        isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
+        serverSlugError="Esse slug já está em uso. Escolha outro."
+      />,
+    );
+    expect(screen.getByTestId("pre-gen-slug-error")).toHaveTextContent(
+      /já está em uso/i,
+    );
+    expect(screen.getByTestId("lead-site-pre-gen-confirm")).toBeDisabled();
+    // Operador edita o slug — erro do server some.
+    const input = screen.getByTestId("pre-gen-slug-input");
+    await user.clear(input);
+    await user.type(input, "auto-recife");
+    expect(screen.queryByTestId("pre-gen-slug-error")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("lead-site-pre-gen-confirm"),
+    ).not.toBeDisabled();
   });
 
   it("isGenerating=true desabilita Cancelar + CTA", () => {
@@ -160,6 +248,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead()}
         onConfirm={onConfirm}
         isGenerating
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(screen.getByTestId("lead-site-pre-gen-cancel")).toBeDisabled();
@@ -177,6 +266,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead({ instagram_handle: "minhaloja" })}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(screen.getByTestId("lead-site-pre-gen-modal")).toHaveTextContent(
@@ -192,6 +282,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead({ city: "Curitiba", state: null })}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     expect(screen.getByTestId("lead-site-pre-gen-modal")).toHaveTextContent(
@@ -207,6 +298,7 @@ describe("LeadSitePreGenModal", () => {
         lead={makeLead()}
         onConfirm={onConfirm}
         isGenerating={false}
+        appBaseUrl={APP_BASE_URL}
       />,
     );
     const results = await axe(container);

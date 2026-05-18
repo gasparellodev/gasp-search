@@ -101,6 +101,19 @@ Caso contrário, prefira API route REST em `app/api/`.
 | `SiteVariables.parse(merged)` final falha (URL maliciosa virou null/empty, etc.) | `validation` | n/a (sem update) |
 | Update DB error | `db_error` | n/a |
 
+### `generateLeadSite` — opções (sprint B1)
+
+`generateLeadSite(leadId, options?: { customSlug?: string })` honra `customSlug` quando passado:
+
+| Caminho | error |
+|---|---|
+| `customSlug` falha em `validateCustomSlug` (formato, blacklist, too_long, etc) | `slug_invalid` |
+| `customSlug` válido mas já em uso por outro `lead_sites.slug` | `slug_taken` |
+| Regen com `customSlug` igual ao slug atual | no-op (não consulta DB de novo) |
+| Regen com `customSlug` diferente do slug atual | Valida + reserva + troca |
+
+Quando `customSlug` é omitido, cai pro auto-gen `<nanoid8>-<base>` original. Ambos os erros de slug retornam ANTES de consumir cota da Anthropic — falha barata.
+
 ### `discardLeadSiteDraft` (sprint A3)
 
 | Caminho | error |

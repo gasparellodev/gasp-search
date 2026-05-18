@@ -21,10 +21,18 @@
  * `lead` (subset de campos). Sem dependência de Server Action aqui.
  */
 
+import { useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Sparkles, X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  CUSTOM_SLUG_LIMITS,
+  suggestSlugFromName,
+  validateCustomSlug,
+} from "@/lib/sites/slug";
 import { cn } from "@/lib/utils";
 
 /**
@@ -47,11 +55,26 @@ interface LeadSitePreGenModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lead: PreGenLeadSummary;
-  /** Disparado quando operador confirma. Parent inicia o pipeline. */
-  onConfirm: () => void;
+  /**
+   * Sprint B1 — slug customizado escolhido pelo operador. Parent
+   * recebe o `customSlug` aqui e o passa pra `generateLeadSite`.
+   * Quando string vazia, o pipeline cai pro auto-gen `<nanoid8>-<base>`.
+   */
+  onConfirm: (input: { customSlug: string }) => void;
   /** True enquanto a Server Action está em flight — desabilita o CTA
    *  pra evitar double-submit. */
   isGenerating: boolean;
+  /**
+   * Base pública pra preview da URL (`${appBaseUrl}/sites/<slug>`).
+   * Mantém o operador ciente do que vai ser publicado.
+   */
+  appBaseUrl: string;
+  /**
+   * Erro de slug retornado pela Server Action (`slug_invalid` /
+   * `slug_taken`). Quando presente, o modal mostra inline + bloqueia
+   * o CTA até o operador editar o campo. Reset quando o slug muda.
+   */
+  serverSlugError?: string | null;
 }
 
 /**
@@ -110,7 +133,40 @@ export function LeadSitePreGenModal({
   lead,
   onConfirm,
   isGenerating,
+  appBaseUrl,
+  serverSlugError,
 }: LeadSitePreGenModalProps) {
+  // Sugestão inicial derivada do business_name. Lida só no mount —
+  // se o operador mudar de lead, o parent (`<LeadSiteCardActions>`) é
+  // remontado e a sugestão volta a respeitar o novo nome. Evita
+  // `setState` em effect (react-hooks/set-state-in-effect).
+  const suggestedSlug = useMemo(
+    () => suggestSlugFromName(lead.name),
+    [lead.name],
+  );
+  const [slugInput, setSlugInput] = useState<string>(suggestedSlug);
+
+  const localValidation = useMemo(
+    () => validateCustomSlug(slugInput),
+    [slugInput],
+  );
+  // Snapshot do slug submetido na última tentativa. Quando o operador
+  // edita o input, a comparação falha e o `serverSlugError` é escondido
+  // automaticamente — sem setState dentro de useEffect.
+  const [submittedSlug, setSubmittedSlug] = useState<string | null>(null);
+
+  const showServerError =
+    serverSlugError !== null &&
+    submittedSlug !== null &&
+    submittedSlug === localValidation.normalized;
+
+  const slugErrorMessage =
+    !localValidation.ok && localValidation.message
+      ? localValidation.message
+      : showServerError
+        ? serverSlugError
+        : null;
+
   const rows: FieldRow[] = [
     { label: "Nome do negócio", value: lead.name, critical: true },
     { label: "Telefone", value: lead.phone, critical: true },
@@ -137,6 +193,12 @@ export function LeadSitePreGenModal({
   const missingOptionalCount = rows.filter(
     (r) => !r.critical && !hasValue(r.value),
   ).length;
+
+  const submitDisabled =
+    missingCritical || !localValidation.ok || isGenerating || !!slugErrorMessage;
+
+  const baseUrlClean = appBaseUrl.replace(/\/$/, "");
+  const previewUrl = `${baseUrlClean}/sites/${localValidation.normalized || slugInput.trim().toLowerCase() || "—"}`;
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -206,6 +268,54 @@ export function LeadSitePreGenModal({
             })}
           </ul>
 
+          <div className="mt-5" data-testid="pre-gen-slug-section">
+            <Label htmlFor="pre-gen-slug-input" className="text-sm">
+              URL do site
+            </Label>
+            <div className="mt-1 flex flex-wrap items-center gap-1 text-muted-foreground text-xs">
+              <span>{baseUrlClean}/sites/</span>
+              <Input
+                id="pre-gen-slug-input"
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                spellCheck={false}
+                value={slugInput}
+                onChange={(e) => {
+                  setSlugInput(e.target.value);
+                }}
+                aria-invalid={!!slugErrorMessage}
+                aria-describedby={
+                  slugErrorMessage ? "pre-gen-slug-error" : undefined
+                }
+                maxLength={CUSTOM_SLUG_LIMITS.max + 4}
+                className="font-mono text-sm"
+                data-testid="pre-gen-slug-input"
+              />
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {slugErrorMessage ? (
+                <span
+                  className="text-destructive font-medium"
+                  id="pre-gen-slug-error"
+                  data-testid="pre-gen-slug-error"
+                >
+                  {slugErrorMessage}
+                </span>
+              ) : (
+                <>
+                  Preview:{" "}
+                  <span
+                    className="font-mono"
+                    data-testid="pre-gen-slug-preview"
+                  >
+                    {previewUrl}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+
           {missingCritical ? (
             <p
               className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
@@ -242,8 +352,11 @@ export function LeadSitePreGenModal({
             <Button
               type="button"
               size="sm"
-              onClick={onConfirm}
-              disabled={missingCritical || isGenerating}
+              onClick={() => {
+                setSubmittedSlug(localValidation.normalized);
+                onConfirm({ customSlug: localValidation.normalized });
+              }}
+              disabled={submitDisabled}
               aria-busy={isGenerating}
               data-testid="lead-site-pre-gen-confirm"
             >

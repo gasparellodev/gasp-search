@@ -118,6 +118,10 @@ function generateErrorMessage(
       return "Os dados do lead não passaram na validação. Confira tags/categoria.";
     case "db_error":
       return "Erro ao salvar o site. Tente novamente em instantes.";
+    case "slug_invalid":
+      return error.message ?? "Slug inválido.";
+    case "slug_taken":
+      return error.message ?? "Slug já em uso.";
     default:
       return error.message ?? "Erro desconhecido ao gerar o site.";
   }
@@ -252,6 +256,12 @@ export function LeadSiteCardActions({
     useState(false);
   const [preGenOpen, setPreGenOpen] = useState(false);
   /**
+   * Sprint B1: erro de slug retornado pela Server Action (`slug_invalid`
+   * ou `slug_taken`). Quando setado, o modal pré-gen mostra inline e
+   * bloqueia o CTA até o operador editar o campo.
+   */
+  const [serverSlugError, setServerSlugError] = useState<string | null>(null);
+  /**
    * Sprint B3 — `<SitePublishedModal>` é renderizado quando `publishedSlug`
    * tem valor. Slug vem de duas fontes:
    *   - `result.slug` direto da action de geração (caso `none → published`).
@@ -275,10 +285,14 @@ export function LeadSiteCardActions({
    * mesma semântica de toast/refresh que existia desde #167. O modal
    * de validação chama esta função após o operador confirmar.
    */
-  function executeGenerate() {
+  function executeGenerate(customSlug?: string) {
+    setServerSlugError(null);
     startGenerateTransition(async () => {
       try {
-        const result = await generateLeadSite(leadId);
+        const result = await generateLeadSite(
+          leadId,
+          customSlug ? { customSlug } : undefined,
+        );
         if (result.ok) {
           toast.success("Site gerado!", {
             description: "Compartilhe via QR code ou WhatsApp.",
@@ -292,11 +306,18 @@ export function LeadSiteCardActions({
           setPublishedSlug(result.slug);
           router.refresh();
         } else {
-          toast.error("Não foi possível gerar o site", {
-            description: generateErrorMessage(result),
-          });
-          // Mantém o modal aberto em erro pra operador ajustar e
-          // retentar sem perder o contexto. O toast já comunicou.
+          // Sprint B1: erros específicos de slug (`slug_invalid` /
+          // `slug_taken`) mantêm o modal aberto + mostram inline pro
+          // operador editar o campo. Outros erros usam toast.
+          if (result.error === "slug_invalid" || result.error === "slug_taken") {
+            setServerSlugError(generateErrorMessage(result));
+          } else {
+            toast.error("Não foi possível gerar o site", {
+              description: generateErrorMessage(result),
+            });
+            // Mantém o modal aberto em erro pra operador ajustar e
+            // retentar sem perder o contexto.
+          }
         }
       } catch {
         toast.error("Não foi possível gerar o site", {
@@ -558,10 +579,15 @@ export function LeadSiteCardActions({
               // deve esperar o resultado pra evitar perda de contexto.
               if (!next && isGenerating) return;
               setPreGenOpen(next);
+              // Reset do erro de slug quando o operador fecha o modal
+              // — próxima abertura deve estar limpa.
+              if (!next) setServerSlugError(null);
             }}
             lead={leadSummary}
-            onConfirm={executeGenerate}
+            onConfirm={({ customSlug }) => executeGenerate(customSlug)}
             isGenerating={isGenerating}
+            appBaseUrl={appUrl}
+            serverSlugError={serverSlugError}
           />
         ) : null}
       </div>

@@ -118,7 +118,7 @@ describe("LeadSiteCardActions — AC2 generate flow", () => {
       screen.getByRole("button", { name: /Gerar site agora/i }),
     );
     await waitFor(() => {
-      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID, undefined);
     });
     expect(hoisted.toastSuccess).toHaveBeenCalledWith(
       "Site gerado!",
@@ -431,7 +431,7 @@ describe("LeadSiteCardActions — #169 regenerate flow", () => {
     );
     await user.click(screen.getByTestId("lead-site-regen-button"));
     await waitFor(() => {
-      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID, undefined);
     });
     expect(hoisted.toastSuccess).toHaveBeenCalledWith(
       "Site gerado!",
@@ -1113,7 +1113,7 @@ describe("LeadSiteCardActions — sprint A1 pre-gen modal", () => {
     );
     await user.click(screen.getByTestId("lead-site-generate-button"));
     await waitFor(() => {
-      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID, undefined);
     });
     expect(
       screen.queryByTestId("lead-site-pre-gen-modal"),
@@ -1135,10 +1135,10 @@ describe("LeadSiteCardActions — sprint A1 pre-gen modal", () => {
     expect(hoisted.generateLeadSite).not.toHaveBeenCalled();
   });
 
-  it("confirmar modal dispara generateLeadSite com leadId", async () => {
+  it("confirmar modal dispara generateLeadSite com leadId + customSlug derivado", async () => {
     hoisted.generateLeadSite.mockResolvedValue({
       ok: true,
-      slug: "abc-123",
+      slug: "auto-demo-onsite",
     });
     const user = userEvent.setup();
     render(
@@ -1153,8 +1153,37 @@ describe("LeadSiteCardActions — sprint A1 pre-gen modal", () => {
     await screen.findByTestId("lead-site-pre-gen-modal");
     await user.click(screen.getByTestId("lead-site-pre-gen-confirm"));
     await waitFor(() => {
-      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID, {
+        customSlug: "auto-demo-onsite",
+      });
     });
+  });
+
+  it("erro 'slug_taken' fica inline no modal (sem toast.error)", async () => {
+    hoisted.generateLeadSite.mockResolvedValue({
+      ok: false,
+      error: "slug_taken",
+      message: "Esse slug já está em uso. Escolha outro.",
+    });
+    const user = userEvent.setup();
+    render(
+      <LeadSiteCardActions
+        leadSite={null}
+        leadId={LEAD_ID}
+        appUrl={APP_URL}
+        leadSummary={LEAD_SUMMARY}
+      />,
+    );
+    await user.click(screen.getByTestId("lead-site-generate-button"));
+    await screen.findByTestId("lead-site-pre-gen-modal");
+    await user.click(screen.getByTestId("lead-site-pre-gen-confirm"));
+    await waitFor(() => {
+      expect(screen.getByTestId("pre-gen-slug-error")).toHaveTextContent(
+        /já está em uso/i,
+      );
+    });
+    // Toast.error NÃO é disparado pra erros de slug (UI inline cobre).
+    expect(hoisted.toastError).not.toHaveBeenCalled();
   });
 
   it("phone faltando bloqueia o submit no modal", async () => {
@@ -1194,7 +1223,7 @@ describe("LeadSiteCardActions — sprint A1 pre-gen modal", () => {
     );
     await user.click(screen.getByTestId("lead-site-retry-button"));
     await waitFor(() => {
-      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID);
+      expect(hoisted.generateLeadSite).toHaveBeenCalledWith(LEAD_ID, undefined);
     });
     // Modal NÃO foi aberto.
     expect(

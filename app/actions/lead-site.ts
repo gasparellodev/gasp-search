@@ -77,7 +77,11 @@ import {
   SlugCollisionError,
 } from "@/lib/sites/errors";
 import { safeUrl } from "@/lib/sites/sanitize";
-import { generateUniqueSlug } from "@/lib/sites/slug";
+import {
+  generateUniqueSlug,
+  isCustomSlugAvailable,
+  validateCustomSlug,
+} from "@/lib/sites/slug";
 import type { AssetSources } from "@/lib/sites/brand-assets.types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
@@ -141,9 +145,23 @@ export type GenerateLeadSiteResult =
         | "rate_limit"
         | "ai_error"
         | "validation"
-        | "db_error";
+        | "db_error"
+        | "slug_invalid"
+        | "slug_taken";
       message: string;
     };
+
+/**
+ * Opções da `generateLeadSite` (sprint B1 onsite flow).
+ *
+ *  - `customSlug`: quando fornecido, valida formato + reserva no DB
+ *    antes de chamar Anthropic. Em colisão, retorna
+ *    `error: 'slug_taken'` sem consumir cota de IA. Quando ausente,
+ *    cai pro auto-gen `<nanoid8>-<base>` original.
+ */
+export interface GenerateLeadSiteOptions {
+  customSlug?: string;
+}
 
 /**
  * Retorno da `updateLeadSiteVariables` (issue #168).
@@ -454,8 +472,10 @@ async function persistDraftWithError(
 
 export async function generateLeadSite(
   leadId: string,
+  options: GenerateLeadSiteOptions = {},
 ): Promise<GenerateLeadSiteResult> {
   const start = Date.now();
+  const customSlug = options.customSlug;
 
   // Step 1: Auth
   const server = await createServerSupabase();
@@ -522,12 +542,70 @@ export async function generateLeadSite(
     extra: { fallback: assetsFallback },
   });
 
-  // Step 6: Slug — preserva existente em regen
+  // Step 6: Slug — sprint B1 honra customSlug quando passado; preserva
+  // slug existente em regen pra não quebrar WhatsApp/QR enviados.
   const stepSlugStart = Date.now();
   const existing = await fetchExistingSite(server, leadId, userId);
   let slug: string;
   if (existing) {
-    slug = existing.slug;
+    // Regen: operador pode opcionalmente trocar pra customSlug novo,
+    // mas se omitir, mantém o atual (compat com fluxo #159). Em regen
+    // explícito com customSlug igual ao atual, é no-op.
+    if (customSlug && customSlug !== existing.slug) {
+      const validation = validateCustomSlug(customSlug);
+      if (!validation.ok) {
+        logError("slug", {
+          leadId,
+          userId,
+          error: new Error(`custom_slug_invalid:${validation.code}`),
+        });
+        return {
+          ok: false,
+          error: "slug_invalid",
+          message: validation.message ?? "Slug inválido.",
+        };
+      }
+      const available = await isCustomSlugAvailable(
+        validation.normalized,
+        server,
+      );
+      if (!available) {
+        return {
+          ok: false,
+          error: "slug_taken",
+          message: "Esse slug já está em uso. Escolha outro.",
+        };
+      }
+      slug = validation.normalized;
+    } else {
+      slug = existing.slug;
+    }
+  } else if (customSlug) {
+    const validation = validateCustomSlug(customSlug);
+    if (!validation.ok) {
+      logError("slug", {
+        leadId,
+        userId,
+        error: new Error(`custom_slug_invalid:${validation.code}`),
+      });
+      return {
+        ok: false,
+        error: "slug_invalid",
+        message: validation.message ?? "Slug inválido.",
+      };
+    }
+    const available = await isCustomSlugAvailable(
+      validation.normalized,
+      server,
+    );
+    if (!available) {
+      return {
+        ok: false,
+        error: "slug_taken",
+        message: "Esse slug já está em uso. Escolha outro.",
+      };
+    }
+    slug = validation.normalized;
   } else {
     try {
       slug = await generateUniqueSlug(lead.name, server);
@@ -549,7 +627,7 @@ export async function generateLeadSite(
     userId,
     durationMs: Date.now() - stepSlugStart,
     ok: true,
-    extra: { regen: !!existing },
+    extra: { regen: !!existing, custom: !!customSlug },
   });
 
   // Step 7: Copy IA com retry 1x exponencial
