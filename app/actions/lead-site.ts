@@ -77,7 +77,11 @@ import {
   SlugCollisionError,
 } from "@/lib/sites/errors";
 import { safeUrl } from "@/lib/sites/sanitize";
-import { generateUniqueSlug } from "@/lib/sites/slug";
+import {
+  generateUniqueSlug,
+  isCustomSlugAvailable,
+  validateCustomSlug,
+} from "@/lib/sites/slug";
 import type { AssetSources } from "@/lib/sites/brand-assets.types";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceSupabase } from "@/lib/supabase/service";
@@ -141,9 +145,23 @@ export type GenerateLeadSiteResult =
         | "rate_limit"
         | "ai_error"
         | "validation"
-        | "db_error";
+        | "db_error"
+        | "slug_invalid"
+        | "slug_taken";
       message: string;
     };
+
+/**
+ * Opções da `generateLeadSite` (sprint B1 onsite flow).
+ *
+ *  - `customSlug`: quando fornecido, valida formato + reserva no DB
+ *    antes de chamar Anthropic. Em colisão, retorna
+ *    `error: 'slug_taken'` sem consumir cota de IA. Quando ausente,
+ *    cai pro auto-gen `<nanoid8>-<base>` original.
+ */
+export interface GenerateLeadSiteOptions {
+  customSlug?: string;
+}
 
 /**
  * Retorno da `updateLeadSiteVariables` (issue #168).
@@ -232,6 +250,41 @@ type LogStep =
   | "validate"
   | "persist"
   | "complete";
+
+/**
+ * Sprint D2 — telemetria de outcome. Emite UM evento por chamada de
+ * `generateLeadSite` no FIM (sucesso ou falha) com `duration_ms` total,
+ * `slug` (quando aplicável) e `error` (quando aplicável). Permite
+ * computar SLO em Vercel Logs:
+ *   - Taxa de sucesso = filter `ok:true` / total
+ *   - p50/p95 duração = aggregation `duration_ms` filtrado por `ok:true`
+ *   - Distribuição de erros = group by `error` filtrado por `ok:false`
+ *
+ * **PII-safe** — não vaza `lead.name`, `email`, copy gerada nem o
+ * customSlug (operadores podem usar PII nesse campo).
+ */
+function logOutcome(payload: {
+  leadId: string;
+  userId: string | null;
+  startedAtMs: number;
+  outcome:
+    | { ok: true; slug: string; customSlug: boolean }
+    | { ok: false; error: string; customSlug: boolean };
+}): void {
+  const durationMs = Date.now() - payload.startedAtMs;
+  console.info("generateLeadSite.outcome", {
+    action: "generateLeadSite",
+    step: "outcome",
+    leadId: payload.leadId,
+    userId: payload.userId,
+    durationMs,
+    ok: payload.outcome.ok,
+    customSlug: payload.outcome.customSlug,
+    ...(payload.outcome.ok
+      ? { slug: payload.outcome.slug }
+      : { error: payload.outcome.error }),
+  });
+}
 
 function logStep(
   step: LogStep,
@@ -454,8 +507,29 @@ async function persistDraftWithError(
 
 export async function generateLeadSite(
   leadId: string,
+  options: GenerateLeadSiteOptions = {},
 ): Promise<GenerateLeadSiteResult> {
   const start = Date.now();
+  const customSlug = options.customSlug;
+  let userIdForLog: string | null = null;
+
+  /**
+   * Sprint D2 — wrapper que emite `generateLeadSite.outcome` antes do
+   * return. Captura `userIdForLog` (atualizado depois do auth check) e
+   * `start`/`customSlug` via closure. Centraliza o log pra evitar drift
+   * entre os ~9 return paths.
+   */
+  const result = <T extends GenerateLeadSiteResult>(value: T): T => {
+    logOutcome({
+      leadId,
+      userId: userIdForLog,
+      startedAtMs: start,
+      outcome: value.ok
+        ? { ok: true, slug: value.slug, customSlug: !!customSlug }
+        : { ok: false, error: value.error, customSlug: !!customSlug },
+    });
+    return value;
+  };
 
   // Step 1: Auth
   const server = await createServerSupabase();
@@ -464,13 +538,14 @@ export async function generateLeadSite(
   } = await server.auth.getUser();
 
   if (!user) {
-    return {
+    return result({
       ok: false,
       error: "auth",
       message: "Você precisa estar autenticado para gerar um site.",
-    };
+    });
   }
   const userId = user.id;
+  userIdForLog = userId;
 
   const service = createServiceSupabase();
 
@@ -481,11 +556,11 @@ export async function generateLeadSite(
   } catch (err) {
     const rateErr = err as RateLimitError;
     logStep("rate_limit", { leadId, userId, ok: false });
-    return {
+    return result({
       ok: false,
       error: "rate_limit",
       message: `Máximo ${RATE_LIMIT_MAX_PER_WINDOW} gerações por minuto. Tente em ${rateErr.retryAfterSec}s.`,
-    };
+    });
   }
   logStep("rate_limit", { leadId, userId, ok: true });
 
@@ -499,11 +574,11 @@ export async function generateLeadSite(
   } catch (err) {
     if (err instanceof LeadNotFoundError) {
       logError("lead_lookup", { leadId, userId, error: err });
-      return {
+      return result({
         ok: false,
         error: "not_found",
         message: "Lead não encontrado ou sem permissão de acesso.",
-      };
+      });
     }
     throw err;
   }
@@ -522,24 +597,82 @@ export async function generateLeadSite(
     extra: { fallback: assetsFallback },
   });
 
-  // Step 6: Slug — preserva existente em regen
+  // Step 6: Slug — sprint B1 honra customSlug quando passado; preserva
+  // slug existente em regen pra não quebrar WhatsApp/QR enviados.
   const stepSlugStart = Date.now();
   const existing = await fetchExistingSite(server, leadId, userId);
   let slug: string;
   if (existing) {
-    slug = existing.slug;
+    // Regen: operador pode opcionalmente trocar pra customSlug novo,
+    // mas se omitir, mantém o atual (compat com fluxo #159). Em regen
+    // explícito com customSlug igual ao atual, é no-op.
+    if (customSlug && customSlug !== existing.slug) {
+      const validation = validateCustomSlug(customSlug);
+      if (!validation.ok) {
+        logError("slug", {
+          leadId,
+          userId,
+          error: new Error(`custom_slug_invalid:${validation.code}`),
+        });
+        return result({
+          ok: false,
+          error: "slug_invalid",
+          message: validation.message ?? "Slug inválido.",
+        });
+      }
+      const available = await isCustomSlugAvailable(
+        validation.normalized,
+        server,
+      );
+      if (!available) {
+        return result({
+          ok: false,
+          error: "slug_taken",
+          message: "Esse slug já está em uso. Escolha outro.",
+        });
+      }
+      slug = validation.normalized;
+    } else {
+      slug = existing.slug;
+    }
+  } else if (customSlug) {
+    const validation = validateCustomSlug(customSlug);
+    if (!validation.ok) {
+      logError("slug", {
+        leadId,
+        userId,
+        error: new Error(`custom_slug_invalid:${validation.code}`),
+      });
+      return result({
+        ok: false,
+        error: "slug_invalid",
+        message: validation.message ?? "Slug inválido.",
+      });
+    }
+    const available = await isCustomSlugAvailable(
+      validation.normalized,
+      server,
+    );
+    if (!available) {
+      return result({
+        ok: false,
+        error: "slug_taken",
+        message: "Esse slug já está em uso. Escolha outro.",
+      });
+    }
+    slug = validation.normalized;
   } else {
     try {
       slug = await generateUniqueSlug(lead.name, server);
     } catch (err) {
       if (err instanceof SlugCollisionError) {
         logError("slug", { leadId, userId, error: err });
-        return {
+        return result({
           ok: false,
           error: "db_error",
           message:
             "Não foi possível alocar um slug único. Tente novamente em alguns segundos.",
-        };
+        });
       }
       throw err;
     }
@@ -549,7 +682,7 @@ export async function generateLeadSite(
     userId,
     durationMs: Date.now() - stepSlugStart,
     ok: true,
-    extra: { regen: !!existing },
+    extra: { regen: !!existing, custom: !!customSlug },
   });
 
   // Step 7: Copy IA com retry 1x exponencial
@@ -574,12 +707,12 @@ export async function generateLeadSite(
         code: err.code,
         message: err.message,
       });
-      return {
+      return result({
         ok: false,
         error: "ai_error",
         message:
           "Falha ao gerar a copy do site. Tente novamente em instantes.",
-      };
+      });
     }
     throw err;
   }
@@ -616,11 +749,11 @@ export async function generateLeadSite(
       code: "schema_validation",
       message: issuesSerialized,
     });
-    return {
+    return result({
       ok: false,
       error: "validation",
       message: "Variáveis inválidas — regere o site.",
-    };
+    });
   }
   logStep("validate", { leadId, userId, ok: true });
 
@@ -643,11 +776,11 @@ export async function generateLeadSite(
 
   if (upsertError) {
     logError("persist", { leadId, userId, error: upsertError });
-    return {
+    return result({
       ok: false,
       error: "db_error",
       message: "Falha ao salvar o site no banco. Tente novamente.",
-    };
+    });
   }
 
   logStep("persist", {
@@ -676,7 +809,7 @@ export async function generateLeadSite(
     ok: true,
   });
 
-  return { ok: true, slug };
+  return result({ ok: true, slug });
 }
 
 // ---------------------------------------------------------------------------
@@ -1690,6 +1823,132 @@ export async function restoreLeadSite(
 }
 
 // ---------------------------------------------------------------------------
+// discardLeadSiteDraft — recovery de drafts presos (sprint A3 onsite flow)
+// ---------------------------------------------------------------------------
+
+/**
+ * Retorno discriminado de `discardLeadSiteDraft` — ação de recovery para
+ * sites cuja geração falhou (`status='draft'` + `generation_error != null`).
+ *
+ * Erros:
+ *  - `auth`           — usuário não autenticado.
+ *  - `not_found`      — leadSiteId não existe ou não pertence ao usuário (RLS).
+ *  - `invalid_status` — site não está em `draft` com erro persistido. Sites
+ *                       publicados/enviados/arquivados usam outras transições
+ *                       (`archiveLeadSite`, `restoreLeadSite`). Draft sem
+ *                       `generation_error` é estado transiente — não deve
+ *                       ser descartado às cegas.
+ *  - `db_error`       — falha de infra no delete.
+ */
+export type DiscardLeadSiteDraftResult =
+  | { ok: true }
+  | {
+      ok: false;
+      error: "auth" | "not_found" | "invalid_status" | "db_error";
+      message: string;
+    };
+
+/**
+ * Server Action `discardLeadSiteDraft(leadSiteId)` — apaga uma row de
+ * `lead_sites` que ficou presa em `status='draft'` após falha de geração.
+ *
+ * Cenário de uso: operador clicou "Gerar site" durante visita onsite,
+ * Anthropic deu timeout ou validação Zod falhou → site persistido como
+ * `draft` com `generation_error` JSON. UI mostra "Geração falhou" e botão
+ * "Descartar rascunho" que chama esta action.
+ *
+ * Diferente de `archiveLeadSite` (que faz soft-delete e pode ser
+ * restaurado), esta action **hard-deleta** a row pra liberar o slug
+ * global e permitir um `generateLeadSite` limpo do zero — sem herdar
+ * brand assets/copy cached da tentativa anterior.
+ *
+ * Pipeline:
+ *  1. Auth → `error: 'auth'`.
+ *  2. Fetch lead_site via auth client (RLS) — `null` → `error: 'not_found'`.
+ *  3. Status guard: `status === 'draft'` **e** `generation_error !== null`.
+ *     Caso contrário → `error: 'invalid_status'` (defesa em profundidade).
+ *  4. Hard-delete via service_role.
+ *  5. Cache invalidation: `updateTag('site:<slug>')` (site não existe mais,
+ *     OG/llms.txt etc retornam 404) + `revalidatePath('/leads/<leadId>')`.
+ */
+export async function discardLeadSiteDraft(
+  leadSiteId: string,
+): Promise<DiscardLeadSiteDraftResult> {
+  // Step 1: Auth
+  const server = await createServerSupabase();
+  const {
+    data: { user },
+  } = await server.auth.getUser();
+
+  if (!user) {
+    return {
+      ok: false,
+      error: "auth",
+      message: "Você precisa estar autenticado para descartar o rascunho.",
+    };
+  }
+  const userId = user.id;
+
+  // Step 2: Fetch lead_site (RLS filtra por user_id)
+  const { data: existing, error: fetchError } = await server
+    .from("lead_sites")
+    .select("id, lead_id, slug, status, generation_error")
+    .eq("id", leadSiteId)
+    .maybeSingle();
+
+  if (fetchError || !existing) {
+    return {
+      ok: false,
+      error: "not_found",
+      message: "Rascunho não encontrado ou sem permissão de acesso.",
+    };
+  }
+
+  // Step 3: Status guard. Hard-delete só faz sentido em draft FALHO —
+  // proteger contra UI desalinhada que tente descartar um site publicado.
+  if (existing.status !== "draft" || existing.generation_error === null) {
+    return {
+      ok: false,
+      error: "invalid_status",
+      message:
+        "Apenas rascunhos com falha de geração podem ser descartados.",
+    };
+  }
+
+  // Step 4: Hard-delete via service_role.
+  const service = createServiceSupabase();
+  const { error: deleteError } = await service
+    .from("lead_sites")
+    .delete()
+    .eq("id", leadSiteId);
+
+  if (deleteError) {
+    console.error("discardLeadSiteDraft.persist", {
+      action: "discardLeadSiteDraft",
+      step: "persist",
+      leadSiteId,
+      userId,
+      errorName: deleteError.name ?? "unknown",
+      errorMessage: deleteError.message ?? "",
+    });
+    return {
+      ok: false,
+      error: "db_error",
+      message: "Falha ao descartar o rascunho. Tente novamente.",
+    };
+  }
+
+  // Step 5: Cache invalidation. Slug some do DB → OG image / sitemap /
+  // llms.txt resolvem 404 no próximo hit (getSite() retorna null).
+  updateTag(`site:${existing.slug}`);
+  if (existing.lead_id) {
+    revalidatePath(`/leads/${existing.lead_id}`);
+  }
+
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
 // sendLeadSiteWhatsApp (#171) — envia o site gerado via WhatsApp (Evolution)
 // ---------------------------------------------------------------------------
 
@@ -1965,6 +2224,9 @@ export interface LeadSiteCardDataResult {
     sent_at: string | null;
     view_count: number;
     variables: unknown | null;
+    /** Sprint A4 — diferencia draft "limpo" (em progresso) de draft
+     *  "quebrado" (gera o botão "Descartar rascunho"). */
+    generation_error: string | null;
   } | null;
   appUrl: string;
 }
@@ -1977,7 +2239,7 @@ export async function getLeadSiteCardData(
   const { data, error } = await server
     .from("lead_sites")
     .select(
-      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables, generation_error",
     )
     .eq("lead_id", leadId)
     .maybeSingle();

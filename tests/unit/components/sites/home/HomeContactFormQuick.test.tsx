@@ -112,6 +112,23 @@ describe("<HomeContactFormQuick /> — visual + estrutura", () => {
     expect(link.getAttribute("href")).toBe("/sites/abc-poliguara/lgpd");
     expect(link.getAttribute("target")).toBe("_blank");
   });
+
+  it("variant default é 'dark' com bg-foreground/text-background", () => {
+    render(<HomeContactFormQuick {...baseProps} />);
+    const section = screen.getByTestId("home-contact-form-quick");
+    expect(section.getAttribute("data-variant")).toBe("dark");
+    expect(section.className).toContain("bg-foreground");
+    expect(section.className).toContain("text-background");
+  });
+
+  it("variant='light' aplica bg-background/text-foreground (fix /sobre)", () => {
+    render(<HomeContactFormQuick {...baseProps} variant="light" />);
+    const section = screen.getByTestId("home-contact-form-quick");
+    expect(section.getAttribute("data-variant")).toBe("light");
+    expect(section.className).toContain("bg-background");
+    expect(section.className).toContain("text-foreground");
+    expect(section.className).not.toContain("bg-foreground");
+  });
 });
 
 describe("<HomeContactFormQuick /> — honeypot anti-bot", () => {

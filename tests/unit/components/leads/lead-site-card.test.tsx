@@ -95,6 +95,7 @@ function makeLeadSite(
     sent_at: null,
     view_count: 0,
     variables: null,
+    generation_error: null,
     ...overrides,
   };
 }
@@ -116,17 +117,57 @@ describe("<LeadSiteCardView /> — AC1 estados", () => {
     expect(actions).toHaveAttribute("data-app-url", APP_URL);
   });
 
-  it("estado `draft` mapeia pro mesmo visual de `none`", () => {
+  it("estado `draft` SEM generation_error mapeia pro mesmo visual de `none`", () => {
     render(
       <LeadSiteCardView
         leadId={LEAD_ID}
-        leadSite={makeLeadSite({ status: "draft" })}
+        leadSite={makeLeadSite({ status: "draft", generation_error: null })}
         appUrl={APP_URL}
       />,
     );
     expect(
       screen.getByRole("region", { name: /site do lead/i }),
     ).toHaveAttribute("data-state", "none");
+  });
+
+  it("estado `draft` COM generation_error renderiza variante de falha + motivo extraído do JSON", () => {
+    const payload = JSON.stringify({
+      code: "ai_error",
+      message: "Anthropic timeout após retry",
+      timestamp: "2026-05-17T00:00:00.000Z",
+    });
+    render(
+      <LeadSiteCardView
+        leadId={LEAD_ID}
+        leadSite={makeLeadSite({
+          status: "draft",
+          generation_error: payload,
+        })}
+        appUrl={APP_URL}
+      />,
+    );
+    const region = screen.getByRole("region", { name: /site do lead/i });
+    expect(region).toHaveAttribute("data-state", "draft-error");
+    expect(region).toHaveTextContent(/geração do site falhou/i);
+    expect(
+      screen.getByTestId("lead-site-error-message"),
+    ).toHaveTextContent("Anthropic timeout após retry");
+  });
+
+  it("estado `draft` com generation_error em texto cru (não-JSON) é tratado como fallback", () => {
+    render(
+      <LeadSiteCardView
+        leadId={LEAD_ID}
+        leadSite={makeLeadSite({
+          status: "draft",
+          generation_error: "Erro legado sem JSON wrapper",
+        })}
+        appUrl={APP_URL}
+      />,
+    );
+    expect(
+      screen.getByTestId("lead-site-error-message"),
+    ).toHaveTextContent("Erro legado sem JSON wrapper");
   });
 
   it("estado `published`: mostra data PT-BR + URL composta com NEXT_PUBLIC_APP_URL", () => {
@@ -263,7 +304,7 @@ describe("<LeadSiteCard /> — Server Component fetch", () => {
     expect(supabaseMocks.createServerSupabase).toHaveBeenCalled();
     expect(from).toHaveBeenCalledWith("lead_sites");
     expect(select).toHaveBeenCalledWith(
-      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables, generation_error",
     );
     expect(eq).toHaveBeenCalledWith("lead_id", LEAD_ID);
     expect(

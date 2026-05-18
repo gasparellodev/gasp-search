@@ -2,7 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 
 import { SlugCollisionError } from "@/lib/sites/errors";
-import { generateUniqueSlug, slugifyVehicle } from "@/lib/sites/slug";
+import {
+  CUSTOM_SLUG_LIMITS,
+  generateUniqueSlug,
+  isCustomSlugAvailable,
+  slugifyVehicle,
+  suggestSlugFromName,
+  validateCustomSlug,
+} from "@/lib/sites/slug";
 import type { Database } from "@/types/database";
 
 // Regex completa do slug: 8 chars do alfabeto seguros, hífen, base alfanum/-.
@@ -211,5 +218,128 @@ describe("slugifyVehicle()", () => {
         id: "abcd9999-1111-4111-8111-999999999999",
       }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sprint B1 — slug editável no modal pré-gen
+// ---------------------------------------------------------------------------
+
+describe("validateCustomSlug()", () => {
+  it("aceita slug curto-mas-válido (3 chars)", () => {
+    const r = validateCustomSlug("abc");
+    expect(r.ok).toBe(true);
+    expect(r.normalized).toBe("abc");
+  });
+
+  it("aceita slug com hífens internos", () => {
+    expect(validateCustomSlug("auto-recife-2026").ok).toBe(true);
+  });
+
+  it("normaliza maiúsculas + espaços extra", () => {
+    const r = validateCustomSlug("  Auto-Recife  ");
+    expect(r.ok).toBe(true);
+    expect(r.normalized).toBe("auto-recife");
+  });
+
+  it("rejeita string vazia com code='empty'", () => {
+    const r = validateCustomSlug("");
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("empty");
+  });
+
+  it("rejeita 2 chars com code='too_short'", () => {
+    const r = validateCustomSlug("ab");
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("too_short");
+  });
+
+  it(`rejeita ${CUSTOM_SLUG_LIMITS.max + 1} chars com code='too_long'`, () => {
+    const r = validateCustomSlug("a".repeat(CUSTOM_SLUG_LIMITS.max + 1));
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("too_long");
+  });
+
+  it("rejeita double hyphen com code='double_hyphen'", () => {
+    const r = validateCustomSlug("ab--cd");
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("double_hyphen");
+  });
+
+  it("rejeita underscore (não bate na regex) com code='invalid_chars'", () => {
+    const r = validateCustomSlug("ab_cd");
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("invalid_chars");
+  });
+
+  it("rejeita hífen no início com code='invalid_chars'", () => {
+    const r = validateCustomSlug("-abc");
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("invalid_chars");
+  });
+
+  it("rejeita hífen no fim com code='invalid_chars'", () => {
+    const r = validateCustomSlug("abc-");
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe("invalid_chars");
+  });
+
+  it("rejeita acento/cedilha com code='invalid_chars'", () => {
+    expect(validateCustomSlug("ção").ok).toBe(false);
+  });
+
+  it("rejeita slugs reservados", () => {
+    for (const reserved of ["admin", "api", "leads", "login", "sites"]) {
+      const r = validateCustomSlug(reserved);
+      expect(r.ok, `${reserved} deveria ser rejeitado`).toBe(false);
+      expect(r.code).toBe("reserved");
+    }
+  });
+
+  it("blacklist é case-insensitive (case já normalizado)", () => {
+    expect(validateCustomSlug("ADMIN").ok).toBe(false);
+  });
+});
+
+describe("suggestSlugFromName()", () => {
+  it("normaliza acento + espaço pra slug ASCII", () => {
+    expect(suggestSlugFromName("São Paulo Veículos")).toBe(
+      "sao-paulo-veiculos",
+    );
+  });
+
+  it("trunca em CUSTOM_SLUG_LIMITS.max", () => {
+    const long = "a".repeat(100);
+    expect(suggestSlugFromName(long).length).toBeLessThanOrEqual(
+      CUSTOM_SLUG_LIMITS.max,
+    );
+  });
+
+  it("nome vazio retorna fallback 'lead' (do slugify util)", () => {
+    expect(suggestSlugFromName("")).toBe("lead");
+  });
+});
+
+describe("isCustomSlugAvailable()", () => {
+  it("count=0 → disponível", async () => {
+    const { client } = createMockClient([0]);
+    expect(await isCustomSlugAvailable("auto-recife", client)).toBe(true);
+  });
+
+  it("count>0 → indisponível", async () => {
+    const { client } = createMockClient([1]);
+    expect(await isCustomSlugAvailable("auto-recife", client)).toBe(false);
+  });
+
+  it("count=null (permissão) → tratado como disponível (mesma semântica de generateUniqueSlug)", async () => {
+    // Mock que retorna { count: null } pra simular o caso PostgREST.
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(async () => ({ count: null, error: null })),
+        })),
+      })),
+    } as unknown as SupabaseClient<Database>;
+    expect(await isCustomSlugAvailable("auto-recife", client)).toBe(true);
   });
 });

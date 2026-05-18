@@ -23,7 +23,58 @@ interface HomeContactFormQuickProps {
   businessName: string;
   /** Slug do site, usado no link da LGPD. */
   slug: string;
+  /**
+   * Tema visual do card:
+   * - `'dark'` (default): `bg-foreground text-background` — âncora
+   *   visual de conversão (decisão original #223).
+   * - `'light'`: `bg-background text-foreground` — alinha com páginas
+   *   majoritariamente claras (ex: `/sobre`, onde o salto cromático
+   *   ficava dissonante com o restante do layout).
+   */
+  variant?: "dark" | "light";
 }
+
+/**
+ * Tokens de tema do form. Cada variant tem seu próprio mapa
+ * estático — Tailwind v4 scanner consegue extrair todas as classes
+ * literais. Não concatenar dinamicamente.
+ */
+const FORM_THEMES = {
+  dark: {
+    section: "bg-foreground text-background",
+    subtitle: "text-background/75",
+    formContainer: "border-background/15 bg-background/[0.04]",
+    inputBase:
+      "bg-background/[0.06] text-background placeholder:text-background/45 focus-visible:ring-background/40",
+    inputBorderDefault: "border-background/20",
+    inputBorderError: "border-red-400/60",
+    labelText: "text-background",
+    helperText: "text-background/60",
+    lgpdText: "text-background/75",
+    lgpdCheckbox: "border-background/40 accent-background",
+    errorText: "text-red-300",
+    successText: "text-background/85",
+    submitFocusRing: "focus-visible:ring-background/40",
+  },
+  light: {
+    section: "bg-background text-foreground",
+    subtitle: "text-foreground/70",
+    formContainer: "border-foreground/10 bg-foreground/[0.03]",
+    inputBase:
+      "bg-background text-foreground placeholder:text-foreground/45 focus-visible:ring-foreground/40",
+    inputBorderDefault: "border-foreground/15",
+    inputBorderError: "border-red-600/60",
+    labelText: "text-foreground",
+    helperText: "text-foreground/60",
+    lgpdText: "text-foreground/70",
+    lgpdCheckbox: "border-foreground/40 accent-foreground",
+    errorText: "text-red-600",
+    successText: "text-foreground/85",
+    submitFocusRing: "focus-visible:ring-foreground/40",
+  },
+} as const;
+
+type FormTheme = (typeof FORM_THEMES)[keyof typeof FORM_THEMES];
 
 /**
  * Contact form quick — captura principal conversão final da Home
@@ -56,6 +107,7 @@ export function HomeContactFormQuick({
   siteId,
   businessName,
   slug,
+  variant = "dark",
 }: HomeContactFormQuickProps) {
   // Feature flag — defesa em profundidade.
   if (publicEnv.NEXT_PUBLIC_SITE_FORMS_ENABLED !== "1") {
@@ -67,6 +119,7 @@ export function HomeContactFormQuick({
       siteId={siteId}
       businessName={businessName}
       slug={slug}
+      variant={variant}
     />
   );
 }
@@ -75,7 +128,9 @@ function HomeContactFormQuickInner({
   siteId,
   businessName,
   slug,
+  variant = "dark",
 }: HomeContactFormQuickProps) {
+  const theme = FORM_THEMES[variant];
   const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
   const [renderedAt, setRenderedAt] = useState<number | null>(null);
@@ -172,21 +227,24 @@ function HomeContactFormQuickInner({
 
   const onSubmit = handleSubmit(submitWithExtras);
 
-  const inputBaseCls =
-    "h-12 rounded-md border bg-background/[0.06] px-4 text-sm text-background placeholder:text-background/45 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/40 disabled:cursor-not-allowed disabled:opacity-60";
+  const inputBaseCls = cn(
+    "h-12 rounded-md border px-4 text-sm transition focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60",
+    theme.inputBase,
+  );
 
   return (
     <section
       data-testid="home-contact-form-quick"
+      data-variant={variant}
       aria-label="Formulário de contato rápido"
-      className="w-full bg-foreground py-16 text-background md:py-24"
+      className={cn("w-full py-16 md:py-24", theme.section)}
     >
       <div className="mx-auto max-w-3xl px-4 md:px-8">
         <header className="mb-8 flex flex-col gap-3 text-center md:mb-10">
           <h2 className="as-h2">
             Fale com a nossa equipe
           </h2>
-          <p className="text-sm text-background/75 md:text-base">
+          <p className={cn("text-sm md:text-base", theme.subtitle)}>
             Deixe seu contato e nossa equipe retorna em até 1 dia útil.
           </p>
         </header>
@@ -196,7 +254,10 @@ function HomeContactFormQuickInner({
           onSubmit={onSubmit}
           aria-label="Formulário de contato"
           aria-describedby={`${formIdBase}-summary`}
-          className="flex flex-col gap-4 rounded-2xl border border-background/15 bg-background/[0.04] p-6 md:p-8"
+          className={cn(
+            "flex flex-col gap-4 rounded-2xl border p-6 md:p-8",
+            theme.formContainer,
+          )}
         >
           {/*
             Honeypot field — escondido via inline style pra ser robusto
@@ -232,6 +293,7 @@ function HomeContactFormQuickInner({
               id={`${formIdBase}-name`}
               label="Nome completo"
               error={errors.name?.message}
+              theme={theme}
               inputProps={{
                 type: "text",
                 autoComplete: "name",
@@ -244,6 +306,7 @@ function HomeContactFormQuickInner({
               id={`${formIdBase}-phone`}
               label="Telefone (WhatsApp)"
               error={errors.phone?.message}
+              theme={theme}
               inputProps={{
                 type: "tel",
                 autoComplete: "tel",
@@ -256,6 +319,7 @@ function HomeContactFormQuickInner({
               id={`${formIdBase}-email`}
               label="E-mail"
               error={errors.email?.message}
+              theme={theme}
               inputProps={{
                 type: "email",
                 autoComplete: "email",
@@ -265,7 +329,7 @@ function HomeContactFormQuickInner({
               }}
             />
             <div className="md:col-span-1 flex items-end">
-              <p className="text-xs text-background/60">
+              <p className={cn("text-xs", theme.helperText)}>
                 Responderemos via WhatsApp ou e-mail no horário comercial.
               </p>
             </div>
@@ -274,7 +338,7 @@ function HomeContactFormQuickInner({
           <div className="flex flex-col gap-1">
             <label
               htmlFor={`${formIdBase}-message`}
-              className="text-sm font-medium text-background"
+              className={cn("text-sm font-medium", theme.labelText)}
             >
               Mensagem
             </label>
@@ -287,10 +351,11 @@ function HomeContactFormQuickInner({
                 errors.message ? `${formIdBase}-message-error` : undefined
               }
               className={cn(
-                "min-h-[120px] rounded-md border bg-background/[0.06] px-4 py-3 text-sm text-background placeholder:text-background/45 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/40 disabled:cursor-not-allowed disabled:opacity-60",
+                "min-h-[120px] rounded-md border px-4 py-3 text-sm transition focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60",
+                theme.inputBase,
                 errors.message
-                  ? "border-red-400/60"
-                  : "border-background/20",
+                  ? theme.inputBorderError
+                  : theme.inputBorderDefault,
               )}
               {...register("message")}
             />
@@ -298,7 +363,7 @@ function HomeContactFormQuickInner({
               <p
                 id={`${formIdBase}-message-error`}
                 role="alert"
-                className="text-xs text-red-300"
+                className={cn("text-xs", theme.errorText)}
               >
                 {errors.message.message}
               </p>
@@ -313,11 +378,14 @@ function HomeContactFormQuickInner({
               aria-describedby={
                 errors.lgpd ? `${formIdBase}-lgpd-error` : undefined
               }
-              className="mt-1 size-4 cursor-pointer rounded border border-background/40 accent-background"
+              className={cn(
+                "mt-1 size-4 cursor-pointer rounded border",
+                theme.lgpdCheckbox,
+              )}
             />
             <label
               htmlFor={`${formIdBase}-lgpd`}
-              className="text-xs text-background/75 md:text-sm"
+              className={cn("text-xs md:text-sm", theme.lgpdText)}
             >
               Concordo com a Política de Privacidade de{" "}
               <strong className="font-semibold">{businessName}</strong> e
@@ -337,7 +405,7 @@ function HomeContactFormQuickInner({
             <p
               id={`${formIdBase}-lgpd-error`}
               role="alert"
-              className="text-xs text-red-300"
+              className={cn("text-xs", theme.errorText)}
             >
               {errors.lgpd.message}
             </p>
@@ -350,7 +418,10 @@ function HomeContactFormQuickInner({
               backgroundColor: "var(--site-primary)",
               color: "var(--site-text-on-primary)",
             }}
-            className="mt-2 inline-flex h-12 items-center justify-center rounded-md px-6 text-sm font-semibold transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-background/40 disabled:cursor-not-allowed disabled:opacity-60"
+            className={cn(
+              "mt-2 inline-flex h-12 items-center justify-center rounded-md px-6 text-sm font-semibold transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-60",
+              theme.submitFocusRing,
+            )}
           >
             {isPending ? (
               <Loader2 className="size-5 animate-spin" aria-hidden />
@@ -364,7 +435,7 @@ function HomeContactFormQuickInner({
               id={`${formIdBase}-summary`}
               role="status"
               aria-live="polite"
-              className="text-sm text-background/85"
+              className={cn("text-sm", theme.successText)}
             >
               Recebemos seu contato — em breve nossa equipe responde.
             </p>
@@ -379,14 +450,18 @@ interface FieldProps {
   id: string;
   label: string;
   error?: string;
+  theme: FormTheme;
   inputProps: React.InputHTMLAttributes<HTMLInputElement>;
 }
 
-function Field({ id, label, error, inputProps }: FieldProps) {
+function Field({ id, label, error, theme, inputProps }: FieldProps) {
   const errorId = `${id}-error`;
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={id} className="text-sm font-medium text-background">
+      <label
+        htmlFor={id}
+        className={cn("text-sm font-medium", theme.labelText)}
+      >
         {label}
       </label>
       <input
@@ -396,11 +471,11 @@ function Field({ id, label, error, inputProps }: FieldProps) {
         aria-describedby={error ? errorId : undefined}
         className={cn(
           inputProps.className,
-          error ? "border-red-400/60" : "border-background/20",
+          error ? theme.inputBorderError : theme.inputBorderDefault,
         )}
       />
       {error && (
-        <p id={errorId} role="alert" className="text-xs text-red-300">
+        <p id={errorId} role="alert" className={cn("text-xs", theme.errorText)}>
           {error}
         </p>
       )}

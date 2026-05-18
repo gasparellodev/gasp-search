@@ -17,21 +17,28 @@ import { createServerSupabase } from "@/lib/supabase/server";
 
 import { LeadSiteCardView } from "./lead-site-card-view";
 import type { LeadSiteCardData } from "./lead-site-card-types";
+import type { PreGenLeadSummary } from "./lead-site-pre-gen-modal";
 
 interface LeadSiteCardProps {
   leadId: string;
+  /**
+   * Sprint A1: subset do lead pra alimentar o modal de validação pré-
+   * geração. Quando ausente, o flow degrada pra geração direta (drawer
+   * usa `<LeadSiteCardClient>` que não passa esse prop por enquanto).
+   */
+  leadSummary?: PreGenLeadSummary | null;
 }
 
 /**
  * Server Component principal. Faz fetch e delega render à view pura.
  */
-export async function LeadSiteCard({ leadId }: LeadSiteCardProps) {
+export async function LeadSiteCard({ leadId, leadSummary }: LeadSiteCardProps) {
   const supabase = await createServerSupabase();
 
   const { data, error } = await supabase
     .from("lead_sites")
     .select(
-      "id, slug, status, generated_at, published_at, sent_at, view_count, variables",
+      "id, slug, status, generated_at, published_at, sent_at, view_count, variables, generation_error",
     )
     .eq("lead_id", leadId)
     .maybeSingle();
@@ -59,6 +66,7 @@ export async function LeadSiteCard({ leadId }: LeadSiteCardProps) {
       leadId={leadId}
       leadSite={leadSite}
       appUrl={publicEnv.NEXT_PUBLIC_APP_URL}
+      leadSummary={leadSummary ?? null}
     />
   );
 }
