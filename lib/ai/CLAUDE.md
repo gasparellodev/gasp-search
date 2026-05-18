@@ -27,6 +27,7 @@ Clientes e helpers server-only para recursos de IA. Hoje concentra o wrapper do 
 | Path | Propósito |
 |---|---|
 | `anthropic.ts` | Cliente Anthropic compartilhado (named export `anthropic` + legado `getAnthropic()`) + `generateMessage(lead, { channel, tone, goal })` para outreach. O `anthropic` é um Proxy lazy: `new Anthropic(...)` só roda na primeira chamada efetiva, garantindo testes baratos. |
+| `iara/` | **Agente Iara v1.1** (CAIO Architect spec, 2026-05-18). Pre-vendas WhatsApp pra lojistas de seminovos. `system-prompt.ts` exporta `getIaraSystemPrompt({founder_name, founder_descricao})` + schema das 6 tools (`IARA_TOOLS`). Mudanças no prompt exigem nova simulação de cenários antes do deploy. Ver `lib/ai/iara/CLAUDE.md`. |
 | `messages.ts` | Listagem paginada de `lead_messages` para histórico |
 
 ## Dependências
